@@ -49,32 +49,32 @@ Hệ thống được tổ chức thành 5 tầng chức năng rõ ràng nhằm 
 
 ```mermaid
 graph TD
-    subgraph TẦNG 1: DATA SOURCE (Nguồn Dữ Liệu)
+    subgraph "TẦNG 1: DATA SOURCE (Nguồn Dữ Liệu)"
         DS1[Thư viện vnstock / yfinance]
         DS2[Internal JSON APIs: CafeF, Vietstock, TCBS, SSI]
         DS3[File Vật Lý: CSV, Excel]
     end
 
-    subgraph TẦNG 2: DATA COLLECTOR (Bộ Thu Thập)
+    subgraph "TẦNG 2: DATA COLLECTOR (Bộ Thu Thập)"
         DC_Core[Data Collector Engine]
         DC_Retry[Module Retry & Backoff]
         DC_Check[Checkpoint Manager]
         DC_Failed[Failed Ticker Logger]
     end
 
-    subgraph TẦNG 3: DATA PROCESSOR (Bộ Xử Lý & Làm Sạch)
+    subgraph "TẦNG 3: DATA PROCESSOR (Bộ Xử Lý & Làm Sạch)"
         DP_Norm[Column Mapper & Normalizer]
         DP_Clean[Missing Value & Outlier Imputer]
         DP_Scale[Unit Uniformity Converter]
     end
 
-    subgraph TẦNG 4: FEATURE & LABEL ENGINE (Tính Toán Chỉ Số)
+    subgraph "TẦNG 4: FEATURE & LABEL ENGINE (Tính Toán Chỉ Số)"
         FL_Feat[Ratio Calculator: Liquidity, Profitability, Leverage, Growth]
         FL_Label[Labeling Engine: Rule-Based, Altman Z-Score]
         FL_Bank[Bank CAMEL Scoring Module]
     end
 
-    subgraph TẦNG 5: OUTPUT & MODEL (Kết Đầu Ra & Mô Hình)
+    subgraph "TẦNG 5: OUTPUT & MODEL (Kết Đầu Ra & Mô Hình)"
         M_Train[Sequential ML Trainer: LightGBM, XGBoost, CatBoost]
         M_Export[Exporter: CSV, Excel, Parquet, Data Quality Report]
         M_Alert[Early Warning Alerts: Telegram/Email Webhooks]
@@ -238,14 +238,14 @@ Phân hệ này đảm nhận việc chuyển đổi các số liệu thô thàn
 
 ```mermaid
 graph TD
-    subgraph Động Cơ Tính Chỉ Số
+    subgraph "Động Cơ Tính Chỉ Số"
         A[Dữ liệu chuẩn hóa] --> B[Chỉ số Thanh Khoản]
         A --> C[Chỉ số Sinh Lời]
         A --> D[Chỉ số Đòn Bẩy]
         A --> E[Chỉ số Tăng Trưởng]
     end
 
-    subgraph Quy Trình Gán Nhãn
+    subgraph "Quy Trình Gán Nhãn"
         F{Chọn Mô Hình Gán Nhãn}
         F -->|Doanh nghiệp Phi Tài Chính| G[Rule-Based / Altman Z-Score]
         F -->|Doanh nghiệp Ngân Hàng| H[Chỉ số CAMEL & Scoring Riêng]
