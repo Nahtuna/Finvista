@@ -1,6 +1,25 @@
 # 🏆 FINVISTA: NỀN TẢNG ĐỊNH GIÁ & QUẢN TRỊ RỦI RO CHỨNG QUYỀN (SAAS PRO)
+
+<p align="center">
+  <a href="https://github.com/Nahtuna/Finvista">
+    <img src="https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+    <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+    <img src="https://img.shields.io/badge/SQLAlchemy-D31900?style=for-the-badge&logo=python&logoColor=white" alt="SQLAlchemy">
+    <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/JWT_Auth-Isolated-orange?style=flat-square&logo=json-web-tokens&logoColor=white" alt="JWT">
+  <img src="https://img.shields.io/badge/Realtime-WebSockets-brightgreen?style=flat-square" alt="WebSockets">
+  <img src="https://img.shields.io/badge/Rate_Limiting-Active-red?style=flat-square" alt="Rate Limiting">
+  <img src="https://img.shields.io/badge/Tests-15%2F15%20Passed-success?style=flat-square&logo=pytest&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License">
+</p>
+
 > **Quantitative Covered Warrant Core Engine & Enterprise API Gateway (Vietnamese Financial Markets)**  
 > Trụ sở nghiên cứu: **UPGen Deutsches Haus Tower, Quận 1, TP. Hồ Chí Minh**
+
 
 ---
 
