@@ -69,5 +69,10 @@ docs/hoc_tap/
 docs/knowledge_base/
 docs/img/
 
+# Omni-Learn data (belongs to separate project)
+data/raw_youtube/
+data/raw_web/
+
+
 
 
