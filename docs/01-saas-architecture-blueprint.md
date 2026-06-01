@@ -317,7 +317,7 @@ Lộ trình triển khai áp dụng quy trình Phát triển Phần mềm Linh h
     1.  Triển khai phân hệ xác thực đăng nhập bảo mật sử dụng `NextAuth.js` hỗ trợ đăng nhập qua Google OAuth, Apple ID và OTP Số điện thoại.
     2.  Xây dựng module phân quyền tài khoản (Middleware Route Protection) bảo vệ các tài nguyên API VIP (như Ma trận mô phỏng và bộ lọc Greeks nâng cao).
     3.  Kết nối cổng thanh toán trực tuyến của Việt Nam (VNPAY / PayOS) để tự động hóa quy trình nạp tiền gia hạn tài khoản VIP bằng mã QR Code tiện lợi.
-    4.  Nâng cấp phân hệ [telegram_alerts.py](file:///c:/Users/samvo/Downloads/vnstock-main/telegram_alerts.py) hiện tại lên thành module Notification Center tổng thể, hỗ trợ kết nối cả API Zalo Official Account để gửi tin nhắn chủ động khi tài khoản kích hoạt cảnh báo Greeks hoặc rủi ro đáo hạn.
+    4.  Nâng cấp phân hệ [telegram_alerts.py](../src/common/telegram_alerts.py) hiện tại lên thành module Notification Center tổng thể, hỗ trợ kết nối cả API Zalo Official Account để gửi tin nhắn chủ động khi tài khoản kích hoạt cảnh báo Greeks hoặc rủi ro đáo hạn.
 
 ### 🏃‍♂️ Sprint 4: Kiểm thử Tối ưu hoá, Cấu hình CI/CD & Ra Mắt Đợt Đầu (Tuần 7 - Tuần 8)
 *   **Mục tiêu:** Bảo mật tuyệt đối hệ thống, tối ưu hóa hiệu năng máy chủ và chính thức đưa ứng dụng lên đám mây (Go-Live).
