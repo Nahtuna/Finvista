@@ -1,61 +1,96 @@
-# 🚀 HƯỚNG DẪN CHẠY PIPELINE DỰ ĐOÁN KIỆT QUỆ TÀI CHÍNH (QUICK START)
+# 🚀 HƯỚNG DẪN KHỞI CHẠY NHANH FINVISTA (QUICK START)
 
-Chào mừng bạn đến với **Hệ thống Thu thập & Dự đoán Kiệt quệ Tài chính Doanh nghiệp Niêm yết (Financial Distress Pipeline)**.
-Đây là tài liệu hướng dẫn nhanh cấu trúc mã nguồn và cách vận hành hệ thống.
+Chào mừng bạn đến với **Hệ thống Định giá, Giao dịch Giả lập & Cảnh báo Sớm Chứng quyền Finvista (Finvista SaaS Engine)**.
+Tài liệu này hướng dẫn chi tiết cách thiết lập môi trường, cấu hình biến bảo mật và vận hành hệ thống một cách nhanh nhất qua trình CLI điều khiển trung tâm **`run.py`**.
 
 ---
 
-## 📂 1. Cấu Trúc Các Tệp Tin Trong Pipeline
+## 📂 1. Cấu Trúc File & Vai Trò Lõi Hệ Thống
 
-Hệ thống được thiết kế theo dạng Module hóa chia làm 5 bước chính cực kỳ trực quan và chuyên nghiệp:
+Dự án được tổ chức theo chuẩn **Clean Architecture** (Kiến trúc Sạch) giúp cô lập logic nghiệp vụ toán học, cơ sở dữ liệu và API giao tiếp:
 
-| Đường dẫn tệp tin | Trách nhiệm & Vai trò trong Pipeline |
+| Đường dẫn tệp tin | Vai trò & Trách nhiệm trong Hệ Thống |
 | :--- | :--- |
-| **`src/common/config.py`** | Quản lý cấu hình hệ thống: Đường dẫn lưu dữ liệu, danh sách sàn (`HOSE`, `HNX`, `UPCOM`), năm thu thập (`2018-2025`), và bộ lọc các ngành tài chính bị loại bỏ. |
-| **`src/common/utils.py`** | Chứa các hàm bổ trợ dùng chung: Cấu hình Logger định dạng chuẩn chỉnh (`HH:MM:SS \| LEVEL \| Message`), lưu/mở file JSON/CSV, và Trình quản lý điểm kiểm soát (`CheckpointManager`). |
-| **`tools/setup_api.py`** | Tiện ích kiểm tra nhanh môi trường cài đặt và test kết nối API tới `vnstock`. |
-| **`src/credit_risk/helpers/inspect_companies.py`** | Phân tích, thống kê tổng quan danh sách toàn bộ các doanh nghiệp niêm yết trên 3 sàn theo cơ cấu ngành. |
-| **`src/credit_risk/pipeline/step1_filter_companies.py`** | **[BƯỚC 1]** Đọc danh sách doanh nghiệp niêm yết, loại bỏ các ngân hàng, chứng khoán, bảo hiểm để lọc ra các mã CP phi tài chính mục tiêu. |
-| **`src/credit_risk/pipeline/step2_crawl_financials.py`** | **[BƯỚC 2]** Động cơ cào dữ liệu kiên cường. Thực hiện cào BCTC và Giá vốn hóa qua các năm, tự động checkpoint cứu hộ dữ liệu định kỳ và tự áp dụng cơ chế back-off rate-limit. |
-| **`src/credit_risk/helpers/filter_raw_data.py`** | Chuyển đổi tệp thô JSON đã cào sang dạng bảng CSV, chuẩn hóa tên chỉ tiêu và kiểm soát/quy đổi đồng bộ đơn vị tiền tệ về đơn vị cơ bản VND. |
-| **`src/credit_risk/helpers/inspect_raw_data.py`** | Quét chất lượng dữ liệu thô, thống kê tỷ lệ khuyết thiếu (missing rate) của 6 cột cốt lõi phục vụ phản hồi kỹ thuật. |
-| **`src/credit_risk/pipeline/step3_compute_features.py`** | **[BƯỚC 3]** Tính toán hơn 20+ chỉ số tài chính thuộc 4 nhóm (Thanh khoản, Sinh lời, Đòn bẩy, Tăng trưởng) và chỉ số **Altman Z''-Score** cho thị trường mới nổi. |
-| **`src/credit_risk/pipeline/step4_label_distress.py`** | **[BƯỚC 4]** Sử dụng hệ thống Luật kinh tế (Rule-based) để tự động gán nhãn rủi ro (`0`: Khỏe mạnh, `1`: Kiệt quệ tài chính) dựa trên lỗ lũy kế, vốn chủ âm, dòng tiền OCF âm liên tiếp. |
-| **`src/credit_risk/pipeline/step5_export_dataset.py`** | **[BƯỚC 5]** Gom toàn bộ đặc trưng và nhãn rủi ro, xử lý triệt để NaN và xuất file dữ liệu huấn luyện cuối cùng. |
-| **`src/credit_risk/helpers/inspect_indicators.py`** | Quét và in báo cáo thống kê mô tả phân vị (min, max, median, mean) của các tỷ số phái sinh và sự phân bố vùng an toàn theo điểm Z''-Score. |
-| **`run_credit_risk.py`** | **[Trình Điều Phối]** Orchestrator chạy tự động liên kết toàn bộ từ Bước 1 đến Bước 5 chỉ với 1 click. |
-| **`src/credit_risk/train_model.py`** | Kịch bản Machine Learning. Đọc dữ liệu, chia tập Train/Test theo dòng thời gian chuẩn xác, xử lý mất cân bằng lớp và huấn luyện mô hình **XGBoost Classifier** với độ chính xác cao. |
+| **`run.py`** | **[Entrypoint Duy Nhất]** CLI điều khiển trung tâm. Tích hợp banner ASCII, menu điều hướng tiếng Việt để gọi tất cả các tính năng. |
+| **`src/api/main.py`** | **[API Gateway]** Khởi chạy server FastAPI. Tích hợp Rate Limiting (`slowapi`), WebSockets thời gian thực, xác thực JWT và CORS. |
+| **`src/common/database.py`** | **[ORM Persistence]** Quản trị cơ sở dữ liệu SQLite (`finvista.db`) bằng SQLAlchemy. Lưu trữ tài khoản, số dư NAV, vị thế và lịch sử giao dịch. |
+| **`src/common/telegram_alerts.py`** | **[Webhook Alerts]** Động cơ đẩy thông báo HTML tự động về cơ hội `STRONG BUY` hoặc cảnh báo Theta đáo hạn (<14 ngày) qua Telegram. |
+| **`src/cw_engine/pricing_core.py`** | **[Math Engine]** Công thức Black-Scholes-Merton, tính các Greeks lý thuyết ($\Delta, \Gamma, \Theta, \nu$) và trình giải ngược Newton-Raphson IV. |
+| **`src/credit_risk/run_pipeline.py`** | **[Credit Risk]** Pipeline 5 bước cào BCTC 1,447 doanh nghiệp niêm yết, tính Altman Z''-Score và nhãn rủi ro phá sản. |
+| **`src/credit_risk/train_model.py`** | **[XGBoost ML]** Đọc dữ liệu, chia tập Train/Test theo chuỗi thời gian, huấn luyện mô hình XGBoost Classifier cảnh báo sớm kiệt quệ tài chính. |
+| **`tests/`** | **[Test Suite]** 15/15 bài test tự động cho REST endpoints và lõi toán học Greeks (chạy qua `pytest`). |
+| **`alembic/`** | **[Migrations]** Tự động đồng bộ hóa cấu trúc Database schema mà không làm mất mát dữ liệu. |
 
 ---
 
-## ⚡ 2. Hướng Dẫn Vận Hành Hệ Thống
+## ⚙️ 2. Thiết Lập Môi Trường Lần Đầu
 
-Để vận hành toàn bộ hệ thống từ đầu đến khi ra kết quả mô hình, bạn chỉ cần thực hiện theo các bước lệnh đơn giản sau:
-
-### Bước 1: Kiểm tra môi trường và cài đặt thư viện
+### Bước 1: Sao chép tệp cấu hình và kích hoạt bảo mật
+Nhân bản file cấu hình mẫu `.env.example` thành tệp nội bộ `.env` để nạp các thông tin nhạy cảm:
 ```powershell
-python tools/setup_api.py
+copy .env.example .env
 ```
-*Lệnh này sẽ quét xem máy bạn đã cài đủ Pandas, Scikit-learn, XGBoost, vnstock chưa.*
+Mở tệp `.env` vừa tạo và điền các khóa bí mật của bạn (ví dụ: `JWT_SECRET_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` để nhận tin nhắn cảnh báo).
 
-### Bước 2: Chạy kiểm tra phân phối ngành doanh nghiệp (Tùy chọn)
+### Bước 2: Cài đặt thư viện phụ thuộc
+Hệ thống sử dụng các thư viện Python gọn nhẹ nhưng mạnh mẽ. Tiến hành cài đặt qua:
 ```powershell
-python src/credit_risk/helpers/inspect_companies.py
+pip install -r requirements.txt
 ```
 
-### Bước 3: Chạy toàn bộ Pipeline dữ liệu và gán nhãn tự động
-Bạn chỉ cần chạy tệp điều phối chính ở thư mục gốc:
+### Bước 3: Đồng bộ cơ sở dữ liệu ban đầu (Database Migration)
+Sử dụng Alembic để tự động tạo cấu trúc bảng dữ liệu sạch:
 ```powershell
-python run_credit_risk.py
+alembic upgrade head
 ```
-Hệ thống sẽ lần lượt chạy liên kết các bước để xuất tệp dữ liệu huấn luyện sạch dạng CSV tại `data/financial_distress/final/financial_distress_dataset.csv`.
-
-### Bước 4: Huấn luyện mô hình Machine Learning dự đoán rủi ro
-```powershell
-python src/credit_risk/train_model.py
-```
-*Lệnh này sẽ tiến hành huấn luyện mô hình học máy phân lớp, tối ưu độ chính xác và in ra báo cáo hiệu năng cùng các chỉ số tài chính quan trọng đóng vai trò cảnh báo sớm vỡ nợ doanh nghiệp.*
 
 ---
-*Tài liệu hướng dẫn kỹ thuật được số hóa tại thư mục dự án Finvista.*
 
+## ⚡ 3. Hướng Dẫn Vận Hành Dự Án Qua CLI `run.py`
+
+Mở terminal tại thư mục gốc `Finvista` và sử dụng các câu lệnh hợp nhất sau:
+
+### Chức năng A: Khởi chạy API Gateway phục vụ Frontend
+Khởi chạy API server cổng 8008 tích hợp đầy đủ WebSockets và Rate Limiting:
+```powershell
+python run.py api
+```
+*   *Tài liệu tương tác Swagger:* Truy cập đường dẫn [http://127.0.0.1:8008/docs](http://127.0.0.1:8008/docs).
+
+### Chức năng B: Định giá chứng quyền thời gian thực & Cảnh báo Telegram
+Quét toàn bộ thị trường CW, tính IV thực tế, Greeks lý thuyết và lọc cơ hội đầu tư:
+```powershell
+# Chạy quét thị trường theo chiến thuật Balanced
+python run.py scan --strategy balanced
+
+# Gom nhóm theo Cổ phiếu cơ sở và xuất báo cáo CSV ra data/
+python run.py scan --group-by cpcs --all
+```
+
+### Chức năng C: Phân tích chênh lệch biến động IV vs HV lịch sử
+Giải ngược IV lịch sử 10 ngày gần nhất và so sánh với biến động thực tế HV của cổ phiếu cơ sở:
+```powershell
+python run.py history --symbol CACB2510 --days 10
+```
+
+### Chức năng D: Bot giao dịch giả lập tự động (Paper Trading)
+Quản trị vị thế, kiểm soát chốt lời cắt lỗ HOSE thời gian thực:
+```powershell
+# Quét danh mục và tự động thực thi tín hiệu chốt lời (+20%), cắt lỗ (-15%)
+python run.py trade --scan
+
+# Xem tài sản ròng NAV, số dư tiền mặt và vị thế mở của bạn
+python run.py trade --portfolio
+```
+
+### Chức năng E: Pipeline chấm điểm tín dụng 1,447 Doanh nghiệp & Train XGBoost
+```powershell
+# Chạy pipeline 5 bước thu thập BCTC và gán nhãn Altman Z''
+python run.py credit
+
+# Huấn luyện mô hình học máy XGBoost dự báo Danger Zone
+python run.py credit --train
+```
+
+---
+*Tài liệu vận hành nhanh được số hóa và chuẩn hóa tại UPGen Deutsches Haus Tower.*

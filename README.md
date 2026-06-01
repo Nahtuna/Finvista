@@ -1,162 +1,141 @@
-# 🏆 FINVISTA: NỀN TẢNG ĐỊNH GIÁ & QUẢN TRỊ RỦI RO CHỨNG QUYỀN
-> **Quantitative Covered Warrant Core Engine (Vietnamese Financial Markets)**  
+# 🏆 FINVISTA: NỀN TẢNG ĐỊNH GIÁ & QUẢN TRỊ RỦI RO CHỨNG QUYỀN (SAAS PRO)
+> **Quantitative Covered Warrant Core Engine & Enterprise API Gateway (Vietnamese Financial Markets)**  
 > Trụ sở nghiên cứu: **UPGen Deutsches Haus Tower, Quận 1, TP. Hồ Chí Minh**
 
 ---
 
 ## 🌟 Tổng Quan Dự Án
 
-**Finvista** là một giải pháp toán học tài chính tinh gọn giúp định giá và quản trị rủi ro cho **Chứng quyền có bảo đảm (Covered Warrants - CW)** tại Việt Nam.
+**Finvista** là giải pháp toán học tài chính tinh gọn và bảo mật cao giúp định giá, phát hiện cơ hội giao dịch lệch giá biến động (Volatility Arbitrage) và quản trị rủi ro cho **Chứng quyền có bảo đảm (Covered Warrants - CW)** tại Việt Nam.
 
-Nền tảng loại bỏ sự phức tạp cồng kềnh bằng cách tích hợp toàn bộ giải thuật định lượng lõi vào một kiến trúc **Siêu tối giản & Mô-đun hóa (Modular Architecture)** gồm đúng **4 tệp khởi chạy thực chiến** ở thư mục gốc và thư viện lõi cô lập trong `src/`:
-
-1.  **`run_cw.py`**: Quét lọc toàn thị trường, xếp hạng cơ hội đầu tư bằng Greeks ($\Delta, \Gamma, \Theta, \nu$), xác suất ITM, và tự động gửi cảnh báo HTML chất lượng cao qua Telegram Bot.
-2.  **`run_cw_history.py`**: Trình phân tích biến động lịch sử, tự động giải ngược IV (Implied Volatility) theo thời gian và đối chiếu với HV (Historical Volatility) của cổ phiếu cơ sở để phát hiện Volatility Arbitrage (lệch giá biến động). Vẽ biểu đồ ASCII trực tiếp trên Terminal.
-3.  **`run_paper_trader.py`**: Siêu bot giao dịch giả lập thời gian thực. Tuân thủ 100% luật HOSE (phí giao dịch, chu kỳ thanh toán T+2.5, lô tối thiểu 100 CW). Hỗ trợ chế độ chạy vòng lặp liên tục tự động canh lệnh 24/7.
-4.  **`run_credit_risk.py`**: Pipeline thu thập BCTC của 1,447 doanh nghiệp niêm yết trên 3 sàn, tính toán điểm Altman Z''-Score và huấn luyện mô hình XGBoost để cảnh báo sớm rủi ro phá sản của cổ phiếu cơ sở.
+Nền tảng đã được tái cấu trúc hoàn chỉnh theo chuẩn **Kiến trúc Sạch (Clean Architecture)** với một cổng điều khiển trung tâm duy nhất **`run.py`** tại thư mục gốc, hệ thống lưu trữ bền vững SQLite bằng ORM SQLAlchemy, xác thực người dùng bảo mật cao JWT, cổng API Gateway tích hợp WebSockets thời gian thực và Rate Limiting bảo vệ máy chủ.
 
 ---
 
-## 📂 Kiến Trúc Dự Án Hiện Tại
+## 📂 Kiến Trúc Dự Án Hoàn Chỉnh (Clean Architecture)
 
 ```
-vnstock-main/
-├── data/                             📂 THƯ MỤC DỮ LIỆU CỤC BỘ (Không commit Git)
-│   ├── excel_cw_report.csv           ├─ Tệp báo cáo phân tích CW đầy đủ dạng CSV
-│   ├── paper_portfolio.json          ├─ Số dư tiền mặt, danh mục & nhật ký paper trade
-│   ├── telegram_config.json          ├─ Cấu hình Bot Telegram & Chat ID cá nhân
-│   └── underlying_hv_cache.json      └─ Cache biến động lịch sử (HV) chống Rate Limit
-├── src/                              🧠 THƯ MỤC CHỨA TOÀN BỘ LÕI THUẬT TOÁN
-│   ├── cw_engine/                    ├─ Module Chứng Quyền (BSM, IV Solver, Paper Trader)
-│   └── credit_risk/                  └─ Module Chấm điểm kiệt quệ tài chính (Altman Z, XGBoost)
-├── tools/                            📂 THƯ MỤC CÔNG CỤ PHỤ TRỢ & TIỆN ÍCH
-│   ├── detect_chat_id.py             ├─ Tiện ích dò Chat ID Telegram
-│   ├── setup_api.py                  ├─ Tiện ích thiết lập API và Tokens
-│   ├── read_pdf.py                   ├─ Tiện ích trích xuất nội dung từ PDF
-│   └── inspect_images.py             └─ Tiện ích phân tích metadata hình ảnh slide
-├── run_cw.py                         🚀 [1] Phân tích định giá CW & cảnh báo Telegram
-├── run_cw_history.py                 📈 [2] Phân tích lịch sử Volatility IV vs HV
-├── run_paper_trader.py               🏆 [3] Trình quản lý tài khoản & quét lệnh giả lập
-├── run_credit_risk.py                🔍 [4] Pipeline quét kiệt quệ tài chính 1,447 doanh nghiệp
-├── ROADMAP.md                        🎯 BẢN ĐỒ PHÁT TRIỂN & GAP ANALYSIS (Finvista PDF)
-├── QUICK_START.md                    ⚡ HƯỚNG DẪN KHỞI CHẠY NHANH CÁC LỆNH
-├── README.md                         📖 HƯỚNG DẪN SỬ DỤNG
-├── requirements.txt                  ⚙️ Danh sách thư viện phụ thuộc cực nhẹ
-└── LICENSE                           ⚙️ Giấy phép phần mềm MIT
+Finvista/
+├── alembic/                         📂 FILE MIGRATION CỦA DATABASE (Đồng bộ Schema tự động)
+├── data/                            📂 THƯ MỤC DỮ LIỆU CỤC BỘ (Không commit Git)
+│   ├── finvista.db                  ├─ Cơ sở dữ liệu SQLite chính của hệ thống SaaS
+│   └── underlying_hv_cache.json     └─ Cache biến động lịch sử (HV) chống Rate Limit
+├── docs/                            📂 TÀI LIỆU NGHIÊN CỨU & SLIDE DỰ ÁN
+├── scripts/                         📂 CÁC KỊCH BẢN KHỞI CHẠY LẺ (Đã di chuyển vào đây)
+│   ├── run_cw.py                    ├─ Phân tích định giá CW & cảnh báo Telegram
+│   ├── run_cw_history.py            ├─ Phân tích lịch sử Volatility IV vs HV
+│   ├── run_paper_trader.py          ├─ Bot paper trade tự động hóa
+│   └── run_credit_risk.py           └─ Pipeline chấm điểm tín dụng Altman Z & XGBoost
+├── src/                             🧠 THƯ MỤC MÃ NGUỒN CHÍNH
+│   ├── api/                         ├─ API Gateway (main.py, WebSockets, Rate Limiting, CORS)
+│   ├── common/                      ├─ Cơ sở hạ tầng (config, database.py ORM, telegram_alerts)
+│   ├── credit_risk/                 ├─ Mô hình & Pipeline kiệt quệ tài chính XGBoost
+│   └── cw_engine/                   └─ Toán học định giá BSM, Greeks & Trình giải Newton-Raphson
+├── tests/                           🧪 BỘ KIỂM THỬ TỰ ĐỘNG (pytest 15/15 cases thành công 100%)
+├── tools/                           📂 TIỆN ÍCH HỖ TRỢ (Setup API, Dò Chat ID Telegram)
+├── run.py                           🏆 TRÌNH ĐIỀU KHIỂN TRUNG TÂM (CLI - ENTRYPOINT DUY NHẤT)
+├── .env.example                     ⚙️ Tệp cấu hình môi trường mẫu cho Nhà phát triển
+├── .env                             ⚙️ Tệp cấu hình môi trường thực tế (Bảo mật cục bộ)
+├── requirements.txt                 ⚙️ Danh sách thư viện phụ thuộc cực nhẹ
+└── LICENSE                          ⚙️ Giấy phép phần mềm MIT
 ```
 
 ---
 
-## ⚡ Hướng Dẫn Sử Dụng Nhanh
+## ⚙️ Cấu Hình Môi Trường (.env)
 
-### 1. Cài đặt các thư viện cần thiết
+Hệ thống quản lý thông tin nhạy cảm qua tệp `.env` tại thư mục gốc. Trước khi khởi chạy, hãy sao chép tệp mẫu và điền thông tin thực tế:
 ```bash
-pip install -r requirements.txt
+cp .env.example .env
 ```
+Các biến cấu hình chính hỗ trợ nạp động bao gồm:
+*   `DATABASE_URL`: Đường dẫn SQLite (mặc định) hoặc PostgreSQL/MySQL khi deploy production.
+*   `JWT_SECRET_KEY`: Khóa mã hóa bảo mật tài khoản đa người dùng.
+*   `TELEGRAM_BOT_TOKEN` & `TELEGRAM_CHAT_ID`: Credentials để đẩy cảnh báo thị trường thời gian thực.
 
 ---
 
-### 2. Định Giá Chứng Quyền & Cảnh Báo Telegram (`run_cw.py`)
-Nạp dữ liệu thời gian thực từ VCI API, tính toán Greeks lý thuyết và xếp hạng điểm đầu tư theo khẩu vị của bạn:
+## ⚡ Hướng Dẫn Vận Hành Qua Trình Điều Khiển Trung Tâm (`run.py`)
 
-*   **Chế độ Cân Bằng (Mặc định):**
-    ```bash
-    python run_cw.py --strategy balanced
-    ```
-*   **Chế độ An Toàn (Tránh xa các mã sắp đáo hạn, ưu tiên tính thanh khoản):**
-    ```bash
-    python run_cw.py --strategy safe
-    ```
-*   **Chế độ Đầu Cơ (Ưu tiên đòn bẩy cao, tối đa hóa tỷ suất sinh lời):**
-    ```bash
-    python run_cw.py --strategy aggressive
-    ```
-*   **Xem bảng phân tích so sánh gom nhóm (Ví dụ gom nhóm theo Cổ phiếu cơ sở):**
-    ```bash
-    python run_cw.py --group-by cpcs --all
-    ```
-*   **Mô phỏng ma trận Lãi/Lỗ 2 chiều (P/L Scenario Matrix):**
-    ```bash
-    python run_cw.py --simulate CACB2510
-    ```
+Tất cả các chức năng của hệ thống được hợp nhất về trình CLI chuyên nghiệp tại thư mục gốc. Bạn chỉ cần chạy thông qua `python run.py`.
 
----
-
-### 3. Nghiên Cứu Lịch Sử Biến Động IV vs HV (`run_cw_history.py`)
-Dò quét dữ liệu lịch sử từ vnstock để phân tích đường cong biến động (Volatility Smile) và gán nhãn định giá ĐẮT/RẺ:
+### 1. Khởi chạy API Gateway & WebSocket Server
+Khởi chạy cổng API Gateway phục vụ SaaS đa người dùng, tích hợp Rate Limiting và WebSocket stream dữ liệu:
 ```bash
-python run_cw_history.py --symbol CACB2510 --days 10
+python run.py api
 ```
-*Hệ thống tự động giải ngược IV lịch sử Session-by-Session, đối chiếu HV rolling 40 phiên, in biểu đồ xu hướng dạng ký tự ASCII tuyệt đẹp và xuất báo cáo CSV ra thư mục dữ liệu.*
+*   **REST API Swagger:** Truy cập [http://127.0.0.1:8008/docs](http://127.0.0.1:8008/docs) để xem tài liệu tương tác đầy đủ.
+*   **WebSocket Endpoint:** `ws://127.0.0.1:8008/api/ws` (dùng để stream NAV danh mục và trạng thái quét thị trường thời gian thực).
 
 ---
 
-### 4. Giả Lập Giao Dịch Thực Chiến HOSE (`run_paper_trader.py`)
-Mô phỏng tài khoản vốn 100 Triệu VND thực tế, tự động hóa toàn bộ quy trình khớp lệnh và kiểm soát rủi ro:
+### 2. Định Giá Chứng Quyền & Cảnh Báo Telegram
+Nạp dữ liệu từ Vietcap API, giải ngược IV, tính Greeks lý thuyết và đẩy cảnh báo tức thời:
+```bash
+# Quét thị trường với chiến thuật Mặc định (Balanced)
+python run.py scan --strategy balanced
 
-*   **Xem bảng điều khiển tài sản & trạng thái vị thế (Dashboard):**
-    ```bash
-    python run_paper_trader.py --portfolio
-    ```
-*   **Quét tín hiệu thị trường và thực hiện lệnh tức thời (Mon-Fri trong giờ giao dịch):**
-    ```bash
-    python run_paper_trader.py --scan
-    ```
-*   **Ép quét giao dịch ngoài giờ (Sử dụng giá khớp cuối ngày gần nhất):**
-    ```bash
-    python run_paper_trader.py --scan --force
-    ```
-*   **Khởi chạy Bot giao dịch tự động liên tục (Cứ mỗi 5 phút quét giá live, cắt lỗ/chốt lời và đặt lệnh):**
-    ```bash
-    python run_paper_trader.py --scan --loop 300
-    ```
-*   **Reset tài khoản demo về 100 Triệu VND ban đầu:**
-    ```bash
-    python run_paper_trader.py --reset
-    ```
+# Quét thị trường với chiến thuật An Toàn (Safe)
+python run.py scan --strategy safe
 
----
+# Quét thị trường với chiến thuật Aggressive (Đòn bẩy cao)
+python run.py scan --strategy aggressive
 
-### 5. Pipeline Cảnh Báo Phá Sản Doanh nghiệp Cơ Sở (`run_credit_risk.py`)
-Bảo vệ danh mục đầu tư bằng cách cào dữ liệu BCTC và dự báo điểm tín dụng của toàn thị trường:
-
-*   **Chạy Pipeline cào dữ liệu BCTC & tự động gán nhãn rủi ro:**
-    ```bash
-    python run_credit_risk.py
-    ```
-*   **Huấn luyện mô hình Machine Learning XGBoost Classifier:**
-    ```bash
-    python run_credit_risk.py --train
-    ```
-
----
-
-## 🧠 Sơ Đồ Quy Trình Phân Tích 5 Bước
-
-```
-  📥 BƯỚC 1: LẤY DỮ LIỆU
-     Live Ingest từ VCI API: Strike, Ratio, Maturity, Last Bid/Ask, Underlying Price.
-        │
-        ▼
-  📈 BƯỚC 2: GIẢI NGƯỢC IV
-     Dùng thuật toán Newton-Raphson dò tìm Implied Volatility từ giá thị trường.
-        │
-        ▼
-  📊 BƯỚC 3: TÍNH TOÁN GREEKS
-     Tính Delta (đã chia tỷ lệ), Gamma, Theta (suy hao/ngày) và Vega nhạy cảm.
-        │
-        ▼
-  🎯 BƯỚC 4: CHẤM ĐIỂM CHIẾN THUẬT
-     Tích hợp Điểm Sức khỏe Doanh nghiệp FA (XGBoost Classifier) và xếp hạng theo Profile đầu tư.
-        │
-        ▼
-  🏆 BƯỚC 5: RA QUYẾT ĐỊNH
-     Lọc bỏ rủi ro đáo hạn ngắn (<15 ngày) -> Ra khuyến nghị STRONG BUY / BUY / SKIP.
+# Gom nhóm cơ hội theo Cổ phiếu cơ sở (CPCS)
+python run.py scan --group-by cpcs --all
 ```
 
 ---
 
-## 🎯 Bản Đồ Phát Triển (ROADMAP)
+### 3. Nghiên Cứu Lịch Sử Biến Động IV vs HV
+Phân tích đường cong biến động lịch sử, phát hiện lệch giá biến động (Volatility Arbitrage) và in biểu đồ ASCII:
+```bash
+python run.py history --symbol CACB2510 --days 10
+```
+
+---
+
+### 4. Giả Lập Giao Dịch Thực Chiến HOSE (Paper Trading)
+Mô phỏng tài khoản vốn 100 Triệu VND, khớp lệnh theo đúng luật HOSE, tự động chốt lời/cắt lỗ:
+```bash
+# Xem bảng điều khiển tài sản & vị thế nắm giữ của tài khoản hiện tại
+python run.py trade --portfolio
+
+# Quét tín hiệu thị trường và thực thi lệnh (Cắt lỗ -15%, Chốt lời +20%)
+python run.py trade --scan
+
+# Chạy bot tự động hóa quét lệnh liên tục 5 phút một lần
+python run.py trade --scan --loop 300
+
+# Reset tài khoản demo về 100 Triệu VND ban đầu
+python run.py trade --reset
+```
+
+---
+
+### 5. Pipeline Chấm Điểm & Huấn Luyện Tín Dụng XGBoost
+Cào dữ liệu BCTC, dự báo Altman Z''-Score và huấn luyện mô hình XGBoost cảnh báo rủi ro vỡ nợ doanh nghiệp:
+```bash
+# Chạy pipeline 5 bước cào dữ liệu & tự động gán nhãn rủi ro
+python run.py credit
+
+# Huấn luyện mô hình Machine Learning XGBoost Classifier với dữ liệu đã cào
+python run.py credit --train
+```
+
+---
+
+## 🧪 Bộ Kiểm Thử Tự Động (Test Suite)
+
+Hệ thống được đảm bảo tính ổn định tuyệt đối nhờ bộ suite kiểm thử tích hợp REST API và kiểm thử đơn vị logic toán học. Chạy kiểm thử tức thời qua:
+```bash
+python -m pytest -s
+```
+*Kết quả kiểm thử đạt tỉ lệ thành công 100% (15/15 cases passed), bảo chứng cho chất lượng backend sẵn sàng đưa vào vận hành thực tế.*
+
+---
+
+## 🎯 Lộ Trình Giai Đoạn Frontend (ROADMAP)
 Hãy xem chi tiết tệp [ROADMAP.md](ROADMAP.md) ở thư mục gốc để nắm được:
-*   **Gap Analysis:** Đánh giá chi tiết sự tương thích giữa Hồ sơ nghiên cứu khả thi dự án **Finvista (PDF)** và mã nguồn thực tế.
-*   **Định hướng tương lai:** Lộ trình 4 giai đoạn phát triển lên Web App thời gian thực, tích hợp chuông cảnh báo Telegram/Zalo, và cào đường cong lãi suất Kho bạc Nhà nước thực tế.
+*   **Gap Analysis:** Đánh giá độ khớp giữa hồ sơ thiết kế khả thi **Finvista (PDF)** và mã nguồn thực tế.
+*   **Giai đoạn 5 (Active):** Kế hoạch xây dựng giao diện ReactJS + TailwindCSS tương tác đồ thị và bảng nhiệt 2D Scenario P/L Heatmap chuyên nghiệp.
