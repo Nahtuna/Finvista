@@ -43,7 +43,7 @@ Dưới đây là bảng đối chiếu chi tiết giữa **Kế hoạch kỹ th
 | **Lãi suất phi rủi ro ($r$) thực tế** | ✅ **Đã hoàn thành 100%** | Tự động quét lợi suất TPCP Việt Nam kỳ hạn 1 năm thời gian thực từ World Government Bonds API với fallback an toàn. | Đã tích hợp trơn tru và đồng bộ vào lõi định giá BSM & Greeks. |
 | **Độ sâu sổ lệnh (Top 3 Bid/Ask)** | ✅ **Đã hoàn thành 80%** | Code hiện tại đã cào thành công mức Bid/Ask tốt nhất để tính toán spread thực tế. | Tích hợp thêm chênh lệch Spread vào công cụ lọc thanh khoản. |
 | **Ma trận Mô phỏng Lãi/Lỗ kịch bản** | ✅ **Đã hoàn thành 100%** | Đã tích hợp công cụ mô phỏng 2 chiều (2D Scenario Simulator) sử dụng tham số `--simulate <Mã CW>` hoặc endpoint API `/api/warrants/{symbol}/simulate`. | Sẵn sàng cho giao diện Heatmap. |
-| **Chuông báo rủi ro tự động (Webhook)** | ✅ **Đã hoàn thành 100%** | Đã tích hợp module `telegram_alerts.py` gửi tin nhắn HTML tự động và hợp nhất báo cáo cho các cơ hội STRONG BUY hoặc CW sắp đáo hạn (<14 ngày). | Hoạt động hoàn hảo qua cấu hình môi trường `.env`. |
+| **Chuông báo rủi ro tự động (Webhook)** | ✅ **Đã hoàn thành 100%** | Đã tích hợp module `src/common/telegram_alerts.py` gửi tin nhắn HTML tự động và hợp nhất báo cáo cho các cơ hội STRONG BUY hoặc CW sắp đáo hạn (<14 ngày). | Hoạt động hoàn hảo qua cấu hình môi trường `.env`. |
 | **Cơ sở dữ liệu bền vững (SaaS Database)** | ✅ **Đã hoàn thành 100%** | Tích hợp SQLite với SQLAlchemy ORM, quản lý bằng Alembic Migrations tự động. | Hoàn hảo cho việc lưu trữ đa người dùng. |
 | **Xác thực JWT đa người dùng** | ✅ **Đã hoàn thành 100%** | Đã triển khai bảo mật JWT mã hóa PBKDF2 HMAC SHA-256 cô lập tài khoản và Paper Trading cá nhân. | Đảm bảo tính bảo mật cấp Enterprise. |
 | **WebSockets & Rate Limiting** | ✅ **Đã hoàn thành 100%** | Tích hợp Rate Limiting bằng SlowAPI để bảo vệ API cào nặng, thiết lập WebSocket Endpoint `ws://127.0.0.1:8008/api/ws` để truyền NAV và trạng thái. | Giảm tải tài nguyên server, loại bỏ polling. |
@@ -77,7 +77,7 @@ Dựa trên Gap Analysis, lộ trình phát triển kỹ thuật của Finvista 
 ```
 
 ### 🔹 Giai đoạn 1: Chuẩn Hóa Lõi Định Lượng (ĐÃ HOÀN THÀNH)
-*   Xây dựng mô-đun toán học định giá BSM và tính các Greeks (`src/cw_engine/pricing_core.py`).
+*   Xây dựng mô-đun toán học định giá BSM và tính các Greeks ([src/cw_engine/pricing_core.py](src/cw_engine/pricing_core.py)).
 *   Nhúng bộ giải Newton-Raphson ước lượng Implied Volatility từ giá thị trường.
 *   Thiết lập hệ thống chấm điểm đa chiến thuật (`Safe`, `Balanced`, `Aggressive`) và lọc mã trên dòng lệnh.
 
@@ -92,12 +92,12 @@ Dựa trên Gap Analysis, lộ trình phát triển kỹ thuật của Finvista 
 *   **So sánh IV vs HV (Volatility Arbitrage):**
     Tính toán biến động lịch sử 40 phiên của các cổ phiếu cơ sở trực tiếp từ vnstock, hỗ trợ tự động lưu cache JSON kiên cường (`data/underlying_hv_cache.json`) chống Rate Limit. Phân loại tín hiệu `CHEAP` và `EXPENSIVE` cộng điểm trực tiếp vào mô hình xếp hạng cơ hội đầu tư.
 *   **Tích hợp Telegram Bot Webhook:**
-    Phát triển hoàn chỉnh module `telegram_alerts.py` gửi tin nhắn cảnh báo định lượng HTML trực tiếp về Chat ID thông qua Telegram Webhook API. Tích hợp nạp động từ môi trường `.env` hoặc file cấu hình dự phòng JSON.
+    Phát triển hoàn chỉnh module `src/common/telegram_alerts.py` gửi tin nhắn cảnh báo định lượng HTML trực tiếp về Chat ID thông qua Telegram Webhook API. Tích hợp nạp động từ môi trường `.env`.
 
 ### 🔹 Giai đoạn 4: Hoàn Thiện Lõi Backend & Kiến Trúc API Gateway (ĐÃ HOÀN THÀNH 100%)
 Toàn bộ cơ sở hạ tầng Backend SaaS chuyên nghiệp đa người dùng đã được hiện thực hóa trọn vẹn:
 1.  **API Hóa Trình Giả Lập Giao Dịch & Greeks:**
-    Đầy đủ các REST API endpoints trong `src/api/main.py` phục vụ hiển thị: `GET /api/portfolio`, `POST /api/portfolio/orders` (khớp lệnh chuẩn sàn HOSE lô 100, chốt lời cắt lỗ động), và định giá `GET /api/warrants/{symbol}/simulate`.
+    Đầy đủ các REST API endpoints trong [src/api/main.py](src/api/main.py) phục vụ hiển thị: `GET /api/portfolio`, `POST /api/portfolio/orders` (khớp lệnh chuẩn sàn HOSE lô 100, chốt lời cắt lỗ động), và định giá `GET /api/warrants/{symbol}/simulate`.
 2.  **Cơ Chế Bất Đồng Bộ & Luồng Nền Tự Động:**
     Tích hợp `FastAPI BackgroundTasks` bằng endpoint `POST /api/warrants/scan/async` (HTTP 202) để tránh lỗi Gateway Timeout khi quét thị trường. Đồng thời, thiết lập luồng nền chạy ngầm tự động cập nhật dữ liệu mỗi 15 phút trong giờ giao dịch của sàn HOSE.
 3.  **Hệ Persistence SQLite & Xác Thực Đa Người Dùng JWT:**

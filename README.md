@@ -8,7 +8,7 @@
 
 **Finvista** là giải pháp toán học tài chính tinh gọn và bảo mật cao giúp định giá, phát hiện cơ hội giao dịch lệch giá biến động (Volatility Arbitrage) và quản trị rủi ro cho **Chứng quyền có bảo đảm (Covered Warrants - CW)** tại Việt Nam.
 
-Nền tảng đã được tái cấu trúc hoàn chỉnh theo chuẩn **Kiến trúc Sạch (Clean Architecture)** với một cổng điều khiển trung tâm duy nhất **`run.py`** tại thư mục gốc, hệ thống lưu trữ bền vững SQLite bằng ORM SQLAlchemy, xác thực người dùng bảo mật cao JWT, cổng API Gateway tích hợp WebSockets thời gian thực và Rate Limiting bảo vệ máy chủ.
+Nền tảng đã được tái cấu trúc hoàn chỉnh theo chuẩn **Kiến trúc Sạch (Clean Architecture)** với một cổng điều khiển trung tâm duy nhất `run.py` tại thư mục gốc, hệ thống lưu trữ bền vững SQLite bằng ORM SQLAlchemy, xác thực người dùng bảo mật cao JWT, cổng API Gateway tích hợp WebSockets thời gian thực và Rate Limiting bảo vệ máy chủ.
 
 ---
 
@@ -35,7 +35,6 @@ Finvista/
 ├── tools/                           📂 TIỆN ÍCH HỖ TRỢ (Setup API, Dò Chat ID Telegram)
 ├── run.py                           🏆 TRÌNH ĐIỀU KHIỂN TRUNG TÂM (CLI - ENTRYPOINT DUY NHẤT)
 ├── .env.example                     ⚙️ Tệp cấu hình môi trường mẫu cho Nhà phát triển
-├── .env                             ⚙️ Tệp cấu hình môi trường thực tế (Bảo mật cục bộ)
 ├── requirements.txt                 ⚙️ Danh sách thư viện phụ thuộc cực nhẹ
 └── LICENSE                          ⚙️ Giấy phép phần mềm MIT
 ```

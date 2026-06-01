@@ -1,7 +1,7 @@
 # 🚀 HƯỚNG DẪN KHỞI CHẠY NHANH FINVISTA (QUICK START)
 
 Chào mừng bạn đến với **Hệ thống Định giá, Giao dịch Giả lập & Cảnh báo Sớm Chứng quyền Finvista (Finvista SaaS Engine)**.
-Tài liệu này hướng dẫn chi tiết cách thiết lập môi trường, cấu hình biến bảo mật và vận hành hệ thống một cách nhanh nhất qua trình CLI điều khiển trung tâm **`run.py`**.
+Tài liệu này hướng dẫn chi tiết cách thiết lập môi trường, cấu hình biến bảo mật và vận hành hệ thống một cách nhanh nhất qua trình CLI điều khiển trung tâm `run.py`.
 
 ---
 
@@ -11,15 +11,15 @@ Dự án được tổ chức theo chuẩn **Clean Architecture** (Kiến trúc 
 
 | Đường dẫn tệp tin | Vai trò & Trách nhiệm trong Hệ Thống |
 | :--- | :--- |
-| **`run.py`** | **[Entrypoint Duy Nhất]** CLI điều khiển trung tâm. Tích hợp banner ASCII, menu điều hướng tiếng Việt để gọi tất cả các tính năng. |
-| **`src/api/main.py`** | **[API Gateway]** Khởi chạy server FastAPI. Tích hợp Rate Limiting (`slowapi`), WebSockets thời gian thực, xác thực JWT và CORS. |
-| **`src/common/database.py`** | **[ORM Persistence]** Quản trị cơ sở dữ liệu SQLite (`finvista.db`) bằng SQLAlchemy. Lưu trữ tài khoản, số dư NAV, vị thế và lịch sử giao dịch. |
-| **`src/common/telegram_alerts.py`** | **[Webhook Alerts]** Động cơ đẩy thông báo HTML tự động về cơ hội `STRONG BUY` hoặc cảnh báo Theta đáo hạn (<14 ngày) qua Telegram. |
-| **`src/cw_engine/pricing_core.py`** | **[Math Engine]** Công thức Black-Scholes-Merton, tính các Greeks lý thuyết ($\Delta, \Gamma, \Theta, \nu$) và trình giải ngược Newton-Raphson IV. |
-| **`src/credit_risk/run_pipeline.py`** | **[Credit Risk]** Pipeline 5 bước cào BCTC 1,447 doanh nghiệp niêm yết, tính Altman Z''-Score và nhãn rủi ro phá sản. |
-| **`src/credit_risk/train_model.py`** | **[XGBoost ML]** Đọc dữ liệu, chia tập Train/Test theo chuỗi thời gian, huấn luyện mô hình XGBoost Classifier cảnh báo sớm kiệt quệ tài chính. |
-| **`tests/`** | **[Test Suite]** 15/15 bài test tự động cho REST endpoints và lõi toán học Greeks (chạy qua `pytest`). |
-| **`alembic/`** | **[Migrations]** Tự động đồng bộ hóa cấu trúc Database schema mà không làm mất mát dữ liệu. |
+| **[run.py](run.py)** | **[Entrypoint Duy Nhất]** CLI điều khiển trung tâm. Tích hợp banner ASCII, menu điều hướng tiếng Việt để gọi tất cả các tính năng. |
+| **[src/api/main.py](src/api/main.py)** | **[API Gateway]** Khởi chạy server FastAPI. Tích hợp Rate Limiting (`slowapi`), WebSockets thời gian thực, xác thực JWT và CORS. |
+| **[src/common/database.py](src/common/database.py)** | **[ORM Persistence]** Quản trị cơ sở dữ liệu SQLite (`finvista.db`) bằng SQLAlchemy. Lưu trữ tài khoản, số dư NAV, vị thế và lịch sử giao dịch. |
+| **[src/common/telegram_alerts.py](src/common/telegram_alerts.py)** | **[Webhook Alerts]** Động cơ đẩy thông báo HTML tự động về cơ hội `STRONG BUY` hoặc cảnh báo Theta đáo hạn (<14 ngày) qua Telegram. |
+| **[src/cw_engine/pricing_core.py](src/cw_engine/pricing_core.py)** | **[Math Engine]** Công thức Black-Scholes-Merton, tính các Greeks lý thuyết ($\Delta, \Gamma, \Theta, \nu$) và trình giải ngược Newton-Raphson IV. |
+| **[src/credit_risk/run_pipeline.py](src/credit_risk/run_pipeline.py)** | **[Credit Risk]** Pipeline 5 bước cào BCTC 1,447 doanh nghiệp niêm yết, tính Altman Z''-Score và nhãn rủi ro phá sản. |
+| **[src/credit_risk/train_model.py](src/credit_risk/train_model.py)** | **[XGBoost ML]** Đọc dữ liệu, chia tập Train/Test theo chuỗi thời gian, huấn luyện mô hình XGBoost Classifier cảnh báo sớm kiệt quệ tài chính. |
+| **[tests/](tests/)** | **[Test Suite]** 15/15 bài test tự động cho REST endpoints và lõi toán học Greeks (chạy qua `pytest`). |
+| **[alembic/](alembic/)** | **[Migrations]** Tự động đồng bộ hóa cấu trúc Database schema mà không làm mất mát dữ liệu. |
 
 ---
 
@@ -48,7 +48,7 @@ alembic upgrade head
 
 ## ⚡ 3. Hướng Dẫn Vận Hành Dự Án Qua CLI `run.py`
 
-Mở terminal tại thư mục gốc `Finvista` và sử dụng các câu lệnh hợp nhất sau:
+Mở terminal tại thư mục gốc và sử dụng các câu lệnh hợp nhất sau:
 
 ### Chức năng A: Khởi chạy API Gateway phục vụ Frontend
 Khởi chạy API server cổng 8008 tích hợp đầy đủ WebSockets và Rate Limiting:
