@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.Python
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+
+# Environment - NEVER COMMIT SECRETS
+.env
+.env.local
+*.env
+data/fireant_token.txt
+
+# Database & Data lines
+*.duckdb
+*.duckdb.wal
+*.db
+*.sqlite
+data/*.csv
+data/*.xlsx
+data/*.json
+data/*.txt
+# Allow specific data config files if needed, but generally ignore data
+!data/.gitkeep
+
+# Temporary & Cache
+cache/
+.cache/
+*.cache
+coverage/
+.pytest_cache/
+*.log
+logs/
+vnstock_source_backup/
+
+# Project Specific Temp Files
+cw_metadata_dump.json
+debug_*.txt
+*_output.txt
+reports/
+cw_evaluation_results.csv
+cw_ranking_results.csv
+
+# Excel Temporary
+~$*
+*.xlsx
+
+# Scratch directory
+scratch/
+
+

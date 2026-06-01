@@ -1,0 +1,17 @@
+# Core quantitative & data libraries
+pandas>=2.0.0
+numpy>=1.22.0
+scipy>=1.10.0
+requests>=2.31.0
+
+
+# NLP & Machine Learning (PhoBERT Sentiment analysis)
+torch>=2.0.0
+transformers>=4.30.0
+tqdm>=4.65.0
+
+# Vietnamese stock data adapter
+vnstock>=0.2.7
+
+# Environment variable management
+python-dotenv>=1.0.0

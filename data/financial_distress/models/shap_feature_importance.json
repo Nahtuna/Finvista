@@ -1,0 +1,25 @@
+{
+  "model": "XGBoost",
+  "top_features": {
+    "interest_expense": 0.9827240109443665,
+    "roa": 0.3966270089149475,
+    "ebit_to_assets": 0.3218809962272644,
+    "operating_margin": 0.28729599714279175,
+    "springate_s_score": 0.2869659960269928,
+    "altman_x3": 0.2259110063314438,
+    "roe": 0.22226600348949432,
+    "altman_z_score": 0.19331400096416473,
+    "zmijewski_x_score": 0.18940900266170502,
+    "working_capital": 0.13887299597263336,
+    "ocf_to_current_liabilities": 0.13567699491977692,
+    "net_revenue": 0.1303279995918274,
+    "total_assets": 0.11416500061750412,
+    "ocf_to_total_debt": 0.11159700155258179,
+    "ebit": 0.11046099662780762,
+    "retained_earnings": 0.10324099659919739,
+    "cash_ratio": 0.10005799680948257,
+    "debt_ratio": 0.09864500164985657,
+    "profit_after_tax": 0.09758699685335159,
+    "assets_growth": 0.09518399834632874
+  }
+}
