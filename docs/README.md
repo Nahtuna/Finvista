@@ -7,11 +7,11 @@ Mục lục các tài liệu và tài nguyên kỹ thuật trong thư mục `doc
 ## 🏛️ 1. Tài liệu Kỹ thuật Hệ thống (SaaS Architecture Specs)
 *Đây là các tài liệu thiết kế hệ thống và định hướng phát triển phần mềm chính thức của Finvista:*
 
-| Tên Tệp Tin | Nội dung & Vai trò của Tài liệu |
-| :--- | :--- |
-| **[01-saas-architecture-blueprint.md](01-saas-architecture-blueprint.md)** | Bản thiết kế kiến trúc SaaS chi tiết (Web/Mobile) và lộ trình hạ tầng kỹ thuật. |
-| **[02-unified-integration-plan.md](02-unified-integration-plan.md)** | Kế hoạch hợp nhất công cụ định giá Chứng quyền (CW) và mô hình Dự đoán Kiệt quệ Tài chính. |
-| **[03-financial-distress-roadmap.md](03-financial-distress-roadmap.md)** | Sơ đồ bản đồ kiến trúc 5 tầng của hệ thống dự đoán kiệt quệ tài chính của 1,447 doanh nghiệp. |
+| Tên Tệp Tin                                                                | Nội dung & Vai trò của Tài liệu                                                               |
+| :------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| **[01-saas-architecture-blueprint.md](01-saas-architecture-blueprint.md)** | Bản thiết kế kiến trúc SaaS chi tiết (Web/Mobile) và lộ trình hạ tầng kỹ thuật.               |
+| **[02-unified-integration-plan.md](02-unified-integration-plan.md)**       | Kế hoạch hợp nhất công cụ định giá Chứng quyền (CW) và mô hình Dự đoán Kiệt quệ Tài chính.    |
+| **[03-financial-distress-roadmap.md](03-financial-distress-roadmap.md)**   | Sơ đồ bản đồ kiến trúc 5 tầng của hệ thống dự đoán kiệt quệ tài chính của 1,447 doanh nghiệp. |
 
 ---
 
@@ -24,20 +24,3 @@ Mục lục các tài liệu và tài nguyên kỹ thuật trong thư mục `doc
     *   `05-bao-cao-nhom-extracted.md`: Nội dung văn bản chi tiết trích xuất trực tiếp từ file PDF báo cáo nhóm.
 *   **Thư mục tài liệu tham khảo Phân tích Chứng khoán:**
     *   `phan_tich_chung_khoan/`: Thư mục lưu trữ 8 tệp PDF bài giảng, kiến thức phân tích kỹ thuật và tri thức đầu tư chứng khoán nâng cao.
-*   **Hình ảnh slide thuyết trình bài học:**
-    *   Chứa 12 hình ảnh slide thuyết trình bài báo cáo nhóm (từ `slide-01.png` đến `slide-12.png`), được lưu trữ cục bộ trong thư mục `docs/img/`.
-
----
-
-## 🛠️ 3. Các Công cụ Tiện ích (Tools & Helper Utilities)
-*Các script hữu ích giúp thao tác trực tiếp với dữ liệu học tập cục bộ:*
-*   **Trích xuất văn bản từ PDF:**
-    ```bash
-    python tools/read_pdf.py
-    ```
-    *(Đọc và trích xuất dữ liệu từ tệp `docs/hoc_tap/finvista-nhom-1-bao-cao.pdf`)*
-*   **Tiện ích kiểm tra siêu dữ liệu slide hình ảnh:**
-    ```bash
-    python tools/inspect_images.py
-    ```
-    *(Phân tích và kiểm tra các slide hình ảnh lưu cục bộ trong `docs/img/`)*
