@@ -14,7 +14,7 @@ import json
 import requests
 from datetime import datetime
 
-CONFIG_PATH = os.path.join("data", "telegram_config.json")
+CONFIG_PATH = os.path.join("data", "config", "telegram_config.json")
 
 def load_telegram_config() -> dict:
     """Load Telegram token, chat ID, and active status from configuration registry or environment variables."""

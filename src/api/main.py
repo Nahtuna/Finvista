@@ -104,7 +104,7 @@ def read_root():
 @app.get("/api/health")
 def health_check():
     """Retrieve runtime diagnostics, model registry integrity, and cached state."""
-    model_dir = os.path.join("data", "financial_distress", "models")
+    model_dir = os.path.join(config.DATA_DIR, "models")
     model_exists = os.path.exists(os.path.join(model_dir, "best_distress_model.pkl"))
     scaler_exists = os.path.exists(os.path.join(model_dir, "scaler.pkl"))
     dataset_exists = os.path.exists(config.FINAL_DATASET_FILE)

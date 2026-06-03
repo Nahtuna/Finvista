@@ -16,15 +16,15 @@ from src.api import state
 from src.api.dependencies import limiter
 from src.api.websocket import manager
 from src.common import config
-from src.cw_engine.history_analyzer import analyze_historical_warrant
-from src.cw_engine.pricing_core import (
+from src.quant.history_analyzer import analyze_historical_warrant
+from src.quant.pricing_core import (
     RISK_FREE_RATE,
     calculate_d1_d2,
     calculate_greeks_for_cw,
     fetch_dynamic_risk_free_rate,
     parse_ratio,
 )
-from src.cw_engine.run_analysis import run_quant_pipeline_programmatic
+from src.quant.run_analysis import run_quant_pipeline_programmatic
 
 router = APIRouter(tags=["warrants"])
 
@@ -299,7 +299,7 @@ def get_warrant_simulation(symbol: str):
     Models the joint impact of underlying asset price changes (-10% to +10%)
     and holding period theta time decay (0 to 30 days) using Black-Scholes pricing.
     """
-    from src.cw_engine.paper_trader import REPORT_PATH
+    from src.trading.paper_trader import REPORT_PATH
 
     symbol_clean = symbol.upper().strip()
     if not os.path.exists(REPORT_PATH):

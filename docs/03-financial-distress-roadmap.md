@@ -210,16 +210,16 @@ Dữ liệu báo cáo tài chính thô từ các website Việt Nam có độ nh
 ### A. Chuẩn hóa tên chỉ tiêu bằng Dictionary Mapping
 Hệ thống sử dụng một bộ từ điển ánh xạ (Mapping Dictionary) toàn diện để chuẩn hóa tất cả các biến thể ngôn ngữ về một khóa trường (field key) thống nhất:
 
-| Trường Thống Nhất | Các biến thể trong Báo cáo tài chính Tiếng Việt | Biến thể Tiếng Anh |
-| :--- | :--- | :--- |
-| `total_assets` | "Tổng cộng tài sản", "TỔNG CỘNG TÀI SẢN", "Tổng tài sản" | "Total Assets", "TOTAL ASSETS" |
-| `current_assets` | "Tài sản ngắn hạn", "TỔNG TÀI SẢN NGẮN HẠN", "TS ngắn hạn" | "Current Assets", "Total Current Assets" |
-| `current_liabilities` | "Nợ ngắn hạn", "NỢ NGẮN HẠN", "Tổng nợ ngắn hạn" | "Current Liabilities", "Total Current Liabilities" |
-| `total_liabilities` | "Nợ phải trả", "NỢ PHẢI TRẢ", "Tổng cộng nợ phải trả" | "Total Liabilities", "TOTAL LIABILITIES" |
-| `equity` | "Vốn chủ sở hữu", "VỐN CHỦ SỞ HỮU", "Tổng nguồn vốn chủ sở hữu" | "Owner's Equity", "Total Equity" |
-| `net_revenue` | "Doanh thu thuần", "Doanh thu thuần về bán hàng...", "DT thuần" | "Net Revenue", "Net Sales" |
-| `net_profit` | "Lợi nhuận sau thuế", "Lợi nhuận sau thuế thu nhập doanh nghiệp" | "Net Profit After Tax", "NPAT" |
-| `operating_cash_flow`| "Lưu chuyển tiền tệ thuần từ các hoạt động kinh doanh" | "Net cash flows from operating activities" |
+| Trường Thống Nhất     | Các biến thể trong Báo cáo tài chính Tiếng Việt                  | Biến thể Tiếng Anh                                 |
+| :-------------------- | :--------------------------------------------------------------- | :------------------------------------------------- |
+| `total_assets`        | "Tổng cộng tài sản", "TỔNG CỘNG TÀI SẢN", "Tổng tài sản"         | "Total Assets", "TOTAL ASSETS"                     |
+| `current_assets`      | "Tài sản ngắn hạn", "TỔNG TÀI SẢN NGẮN HẠN", "TS ngắn hạn"       | "Current Assets", "Total Current Assets"           |
+| `current_liabilities` | "Nợ ngắn hạn", "NỢ NGẮN HẠN", "Tổng nợ ngắn hạn"                 | "Current Liabilities", "Total Current Liabilities" |
+| `total_liabilities`   | "Nợ phải trả", "NỢ PHẢI TRẢ", "Tổng cộng nợ phải trả"            | "Total Liabilities", "TOTAL LIABILITIES"           |
+| `equity`              | "Vốn chủ sở hữu", "VỐN CHỦ SỞ HỮU", "Tổng nguồn vốn chủ sở hữu"  | "Owner's Equity", "Total Equity"                   |
+| `net_revenue`         | "Doanh thu thuần", "Doanh thu thuần về bán hàng...", "DT thuần"  | "Net Revenue", "Net Sales"                         |
+| `net_profit`          | "Lợi nhuận sau thuế", "Lợi nhuận sau thuế thu nhập doanh nghiệp" | "Net Profit After Tax", "NPAT"                     |
+| `operating_cash_flow` | "Lưu chuyển tiền tệ thuần từ các hoạt động kinh doanh"           | "Net cash flows from operating activities"         |
 
 ### B. Quy đổi đồng bộ Đơn vị đo lường (Unit Scale)
 Một số nguồn dữ liệu trả về số liệu dạng giá trị thô nguyên tệ (VND), trong khi nguồn khác lại rút gọn về nghìn VND (1,000 VND), triệu VND (1,000,000 VND), hoặc tỷ VND.
@@ -255,17 +255,20 @@ graph TD
 ```
 
 ### A. Công thức tính các Nhóm chỉ số Tài chính Cốt lõi
-Hệ thống tự động tính toán 4 nhóm chỉ số cơ bản sau:
+Hệ thống tự động tính toán các nhóm chỉ số cơ bản sau:
 1. **Thanh khoản (Liquidity):**
    $$\text{Current Ratio} = \frac{\text{Current Assets}}{\text{Current Liabilities}}$$
    $$\text{Working Capital Ratio} = \frac{\text{Current Assets} - \text{Current Liabilities}}{\text{Total Assets}}$$
-2. **Khả năng sinh lời (Profitability):**
+2. **Khả năng sinh lời & Chất lượng lợi nhuận (Profitability & Earnings Quality):**
    $$\text{ROA} = \frac{\text{Net Profit}}{\text{Total Assets}}$$
    $$\text{ROE} = \frac{\text{Net Profit}}{\text{Equity}}$$
    $$\text{Operating Margin} = \frac{\text{EBIT}}{\text{Net Revenue}}$$
-3. **Đòn bẩy (Leverage Ratio):**
+   $$\text{OCF to PAT} = \frac{\text{Operating Cash Flow}}{\text{Profit After Tax}}$$
+3. **Đòn bẩy & Phòng vệ lãi vay (Leverage & Debt Coverage):**
    $$\text{Debt Ratio} = \frac{\text{Total Liabilities}}{\text{Total Assets}}$$
    $$\text{Equity Multiplier} = \frac{\text{Total Assets}}{\text{Equity}}$$
+   $$\text{Debt to Equity} = \frac{\text{Total Liabilities}}{\text{Total Equity}}$$
+   $$\text{CFO Interest Coverage} = \frac{\text{Operating Cash Flow} + \text{Interest Expense}}{\text{Interest Expense}}$$
 4. **Quy mô và Tăng trưởng (Size & Growth):**
    $$\text{Company Size} = \ln(\text{Total Assets})$$
    $$\text{Revenue Growth} = \frac{\text{Revenue}_t - \text{Revenue}_{t-1}}{\text{Revenue}_{t-1}}$$

@@ -29,6 +29,13 @@
 
 Nền tảng đã được tái cấu trúc hoàn chỉnh theo chuẩn **Kiến trúc Sạch (Clean Architecture)** với một cổng điều khiển trung tâm duy nhất `run.py` tại thư mục gốc, hệ thống lưu trữ bền vững SQLite bằng ORM SQLAlchemy, xác thực người dùng bảo mật cao JWT, cổng API Gateway tích hợp WebSockets thời gian thực và Rate Limiting bảo vệ máy chủ.
 
+### 🔥 Điểm Nhấn Thuật Toán Định Giá (Pro-Trader Logic)
+Hệ thống lõi định lượng (`pricing_core.py`) được thiết lập bộ lọc cứng (**Hard Gates**) vô cùng khắt khe, tích hợp các nguyên lý thực chiến cao cấp nhất trên thị trường Việt Nam:
+*   **Chống "Úp sọt" Premium (Max Premium < 18%):** Lọc bỏ ngay các mã CW bị nhà phát hành định giá quá cao (ảo giá).
+*   **Chống "Vé số" Deep OTM (Min Delta > 0.15):** Ngăn chặn dòng tiền đổ vào các mã quá xa điểm hòa vốn (xác suất thắng thấp).
+*   **Tránh bom hẹn giờ Theta (Maturity > 15 ngày):** Tự động loại bỏ CW sắp đáo hạn để tránh hao mòn thời gian ăn lẹm vào vốn.
+*   **Lọc Thanh khoản Sổ lệnh (Smart Spread Check):** Đọc bảng giá Mua/Bán (Bid/Ask) ngay khi thị trường vừa mở cửa để loại trừ các mã bị Spread quá rộng (> 15%) hoặc mất thanh khoản.
+
 ---
 
 ## 📂 Kiến Trúc Dự Án Hoàn Chỉnh (Clean Architecture)
@@ -37,19 +44,21 @@ Nền tảng đã được tái cấu trúc hoàn chỉnh theo chuẩn **Kiến 
 Finvista/
 ├── alembic/                         📂 FILE MIGRATION CỦA DATABASE (Đồng bộ Schema tự động)
 ├── data/                            📂 THƯ MỤC DỮ LIỆU CỤC BỘ (Không commit Git)
-│   ├── finvista.db                  ├─ Cơ sở dữ liệu SQLite chính của hệ thống SaaS
-│   └── underlying_hv_cache.json     └─ Cache biến động lịch sử (HV) chống Rate Limit
-├── docs/                            📂 TÀI LIỆU NGHIÊN CỨU & SLIDE DỰ ÁN
-├── scripts/                         📂 CÁC KỊCH BẢN KHỞI CHẠY LẺ (Đã di chuyển vào đây)
-│   ├── run_cw.py                    ├─ Phân tích định giá CW & cảnh báo Telegram
-│   ├── run_cw_history.py            ├─ Phân tích lịch sử Volatility IV vs HV
-│   ├── run_paper_trader.py          ├─ Bot paper trade tự động hóa
-│   └── run_credit_risk.py           └─ Pipeline chấm điểm tín dụng Altman Z & XGBoost
+│   ├── raw/                         ├─ Dữ liệu thô (giá thô, báo cáo tài chính thô)
+│   ├── processed/                   ├─ Dữ liệu đã làm sạch & biên dịch (Greeks, lịch sử đồng bộ)
+│   ├── config/                      ├─ Cấu hình hệ thống (Telegram Bot, Paper portfolio)
+│   └── finvista.db                  └─ Cơ sở dữ liệu SQLite chính của hệ thống SaaS
+├── docs/                            📂 TÀI LIỆU HỆ THỐNG & ĐỒ ÁN (Đã chuẩn hóa)
+│   ├── system/                      ├─ Thiết kế kiến trúc SaaS & Lộ trình
+│   ├── research/                    ├─ Tài liệu định lượng & Slide bài giảng TA/FA
+│   └── academic/                    └─ Đồ án môn học & Báo cáo PDF chính thức
 ├── src/                             🧠 THƯ MỤC MÃ NGUỒN CHÍNH
-│   ├── api/                         ├─ API Gateway (main.py, WebSockets, Rate Limiting, CORS)
-│   ├── common/                      ├─ Cơ sở hạ tầng (config, database.py ORM, telegram_alerts)
-│   ├── credit_risk/                 ├─ Mô hình & Pipeline kiệt quệ tài chính XGBoost
-│   └── cw_engine/                   └─ Toán học định giá BSM, Greeks & Trình giải Newton-Raphson
+│   ├── api/                         ├─ API Gateway (WebSockets, REST routes)
+│   ├── common/                      ├─ Cơ sở hạ tầng dùng chung (Database config, Utils)
+│   ├── etl/                         ├─ Pipeline dữ liệu: Trích xuất, biến đổi và nạp (ETL)
+│   ├── models/                      ├─ Mô hình ML: Train & Evaluate Credit Risk, Feature Importance
+│   ├── quant/                       ├─ Thư viện định lượng, BSM pricing & Backtester T+2.5
+│   └── trading/                     └─ Chạy giả lập Paper Trading & Telegram Alert Bot
 ├── tests/                           🧪 BỘ KIỂM THỬ TỰ ĐỘNG (pytest 15/15 cases thành công 100%)
 ├── tools/                           📂 TIỆN ÍCH HỖ TRỢ (Setup API, Dò Chat ID Telegram)
 ├── run.py                           🏆 TRÌNH ĐIỀU KHIỂN TRUNG TÂM (CLI - ENTRYPOINT DUY NHẤT)
@@ -131,13 +140,13 @@ python run.py trade --reset
 
 ---
 
-### 5. Pipeline Chấm Điểm & Huấn Luyện Tín Dụng XGBoost
-Cào dữ liệu BCTC, dự báo Altman Z''-Score và huấn luyện mô hình XGBoost cảnh báo rủi ro vỡ nợ doanh nghiệp:
+### 5. Pipeline Chấm Điểm & Huấn Luyện Học Máy (Credit & Financial Distress)
+Cào dữ liệu BCTC, tính các chỉ số tài chính cơ bản và 3 biến bổ trợ chất lượng dòng tiền/đòn bẩy (`cfo_interest_coverage`, `ocf_to_pat`, `debt_to_equity`), gán nhãn rủi ro kiệt quệ tài chính và huấn luyện so sánh 11 mô hình ML (với cơ chế hyperparameter tuning tự động):
 ```bash
 # Chạy pipeline 5 bước cào dữ liệu & tự động gán nhãn rủi ro
 python run.py credit
 
-# Huấn luyện mô hình Machine Learning XGBoost Classifier với dữ liệu đã cào
+# Huấn luyện & so sánh 11 mô hình Machine Learning với bộ tham số tối ưu
 python run.py credit --train
 ```
 
@@ -154,6 +163,6 @@ python -m pytest -s
 ---
 
 ## 🎯 Lộ Trình Giai Đoạn Frontend (ROADMAP)
-Hãy xem chi tiết tệp [ROADMAP.md](ROADMAP.md) ở thư mục gốc để nắm được:
+Hãy xem chi tiết tệp [04-roadmap.md](docs/04-roadmap.md) để nắm được:
 *   **Gap Analysis:** Đánh giá độ khớp giữa hồ sơ thiết kế khả thi **Finvista (PDF)** và mã nguồn thực tế.
 *   **Giai đoạn 5 (Active):** Kế hoạch xây dựng giao diện ReactJS + TailwindCSS tương tác đồ thị và bảng nhiệt 2D Scenario P/L Heatmap chuyên nghiệp.

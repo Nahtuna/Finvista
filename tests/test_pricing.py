@@ -8,7 +8,7 @@ Greeks computations, and Newton-Raphson Implied Volatility solver.
 
 import pytest
 import numpy as np
-from src.cw_engine.pricing_core import (
+from src.quant.pricing_core import (
     calculate_d1_d2,
     calculate_delta,
     calculate_gamma,

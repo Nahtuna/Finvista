@@ -152,6 +152,35 @@ class MarketOpportunity(Base):
     
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class CWHistoricalPrice(Base):
+    """Time-series historical price data for Covered Warrants."""
+    __tablename__ = "cw_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, index=True, nullable=False)
+    date = Column(String, index=True, nullable=False)  # YYYY-MM-DD
+    open = Column(Float)
+    high = Column(Float)
+    low = Column(Float)
+    close = Column(Float)
+    volume = Column(Float)
+    ref_price = Column(Float)
+
+class StockHistoricalPrice(Base):
+    """Time-series historical price data for Underlying Stocks."""
+    __tablename__ = "stock_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, index=True, nullable=False)
+    date = Column(String, index=True, nullable=False)  # YYYY-MM-DD
+    open = Column(Float)
+    high = Column(Float)
+    low = Column(Float)
+    close = Column(Float)
+    volume = Column(Float)
+    ref_price = Column(Float)
+
+
 # ==========================================
 # 2. HELPER INITIALIZER
 # ==========================================

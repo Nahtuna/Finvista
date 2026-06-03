@@ -5,7 +5,8 @@ import os
 import json as _json
 import joblib
 
-_MODEL_DIR = os.path.join("data", "financial_distress", "models")
+from src.common import config
+_MODEL_DIR = os.path.join(config.DATA_DIR, "models")
 distress_model = None
 distress_scaler = None
 distress_threshold = 0.5

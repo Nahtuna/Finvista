@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from src.api.dependencies import get_current_user
 from src.api.websocket import manager
-from src.cw_engine.paper_trader import (
+from src.trading.paper_trader import (
     REPORT_PATH,
     execute_buy,
     execute_sell,
@@ -220,7 +220,7 @@ async def place_order(req: OrderRequest, current_user: dict = Depends(get_curren
                 ),
             )
 
-        from src.cw_engine.paper_trader import calculate_settlement_date, save_portfolio
+        from src.trading.paper_trader import calculate_settlement_date, save_portfolio
 
         portfolio["cash"] -= total_cost
         now_str = datetime.now().isoformat()

@@ -25,18 +25,14 @@ Thumbs.db
 .env
 .env.local
 *.env
-data/fireant_token.txt
 
-# Database & Data lines
+# Database & Runtime Data (NEVER commit data artifacts)
 *.duckdb
 *.duckdb.wal
 *.db
 *.sqlite
-data/*.csv
-data/*.xlsx
-data/*.json
-data/*.txt
-# Allow specific data config files if needed, but generally ignore data
+*.pkl
+data/
 !data/.gitkeep
 
 # Temporary & Cache
@@ -63,16 +59,10 @@ cw_ranking_results.csv
 
 # Scratch directory
 scratch/
+catboost_info/
 
 # Excluded Academic / School Documents
-docs/hoc_tap/
+docs/academic/
+docs/research/lectures/
 docs/knowledge_base/
 docs/img/
-
-# Omni-Learn data (belongs to separate project)
-data/raw_youtube/
-data/raw_web/
-
-
-
-

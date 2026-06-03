@@ -10,7 +10,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Data Directory Structure
-DATA_DIR = os.path.join(BASE_DIR, "data", "financial_distress")
+DATA_DIR = os.path.join(BASE_DIR, "data", "raw", "financial_distress")
 RAW_DATA_DIR = os.path.join(DATA_DIR, "raw")
 PROCESSED_DATA_DIR = os.path.join(DATA_DIR, "processed")
 FINAL_DATA_DIR = os.path.join(DATA_DIR, "final")
