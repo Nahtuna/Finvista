@@ -12,3 +12,4 @@ Mục lục các tài liệu và tài nguyên kỹ thuật trong thư mục `doc
 *   **[04-roadmap.md](04-roadmap.md)**: Lộ trình và các bước phát triển tính năng chi tiết của dự án Finvista.
 *   **[05-cw-metrics-handbook.md](05-cw-metrics-handbook.md)**: Cẩm nang giải thích dễ hiểu các chỉ số chứng quyền (Delta, Theta, Gearing, IV...) cho người mới bắt đầu.
 *   **[06-quick-start.md](06-quick-start.md)**: Hướng dẫn khởi chạy nhanh dự án, cấu hình môi trường và vận hành các tập lệnh chính.
+*   **[07-modern-data-stack-architecture.md](07-modern-data-stack-architecture.md)**: Tài liệu thiết kế Modern Data Stack (Airflow, MinIO, DuckDB, Iceberg, Trino, Superset) và cơ chế Data Quality Gates để scale hệ thống lên Big Data.

@@ -49,9 +49,13 @@ Finvista/
 │   ├── config/                      ├─ Cấu hình hệ thống (Telegram Bot, Paper portfolio)
 │   └── finvista.db                  └─ Cơ sở dữ liệu SQLite chính của hệ thống SaaS
 ├── docs/                            📂 TÀI LIỆU HỆ THỐNG & ĐỒ ÁN (Đã chuẩn hóa)
-│   ├── system/                      ├─ Thiết kế kiến trúc SaaS & Lộ trình
-│   ├── research/                    ├─ Tài liệu định lượng & Slide bài giảng TA/FA
-│   └── academic/                    └─ Đồ án môn học & Báo cáo PDF chính thức
+│   ├── 01-saas-architecture-blueprint.md  ├─ Thiết kế kiến trúc SaaS & Lộ trình
+│   ├── 02-unified-integration-plan.md     ├─ Kế hoạch hợp nhất CW & Credit Risk
+│   ├── 03-financial-distress-roadmap.md   ├─ Lộ trình hệ thống kiệt quệ tài chính
+│   ├── 04-roadmap.md                      ├─ Lộ trình phát triển chi tiết
+│   ├── 05-cw-metrics-handbook.md          ├─ Cẩm nang chỉ số chứng quyền
+│   ├── 06-quick-start.md                  ├─ Hướng dẫn khởi chạy nhanh dự án
+│   └── 07-modern-data-stack-architecture.md └─ Kiến trúc Modern Data Stack & Data Quality
 ├── src/                             🧠 THƯ MỤC MÃ NGUỒN CHÍNH
 │   ├── api/                         ├─ API Gateway (WebSockets, REST routes)
 │   ├── common/                      ├─ Cơ sở hạ tầng dùng chung (Database config, Utils)
