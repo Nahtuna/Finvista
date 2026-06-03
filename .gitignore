@@ -66,3 +66,6 @@ docs/academic/
 docs/research/lectures/
 docs/knowledge_base/
 docs/img/
+
+# Excluded Launchers
+Start_Finvista_API.bat
