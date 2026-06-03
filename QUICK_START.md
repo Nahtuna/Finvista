@@ -61,10 +61,12 @@ python run.py api
 Quét toàn bộ thị trường CW, tính IV thực tế, Greeks lý thuyết và lọc cơ hội đầu tư:
 ```powershell
 # Chạy quét thị trường theo chiến thuật Balanced
+python run.py cw --strategy balanced
+# hoặc alias tương đương:
 python run.py scan --strategy balanced
 
 # Gom nhóm theo Cổ phiếu cơ sở và xuất báo cáo CSV ra data/
-python run.py scan --group-by cpcs --all
+python scripts/run_cw.py --strategy balanced --all
 ```
 
 ### Chức năng C: Phân tích chênh lệch biến động IV vs HV lịch sử

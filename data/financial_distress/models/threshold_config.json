@@ -5,25 +5,25 @@
   "use_tuned_threshold": false,
   "metrics_default": {
     "threshold": 0.5,
-    "accuracy": 0.8057790782735919,
-    "precision": 0.6623600344530577,
-    "recall": 0.8469162995594713,
-    "f1": 0.7433542774287095
+    "accuracy": 0.8156547183613753,
+    "precision": 0.6877323420074349,
+    "recall": 0.8149779735682819,
+    "f1": 0.7459677419354839
   },
   "metrics_tuned": {
     "threshold": 0.5,
-    "accuracy": 0.8057790782735919,
-    "precision": 0.6623600344530577,
-    "recall": 0.8469162995594713,
-    "f1": 0.7433542774287095
+    "accuracy": 0.8156547183613753,
+    "precision": 0.6877323420074349,
+    "recall": 0.8149779735682819,
+    "f1": 0.7459677419354839
   },
   "metrics_at_active": {
     "threshold": 0.5,
-    "accuracy": 0.8057790782735919,
-    "precision": 0.6623600344530577,
-    "recall": 0.8469162995594713,
-    "f1": 0.7433542774287095
+    "accuracy": 0.8156547183613753,
+    "precision": 0.6877323420074349,
+    "recall": 0.8149779735682819,
+    "f1": 0.7459677419354839
   },
-  "best_model": "XGBoost",
+  "best_model": "Random Forest",
   "split_year": 2022
 }

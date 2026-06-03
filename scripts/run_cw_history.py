@@ -8,7 +8,13 @@ Usage:
 Author: samvo
 """
 import sys
+import os
 import argparse
+
+# Ensure project root is on PYTHONPATH when running as a script (python scripts/run_cw_history.py ...)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 # Force stdout encoding to UTF-8 to handle Vietnamese text beautifully on Windows
 if sys.platform == 'win32':

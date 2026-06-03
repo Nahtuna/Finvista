@@ -26,9 +26,9 @@ import subprocess
 
 # Force terminal UTF-8 encoding on Windows to ensure flawless Vietnamese text rendering
 if sys.platform == 'win32':
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
 
 # Ensure root folder is in sys.path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -63,8 +63,9 @@ def handle_api(args):
         print(f"❌ Error starting API Gateway: {e}")
 
 def handle_cw(args):
+    print("⏳ Đang khởi động engine chứng quyền (nạp thư viện, có thể mất 20–30 giây)...", flush=True)
     from src.cw_engine.run_analysis import main as run_cw_main
-    print(f"🏁 Triggering Covered Warrant valuation scan with strategy: '{args.strategy}'...")
+    print(f"🏁 Triggering Covered Warrant valuation scan with strategy: '{args.strategy}'...", flush=True)
     # Set sys.argv to mock the command line for run_analysis
     sys.argv = ['run_cw.py']
     if args.silent:
@@ -73,7 +74,9 @@ def handle_cw(args):
         sys.argv.extend(['--strategy', args.strategy])
     if args.limit:
         sys.argv.extend(['--limit', str(args.limit)])
-        
+    if getattr(args, 'all', False):
+        sys.argv.append('--all')
+
     run_cw_main()
 
 def handle_credit(args):
@@ -171,12 +174,18 @@ def main():
     # ── SUBCOMMAND: API ──
     subparsers.add_parser('api', help="Launch FastAPI REST & WebSockets Server on port 8008")
     
-    # ── SUBCOMMAND: CW (Covered Warrants Core) ──
+    # ── SUBCOMMAND: CW / SCAN (Covered Warrants Core) ──
+    def _add_cw_args(p):
+        p.add_argument('--strategy', '-s', type=str, default='balanced', choices=['safe', 'balanced', 'aggressive'],
+                       help="Select rating/scoring methodology (default: balanced)")
+        p.add_argument('--limit', '-l', type=int, default=15, help="Number of opportunities to print in console")
+        p.add_argument('--all', action='store_true', help="Display all covered warrants (overrides --limit)")
+        p.add_argument('--silent', action='store_true', help="Suppress console outputs (save to CSV only)")
+
     parser_cw = subparsers.add_parser('cw', help="Run Black-Scholes & Greeks valuation scanner")
-    parser_cw.add_argument('--strategy', '-s', type=str, default='balanced', choices=['safe', 'balanced', 'aggressive'],
-                           help="Select rating/scoring methodology (default: balanced)")
-    parser_cw.add_argument('--limit', '-l', type=int, default=15, help="Number of opportunities to print in console")
-    parser_cw.add_argument('--silent', action='store_true', help="Suppress console outputs (save to CSV only)")
+    _add_cw_args(parser_cw)
+    parser_scan = subparsers.add_parser('scan', help="Alias for cw — quét thị trường chứng quyền")
+    _add_cw_args(parser_scan)
     
     # ── SUBCOMMAND: CREDIT (XGBoost ML distress early warning) ──
     parser_credit = subparsers.add_parser('credit', help="Ingest financial ratios & run XGBoost credit engine")
@@ -205,7 +214,7 @@ def main():
     # Dispatching routes
     if args.command == 'api':
         handle_api(args)
-    elif args.command == 'cw':
+    elif args.command in ('cw', 'scan'):
         handle_cw(args)
     elif args.command == 'credit':
         handle_credit(args)

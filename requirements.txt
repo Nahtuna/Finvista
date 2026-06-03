@@ -4,6 +4,10 @@ numpy>=1.22.0
 scipy>=1.10.0
 requests>=2.31.0
 
+# ML core (credit risk models)
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
 
 # NLP & Machine Learning (PhoBERT Sentiment analysis)
 torch>=2.0.0
