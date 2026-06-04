@@ -15,7 +15,7 @@ graph TD
     end
 
     subgraph Sources
-        API[External APIs - Tiki/Vnstock]
+        API[External APIs - Vnstock]
     end
 
     subgraph Docker Compose Network
@@ -149,13 +149,13 @@ Dưới đây là kế hoạch chuyển dịch sang Modern Data Stack:
 
 ### Lộ trình dịch chuyển (Migration Path):
 
-| Thành phần hiện tại | Thành phần Big Data (MDS) | Vai trò & Cách hoạt động khi Scale |
-| :--- | :--- | :--- |
-| **Local JSON (`data/raw`)** | **MinIO / AWS S3** | Lưu trữ phi cấu trúc hàng triệu tệp JSON thô cào về từ SSI/Vietcap API mà không tốn tài nguyên ổ đĩa local. |
-| **Pandas Local (`run.py`)** | **dbt + DuckDB (hoặc PySpark)** | DuckDB sẽ thay thế Pandas để thực hiện các phép join và tính Greeks (Delta, Gamma, Vega) song song trực tiếp trên tệp Parquet. Nếu dữ liệu vượt quá 500GB, chuyển sang chạy **PySpark** trên cụm Cloud để xử lý phân tán. |
-| **SQLite (`finvista.db`)** | **Apache Iceberg + PostgreSQL** | Dữ liệu giao dịch chứng quyền lịch sử được lưu dưới dạng bảng Iceberg. Cú pháp SQL được catalog hóa qua Postgres giúp thực hiện Time Travel truy vấn lịch sử thị trường để backtest chiến thuật trong vài giây. |
-| **Local Loops (`--loop 300`)** | **Apache Airflow DAGs** | Thay thế vòng lặp vô hạn `while True` trong `run.py` bằng Airflow DAG chạy định kỳ mỗi 5 phút hoặc tích hợp **Kafka** để stream dữ liệu thời gian thực. |
-| **FastAPI Console Logs** | **Apache Superset** | Xây dựng Dashboard trực quan hóa cơ hội lệch giá biến động (Volatility Arbitrage) và sức khỏe tài chính doanh nghiệp thay vì in bảng mã ASCII thô ra terminal. |
+| Thành phần hiện tại            | Thành phần Big Data (MDS)       | Vai trò & Cách hoạt động khi Scale                                                                                                                                                                                        |
+| :----------------------------- | :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Local JSON (`data/raw`)**    | **MinIO / AWS S3**              | Lưu trữ phi cấu trúc hàng triệu tệp JSON thô cào về từ SSI/Vietcap API mà không tốn tài nguyên ổ đĩa local.                                                                                                               |
+| **Pandas Local (`run.py`)**    | **dbt + DuckDB (hoặc PySpark)** | DuckDB sẽ thay thế Pandas để thực hiện các phép join và tính Greeks (Delta, Gamma, Vega) song song trực tiếp trên tệp Parquet. Nếu dữ liệu vượt quá 500GB, chuyển sang chạy **PySpark** trên cụm Cloud để xử lý phân tán. |
+| **SQLite (`finvista.db`)**     | **Apache Iceberg + PostgreSQL** | Dữ liệu giao dịch chứng quyền lịch sử được lưu dưới dạng bảng Iceberg. Cú pháp SQL được catalog hóa qua Postgres giúp thực hiện Time Travel truy vấn lịch sử thị trường để backtest chiến thuật trong vài giây.           |
+| **Local Loops (`--loop 300`)** | **Apache Airflow DAGs**         | Thay thế vòng lặp vô hạn `while True` trong `run.py` bằng Airflow DAG chạy định kỳ mỗi 5 phút hoặc tích hợp **Kafka** để stream dữ liệu thời gian thực.                                                                   |
+| **FastAPI Console Logs**       | **Apache Superset**             | Xây dựng Dashboard trực quan hóa cơ hội lệch giá biến động (Volatility Arbitrage) và sức khỏe tài chính doanh nghiệp thay vì in bảng mã ASCII thô ra terminal.                                                            |
 
 ---
 
