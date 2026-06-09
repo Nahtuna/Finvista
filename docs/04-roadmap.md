@@ -228,21 +228,36 @@ graph TD
 
 ---
 
-## 8. THỰC THI THỜI GIAN THỰC & ORDER BOOK GUARD (GIAI ĐOẠN TIẾP THEO)
+## 8. LỘ TRÌNH TÍCH HỢP HỆ THỐNG (PRE-FRONTEND INTEGRATION)
 
-Đây là chốt chặn cuối cùng để biến Finvista thành một hệ thống giao dịch tự trị 100%, bảo vệ nhà đầu tư khỏi rủi ro trượt giá (Slippage) trong các pha biến động mạnh (Vol Spikes).
+Trước khi chính thức bước vào Giai đoạn 5 (Phát triển Giao diện Web/App Frontend), hệ thống Backend và AI cần được "đóng gói" và tích hợp sâu để đảm bảo luồng dữ liệu thông suốt. Dưới đây là Roadmap cho các bước kỹ thuật ngay lập tức:
 
-### 8.1. Module Cào Sổ lệnh Đa nguồn (Multi-source L2 Scraper)
-*   **Mục tiêu:** Thu thập dữ liệu Level 2 (10 mức giá Bid/Ask tốt nhất) từ SSI, VPS và DNSE.
-*   **Cơ chế:** Sử dụng kết hợp GraphQL và REST Snapshots để đảm bảo tính thời thực (< 1 giây).
-*   **Fallback:** Tự động chuyển đổi nguồn nếu một broker bị nghẽn mạng hoặc chặn IP.
+### Bước 8.1: Tích hợp Lõi AI vào Bot Giao dịch (Trading Core Integration)
+*   **Mục tiêu:** Nối "Não AI" (Dự báo kiệt quệ) vào "Tay Giao dịch" (Paper Trader).
+*   **Hành động:**
+    *   Cập nhật `src/trading/paper_trader.py` để bot tự động đọc kết quả từ bảng xếp hạng Credit Distress.
+    *   Thiết lập **Hard-Stop Rule:** Nếu cổ phiếu cơ sở bị AI dán nhãn **RED (DANGER)**, bot sẽ lập tức đưa các Chứng quyền liên quan vào danh sách cấm mua (Blacklist) hoặc buộc thanh lý (Force Sell) danh mục đang nắm giữ, bất kể định giá Black-Scholes có rẻ đến mức nào.
+*   **Lợi ích:** Biến Finvista thành cỗ máy giao dịch phòng thủ toàn diện.
 
-### 8.2. Động cơ Tính toán Chi phí Tác động (Impact Cost Engine)
-*   **Liquidity Check:** AI tính toán xem với khối lượng mục tiêu (Target Volume), thị trường có đủ lệnh đối ứng để khớp ngay lập tức không.
-*   **Real-world Fill Price:** Thay vì dùng giá khớp gần nhất, hệ thống tính toán giá khớp trung bình dự kiến dựa trên độ sâu sổ lệnh.
-*   **Slippage Alert:** Cảnh báo cực mạnh nếu trượt giá dự kiến > 1.5% và hạ bậc quyết định từ STRONG BUY xuống SKIP nếu rủi ro thanh khoản quá cao.
+### Bước 8.2: Mở rộng API Gateway (Backend for Frontend - BFF)
+*   **Mục tiêu:** Cung cấp đầy đủ "nguyên liệu" rủi ro tín dụng cho Frontend.
+*   **Hành động:**
+    *   Nâng cấp các endpoint trong `src/api/routes/warrants.py` và `src/api/routes/portfolio.py`.
+    *   API trả về Chứng quyền sẽ phải nhúng kèm thêm `underlying_distress_prob`, `health_status` (GREEN/YELLOW/RED), và điểm FA (`O_Stock_FA`) từ cơ sở dữ liệu.
+*   **Lợi ích:** Frontend chỉ việc gọi API và vẽ biểu đồ rủi ro Heatmap một cách mượt mà.
 
-### 8.3. Tích hợp Lớp Layer 7 (Execution Guard)
-*   Nhúng module Order Book trực tiếp vào `AICommitteeService`.
-*   Tạo tham số `--volume` trong CLI để người dùng chỉ định quy mô vốn, từ đó AI tính toán tính khả thi thực tế của lệnh.
-*   **Tự học từ dữ liệu L2:** AI Memory sẽ lưu lại trạng thái sổ lệnh tại thời điểm phân tích để tối ưu hóa chiến lược vào lệnh trong tương lai.
+### Bước 8.3: Hoàn thiện Hệ thống Cảnh báo Chủ động (Proactive Webhooks)
+*   **Mục tiêu:** Đưa AI phục vụ 24/7 qua điện thoại.
+*   **Hành động:**
+    *   Mở rộng module `src/common/telegram_webhook.py`.
+    *   Thiết lập Trigger: Ngay khi Pipeline định lượng chạy xong, nếu một mã vốn hóa lớn (VN100) chuyển trạng thái rủi ro (vd: từ GREEN sang RED), hệ thống sẽ chủ động bắn tin nhắn HTML khẩn cấp về Telegram của nhà đầu tư.
+*   **Lợi ích:** Quản trị rủi ro thời gian thực mà không cần mở máy tính.
+
+### Bước 8.4: Thực thi Thời gian thực & Order Book Guard (Slippage Control)
+*   **Mục tiêu:** Ngăn chặn rủi ro trượt giá (Slippage) khi giao dịch chứng quyền (vốn có thanh khoản mỏng).
+*   **Hành động:**
+    *   Tích hợp module Cào Sổ lệnh L2 (Multi-source L2 Scraper) để lấy Top 3 Bid/Ask.
+    *   Xây dựng Động cơ Tính toán Chi phí Tác động (Impact Cost Engine): AI tính toán xem với khối lượng mua mục tiêu, thị trường có đủ lệnh đối ứng hay không.
+    *   Nếu trượt giá dự kiến > 1.5%, hạ bậc tín hiệu từ STRONG BUY xuống SKIP.
+*   **Lợi ích:** Chốt chặn cuối cùng bảo vệ lệnh đặt, giúp lãi trên giấy (Paper Profit) sát nhất với lãi thực tế.
+
