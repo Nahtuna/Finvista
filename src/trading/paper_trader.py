@@ -281,6 +281,21 @@ def execute_buy(symbol: str, underlying: str, price: float, score: float, days_l
                     volume_today = float(match["D_Volume"].iloc[0])
                 if "underlying_distress_prob" in match.columns:
                     distress_prob = float(match["underlying_distress_prob"].iloc[0])
+                    
+        # ── Step 8.1: Master AI Distress Check ────────────────────────
+        # Check market_health_report.csv for the latest AI credit rating
+        health_report_path = os.path.join("data", "raw", "financial_distress", "market_health_report.csv")
+        if os.path.exists(health_report_path):
+            df_health = pd.read_csv(health_report_path)
+            health_match = df_health[df_health['ticker'] == underlying]
+            if not health_match.empty:
+                distress_prob = float(health_match['ml_distress_probability'].iloc[0])
+                health_status = health_match['health_status'].iloc[0]
+                if 'RED' in str(health_status).upper() or distress_prob > 0.50:
+                    return {
+                        "status": "error",
+                        "message": f"🚫 HARD-STOP: Rejected {symbol}. Underlying {underlying} is flagged RED (Distress Prob: {distress_prob*100:.1f}%). AI explicitly bans buying."
+                    }
     except Exception as e:
         print(f"⚠️ Warning loading liquidity or distress metrics for {symbol}: {e}")
 
@@ -597,7 +612,27 @@ def scan_and_trade(force: bool = False, username: str = "demo") -> list:
         latest_stock_close = tech_metrics["latest_close"]
         ema15_val = tech_metrics["ema15"]
         atrr14 = tech_metrics["atrr14"]
-        
+
+        # ── Step 8.1: Master AI Distress Check for Existing Positions ──
+        health_report_path = os.path.join("data", "raw", "financial_distress", "market_health_report.csv")
+        ai_force_sell = False
+        if os.path.exists(health_report_path):
+            try:
+                df_health = pd.read_csv(health_report_path)
+                health_match = df_health[df_health['ticker'] == underlying]
+                if not health_match.empty:
+                    distress_prob = float(health_match['ml_distress_probability'].iloc[0])
+                    health_status = health_match['health_status'].iloc[0]
+                    if 'RED' in str(health_status).upper() or distress_prob > 0.50:
+                        ai_force_sell = True
+            except Exception:
+                pass
+                
+        if ai_force_sell:
+             res = execute_sell(symbol, live_price, f"FORCE SELL: AI Credit Distress Triggered for {underlying}", username=username)
+             log_actions.append(res["message"])
+             continue
+             
         # Optimized ATR Multiplier from walk-forward audit (0.8x)
         atr_multiplier = 0.8
         sl_pct = max(0.06, min(0.25, atrr14 * warrant_gearing * atr_multiplier))
