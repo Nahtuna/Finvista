@@ -172,29 +172,77 @@ Hệ thống Finvista xây dựng bộ quy tắc cảnh báo dựa trên các ng
 
 ---
 
-## 7. NGHIÊN CỨU ĐỊNH LƯỢNG & TÍCH HỢP AI AGENTS
+## 7. KIẾN TRÚC FINVISTA INTELLIGENCE V2.0 (ROADMAP AI QUANT 2026)
 
-### 7.1. Đối Chiếu Kiến Trúc AI Agents Toàn Cầu
+Dựa trên các siêu nghiên cứu (Ultra-Deep Research) mới nhất về AI Quant giai đoạn 2025-2026, kiến trúc của Finvista được nâng cấp lên phiên bản 2.0. Trọng tâm chuyển dịch từ "Tra cứu AI" sang **Hệ thống Đa Tác Vụ (Multi-Agent Swarm)** kết hợp với các mô hình **Time Series Foundation Models**.
 
-#### A. Anthropic Financial Services (`financial-services`)
-* **Bài học cho Finvista:** 
-  - Áp dụng cấu trúc **Multi-Agent Swarm** (mỗi Agent phụ trách một kỹ năng độc lập).
-  - Tách biệt luồng cào dữ liệu (connectors) và luồng phân tích.
-  - Sử dụng cơ chế **Human-in-the-Loop (HITL)**: AI chỉ lập dự thảo bảng đánh giá rủi ro tín dụng (Credit Memo) và Greek matrix, chuyên gia có quyền bấm duyệt/sửa đổi trên giao diện.
+### 7.1. Sơ đồ Kiến trúc Bộ lọc 7 Lớp (Hội đồng AI Quant Committee)
 
-#### B. HKUDS Vibe-Trading (Đại học Hồng Kông)
-* **Bài học cho Finvista:**
-  - **Vibe-to-Quant Engine:** Sử dụng mô hình ngôn ngữ lớn làm giao diện hiểu ý định (Intent Router), sau đó gọi trực tiếp lõi toán học BSM (`pricing_core.py`) hoặc mô hình XGBoost (`train_model.py`) để tính toán, tránh hiện tượng LLM bịa đặt số liệu tài chính thô.
+Dòng vốn và lệnh giao dịch của hệ thống giờ đây phải vượt qua 7 lớp rào chắn khắt khe, pha trộn giữa Toán học Định lượng, Học máy và Suy luận Đa phương thức:
+
+```mermaid
+graph TD
+    A[Dữ liệu VN30: 5 Năm + Realtime] --> B(Lớp 1: Bộ lọc Lõi - Code Python)
+    B --> |Tính toán: Greeks, IV/HV, Khối lượng| C{Mã Đạt Chuẩn?}
+    C -- Không --> D[Loại Bỏ]
+    C -- Có --> E[Lớp 1.5: Pháp y Tài chính & Tín dụng]
+    
+    E --> |XGBoost Credit + OCF/NPAT Forensics| F{Rủi ro < 30%?}
+    F -- Không --> D
+    F -- Có --> G(Kích hoạt Đa phương thức - RAM Engine)
+    
+    G --> H[Vẽ Biểu đồ Nến & Khối lượng]
+    G --> I[Gom Tin tức Vĩ mô & Basis Phái sinh]
+    
+    H --> K(HỘI ĐỒNG AI - Multi-Agent Swarm)
+    I --> K
+    
+    K --> L[Agent Vĩ mô: Định hình Market Regime]
+    K --> M[Agent Kỹ thuật: Pattern Recognition & Vision]
+    K --> N[Agent Quyền chọn: GARCH Volatility Arb]
+    
+    L & M & N --> O(Lớp 5: Giai đoạn Tranh luận - AI Debate)
+    O --> |Đồng thuận Score > 80%| P(Lớp 6: Tổng Tư Lệnh - PM Agent)
+    P --> |JSON strict output| Q(Lớp 7: Thực thi Lệnh & Telegram)
+```
+
+### 7.2. Nâng Cấp Công Nghệ Cốt Lõi (SOTA 2026)
+
+1.  **PTKT: Kỷ nguyên "Patch-based Transformer"**
+    Thay vì các chỉ báo RSI/MACD tĩnh, Finvista định hướng sử dụng kiến trúc **PatchTST** hoặc **iTransformer**. AI không nhìn từng giá đơn lẻ mà chia biểu đồ thành các "mảnh ghép" (patches) để nhận diện "vòng cung xu hướng" (Trend Arc). Phối hợp với Gemini Vision (Mắt thần thị giác) để đọc hành vi giá (Price Action) và mô hình Wyckoff trực tiếp từ biểu đồ.
+2.  **Định Giá Chứng Quyền: Mô hình GARCH-Adaptive**
+    Chứng quyền Việt Nam bị ảnh hưởng mạnh bởi "cụm biến động" (volatility clusters). Hệ thống nâng cấp lõi Black-Scholes bằng cách nhúng **GARCH Volatility Forecaster** để dự báo "Biến động ngày mai" dựa trên các cú sốc giá hôm nay. Cải tiến việc tính toán VRP (Volatility Risk Premium) để chặn rủi ro IV Crushing.
+3.  **Market Regime Detection: "Latent State Discovery"**
+    Phân loại thị trường thành 4 trạng thái: *Quiet-Trending*, *Mean-Reverting*, *Crisis*, và *Sideway*. Hệ thống tự động (Adaptive Pricing) mở rộng spread Bid-Ask hoặc cắt giảm Allocation khi phát hiện Regime chuyển sang Crisis.
+4.  **Pháp y Tài chính (Earnings Quality Forensics)**
+    Lớp 1.5 không chỉ chạy XGBoost dự báo phá sản. Nó đối chiếu chéo Lợi nhuận sau thuế (NPAT) và Dòng tiền hoạt động (OCF). Thuật toán tính Cash Conversion Ratio (CCR) sẽ kích hoạt cờ đỏ "Phantom Profits" nếu CCR < 0.8 liên tục.
+5.  **Giao thức AI Debate (Hội đồng Phản biện 2026)**
+    Áp dụng chuẩn **FinDebate**:
+    *   **The Skeptic Agent (Kẻ hoài nghi):** Luôn tìm lý do để "Bán" và chỉ ra rủi ro đuôi (Tail risks).
+    *   **The Trust Agent (Người xác thực):** Kiểm chứng tính đúng đắn của dữ liệu đầu vào.
+    *   Chỉ khi **Consensus Score > 80%**, PM Agent mới được phép ra quyết định "STRONG BUY".
+6.  **Tích hợp Cổ tức liên tục (Dividend Yield - $q$) vào Black-Scholes**
+    Mở rộng công thức định giá BSM (tính $d_1, d_2$) để bao gồm tỷ suất cổ tức dự kiến $q$. Tận dụng kho dữ liệu cào sự kiện doanh nghiệp từ Vietstock để dự phóng dòng tiền cổ tức của chứng khoán cơ sở. Điều này giúp mô hình tự động điều chỉnh sụt giảm giá trị lý thuyết của CW một cách chính xác khi đi qua ngày giao dịch không hưởng quyền.
+7.  **Cơ sở dữ liệu Chuỗi thời gian cho Sổ lệnh (L2 Orderbook Backtesting)**
+    Nâng cấp mô hình kiểm chứng Walk-Forward bằng việc kiến trúc cơ sở dữ liệu Time-Series (ví dụ: QuestDB hoặc TimescaleDB) để lưu trữ Snapshot Sổ lệnh L2 (Bid/Ask Imbalance) theo tần suất phút. Dữ liệu này sẽ cho phép backtest các chiến lược săn thanh khoản vi mô (Micro-Liquidity) và mô phỏng độ trượt giá (Realistic Slippage) với độ chính xác tuyệt đối, vốn là yếu tố sống còn của CW.
 
 ---
 
-### 7.2. Giải Pháp Thực Chiến Từ Cộng Đồng Quant Việt Nam (XNO Quant)
+## 8. THỰC THI THỜI GIAN THỰC & ORDER BOOK GUARD (GIAI ĐOẠN TIẾP THEO)
 
-1. **Sử dụng Thư viện Skill Giao diện dòng lệnh (`mozyfin-cli`)**
-   - Tham khảo cách thiết kế các lệnh tương tác tự nhiên để xây dựng bộ giao diện CLI gọn gàng cho Finvista, giúp gọi nhanh các mô-đun định giá và quét rủi ro qua cổng `run.py`.
-2. **Mô hình Dự đoán Xu Hướng & Kiểm soát Rủi ro (Mô hình Curb7)**
-   - Finvista sử dụng mô hình học máy **XGBoost** cho bài toán Credit Risk kết hợp hiển thị nhật ký backtesting (Backtesting logs) minh bạch trên giao diện để tạo lòng tin cho người dùng SaaS.
-3. **Loại Bỏ Sai Lệch Vốn Hóa Trong Bám Đuổi Chu Kỳ Ngành (Sector Tracking Bias)**
-   - Thay vì so sánh sức mạnh cổ phiếu/chính sách rủi ro của từng ngành với chỉ số gốc VN-Index, Finvista xây dựng một **Chỉ số tham chiếu bình đẳng vốn hóa (Capitalization-Equalized Baseline Index)** hoặc so sánh trực tiếp chéo giữa các nhóm ngành để cô lập hoàn toàn sự nhiễu loạn của các cổ phiếu siêu vốn hóa.
-4. **Phân Biệt Giữa Học máy Định lượng (Quant) & Giao dịch Tự động (Algo)**
-   - Finvista tập trung 100% vào việc hoàn thiện lõi định lượng chính xác (BSM, Greeks, Z-score, XGBoost) và hệ thống cảnh báo sớm (Alerts) làm bệ đỡ vững chắc, trước khi mở rộng sang các tính năng giao dịch tự động nâng cao.
+Đây là chốt chặn cuối cùng để biến Finvista thành một hệ thống giao dịch tự trị 100%, bảo vệ nhà đầu tư khỏi rủi ro trượt giá (Slippage) trong các pha biến động mạnh (Vol Spikes).
+
+### 8.1. Module Cào Sổ lệnh Đa nguồn (Multi-source L2 Scraper)
+*   **Mục tiêu:** Thu thập dữ liệu Level 2 (10 mức giá Bid/Ask tốt nhất) từ SSI, VPS và DNSE.
+*   **Cơ chế:** Sử dụng kết hợp GraphQL và REST Snapshots để đảm bảo tính thời thực (< 1 giây).
+*   **Fallback:** Tự động chuyển đổi nguồn nếu một broker bị nghẽn mạng hoặc chặn IP.
+
+### 8.2. Động cơ Tính toán Chi phí Tác động (Impact Cost Engine)
+*   **Liquidity Check:** AI tính toán xem với khối lượng mục tiêu (Target Volume), thị trường có đủ lệnh đối ứng để khớp ngay lập tức không.
+*   **Real-world Fill Price:** Thay vì dùng giá khớp gần nhất, hệ thống tính toán giá khớp trung bình dự kiến dựa trên độ sâu sổ lệnh.
+*   **Slippage Alert:** Cảnh báo cực mạnh nếu trượt giá dự kiến > 1.5% và hạ bậc quyết định từ STRONG BUY xuống SKIP nếu rủi ro thanh khoản quá cao.
+
+### 8.3. Tích hợp Lớp Layer 7 (Execution Guard)
+*   Nhúng module Order Book trực tiếp vào `AICommitteeService`.
+*   Tạo tham số `--volume` trong CLI để người dùng chỉ định quy mô vốn, từ đó AI tính toán tính khả thi thực tế của lệnh.
+*   **Tự học từ dữ liệu L2:** AI Memory sẽ lưu lại trạng thái sổ lệnh tại thời điểm phân tích để tối ưu hóa chiến lược vào lệnh trong tương lai.

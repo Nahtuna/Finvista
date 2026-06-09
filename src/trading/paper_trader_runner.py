@@ -14,8 +14,8 @@ import sys
 import os
 import argparse
 
-# Ensure project root is on PYTHONPATH when running as a script (python scripts/run_paper_trader.py ...)
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# Ensure project root is on PYTHONPATH when running as a script (python src/trading/paper_trader_runner.py)
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -52,7 +52,7 @@ def main():
         if args.loop:
             import time
             from datetime import datetime
-            from src.quant.run_analysis import main as refresh_analysis
+            from src.quant.engines.run_analysis import main as refresh_analysis
             
             print(f"🔄 Khởi chạy VÒNG LẶP GIAO DỊCH TỰ ĐỘNG LIÊN TỤC mỗi {args.loop} giây...")
             print("💡 Hệ thống sẽ tự động:")

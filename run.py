@@ -24,6 +24,12 @@ import sys
 import argparse
 import subprocess
 
+# Prevent vnstock update check from hanging by mocking the upgrade module
+from unittest.mock import MagicMock
+mock_upgrade = MagicMock()
+mock_upgrade.update_notice = lambda *args, **kwargs: None
+sys.modules['vnstock.core.utils.upgrade'] = mock_upgrade
+
 # Force terminal UTF-8 encoding on Windows to ensure flawless Vietnamese text rendering
 if sys.platform == 'win32':
     if hasattr(sys.stdout, 'reconfigure'):
@@ -64,7 +70,7 @@ def handle_api(args):
 
 def handle_cw(args):
     print("⏳ Đang khởi động engine chứng quyền (nạp thư viện, có thể mất 20–30 giây)...", flush=True)
-    from src.quant.run_analysis import main as run_cw_main
+    from src.quant.engines.run_analysis import main as run_cw_main
     print(f"🏁 Triggering Covered Warrant valuation scan with strategy: '{args.strategy}'...", flush=True)
     # Set sys.argv to mock the command line for run_analysis
     sys.argv = ['run_cw.py']
@@ -76,6 +82,8 @@ def handle_cw(args):
         sys.argv.extend(['--limit', str(args.limit)])
     if getattr(args, 'all', False):
         sys.argv.append('--all')
+    if getattr(args, 'derivatives_filter', False):
+        sys.argv.append('--derivatives-filter')
 
     run_cw_main()
 
@@ -83,19 +91,27 @@ def handle_credit(args):
     print("🚨 Accessing ML Corporate Credit Distress Pipeline...")
     if args.train:
         print("⚙️ [Training] Initializing XGBoost distress prediction model training...")
-        from src.models.credit_risk_train_model import train_prediction_model
+        from src.models.credit.credit_step6_train_model import train_prediction_model
         train_prediction_model()
     elif args.evaluate:
         print("🔍 [Evaluation] Running full-market quantitative credit health assessment...")
-        from src.models.credit_risk_evaluate_market import evaluate_market_health
+        from src.models.credit.credit_step7_evaluate_market import evaluate_market_health
         evaluate_market_health()
+    elif args.contagion:
+        print("🕸️ [Contagion] Simulating systematic risk contagion (DebtRank) across entire market...")
+        from src.models.credit.credit_step8_contagion_model import evaluate_systemic_risk
+        evaluate_systemic_risk()
+    elif args.financial:
+        print("🏦 [Financial] Running specialized health assessment for Banks, Securities, and Insurance...")
+        from src.models.credit.financial_health_crawler import main as run_financial_gate
+        run_financial_gate()
     else:
         print("⚡ [Pipeline] Running full 5-tier credit risk data ingestion & classification...")
-        from src.etl.credit_pipeline import run_full_pipeline
+        from src.models.credit.credit_pipeline import run_full_pipeline
         run_full_pipeline()
 
 def handle_history(args):
-    from src.quant.history_analyzer import analyze_historical_warrant
+    from src.quant.engines.history_analyzer import analyze_historical_warrant
     symbol = args.symbol.upper().strip()
     days = args.days
     print(f"📈 Analyzing historical volatility & leverage for warrant {symbol} over last {days} sessions...")
@@ -118,7 +134,7 @@ def handle_trade(args):
         if args.loop:
             import time
             from datetime import datetime
-            from src.quant.run_analysis import main as refresh_analysis
+            from src.quant.engines.run_analysis import main as refresh_analysis
             
             print(f"🔄 Starting continuous trade scanning loop every {args.loop} seconds...")
             print("💡 Automated routine:")
@@ -134,6 +150,8 @@ def handle_trade(args):
                     print(f"\n[🔔 LOOP - {dt_str}] Refreshing live quantitative indicators...")
                     try:
                         sys.argv = ['run_cw.py', '--silent']
+                        if getattr(args, 'derivatives_filter', False):
+                            sys.argv.append('--derivatives-filter')
                         refresh_analysis()
                     except Exception as e:
                         print(f"⚠️ Live API warning: {e}. Falling back to cached data.")
@@ -161,6 +179,11 @@ def handle_trade(args):
             print("\n📊 Updating portfolio dashboard...")
             print_portfolio_dashboard()
 
+def handle_orchestrator(args):
+    from src.services.orchestrator import FinvistaOrchestrator
+    orchestrator = FinvistaOrchestrator()
+    orchestrator.start()
+
 def main():
     print_banner()
     
@@ -181,6 +204,7 @@ def main():
         p.add_argument('--limit', '-l', type=int, default=15, help="Number of opportunities to print in console")
         p.add_argument('--all', action='store_true', help="Display all covered warrants (overrides --limit)")
         p.add_argument('--silent', action='store_true', help="Suppress console outputs (save to CSV only)")
+        p.add_argument('--derivatives-filter', '-df', action='store_true', help="Apply derivatives sentiment filter to tighten gates")
 
     parser_cw = subparsers.add_parser('cw', help="Run Black-Scholes & Greeks valuation scanner")
     _add_cw_args(parser_cw)
@@ -193,6 +217,8 @@ def main():
     credit_group.add_argument('--pipeline', '-p', action='store_true', help="Run full credit risk data ingestion pipeline")
     credit_group.add_argument('--train', '-t', action='store_true', help="Re-train prediction model with Out-of-Time split")
     credit_group.add_argument('--evaluate', '-e', action='store_true', help="Run evaluation scanner on all 1,447 listed stocks")
+    credit_group.add_argument('--contagion', '-c', action='store_true', help="Run Network DebtRank contagion simulation across entire market")
+    credit_group.add_argument('--financial', '-f', action='store_true', help="Run specialized health assessment for Banks, Securities, and Insurance")
     
     # ── SUBCOMMAND: HISTORY (Warrants Volatility history tracker) ──
     parser_history = subparsers.add_parser('history', help="Track historical volatility & gearing for a specific CW")
@@ -208,10 +234,12 @@ def main():
     
     parser_trade.add_argument('--force', '-f', action='store_true', help="Bypass market hours check for simulation")
     parser_trade.add_argument('--loop', '-l', type=int, help="Run continuously in N-second interval scanner loops")
+    parser_trade.add_argument('--derivatives-filter', '-df', action='store_true', help="Apply derivatives sentiment filter to trading signals")
     
     # ── SUBCOMMAND: INGEST (Quantitative data pipeline ingestion) ──
     parser_ingest = subparsers.add_parser('ingest', help="Download and import historical market data (Stock & CW)")
     parser_ingest.add_argument('--download', action='store_true', help="Download live history from SSI API (takes longer)")
+    parser_ingest.add_argument('--events', action='store_true', help="Scrape corporate events and news from Vietstock")
     
     # ── SUBCOMMAND: OPTIMIZE (Quantitative parameter search) ──
     parser_opt = subparsers.add_parser('optimize', help="Run grid search parameter tuning")
@@ -219,6 +247,13 @@ def main():
     
     # ── SUBCOMMAND: AUDIT (Strategy Walk-Forward audit) ──
     subparsers.add_parser('audit', help="Run walk-forward validation and audit V5 strategy")
+    
+    # ── SUBCOMMAND: STATS (Portfolio Optimization & Advanced Statistics) ──
+    parser_stats = subparsers.add_parser('stats', help="Portfolio optimization (Kelly, Mean-Variance) & advanced trading analytics")
+    parser_stats.add_argument('--backtest', '-b', action='store_true', help="Use backtest audit data instead of live Paper Trading history")
+
+    # ── SUBCOMMAND: ORCHESTRATOR (Master automation service) ──
+    subparsers.add_parser('orchestrator', help="Launch the Master Orchestrator (Auto Ingest + AI Analysis + Alerts)")
 
     args = parser.parse_args()
     
@@ -239,11 +274,15 @@ def main():
         handle_optimize(args)
     elif args.command == 'audit':
         handle_audit(args)
+    elif args.command == 'stats':
+        handle_stats(args)
+    elif args.command == 'orchestrator':
+        handle_orchestrator(args)
 
 def handle_ingest(args):
     print("\n📥 STEP 1: Importing local CSV data into SQLite DB...")
     try:
-        subprocess.run([sys.executable, "-m", "src.etl.load_csv_to_db"], check=True)
+        subprocess.run([sys.executable, "-m", "src.etl.loaders.load_csv_to_db"], check=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ DB Import failed with exit code {e.returncode}.")
         return
@@ -251,33 +290,46 @@ def handle_ingest(args):
     if args.download:
         print("\n📥 STEP 2: Downloading Stock & CW History from SSI API...")
         try:
-            subprocess.run([sys.executable, "-m", "src.etl.extract_ssi_stock_all"], check=True)
-            subprocess.run([sys.executable, "-m", "src.etl.extract_ssi_cw_all"], check=True)
-            subprocess.run([sys.executable, "-m", "src.etl.transform_stock_ta"], check=True)
+            subprocess.run([sys.executable, "-m", "src.etl.extractors.extract_ssi_stock_all"], check=True)
+            subprocess.run([sys.executable, "-m", "src.etl.extractors.extract_ssi_cw_all"], check=True)
+            subprocess.run([sys.executable, "-m", "src.etl.transformers.transform_stock_ta"], check=True)
             print("✅ Data download and ETL completed successfully.")
         except subprocess.CalledProcessError as e:
             print(f"❌ SSI API Download failed with exit code {e.returncode}.")
+            
+    if args.events:
+        print("\n📥 STEP 3: Scraping Corporate Events & News from Vietstock...")
+        try:
+            subprocess.run([sys.executable, "-m", "src.etl.extractors.vietstock_scraper"], check=True)
+            print("✅ Vietstock scraping completed successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Vietstock scraping failed with exit code {e.returncode}.")
 
 def handle_optimize(args):
     if args.type in ("cw", "all"):
         print("\n⚙️  Optimizing Covered Warrant Parameters (Grid Search)...")
         try:
-            subprocess.run([sys.executable, "-m", "src.quant.optimizations.opt_cw_grid_search"], check=True)
+            subprocess.run([sys.executable, "-m", "src.quant.engines.opt_cw_grid_search"], check=True)
         except subprocess.CalledProcessError as e:
             print(f"❌ CW Optimization failed: {e}")
     if args.type in ("stock", "all"):
         print("\n⚙️  Optimizing Stock Technical Indicators...")
         try:
-            subprocess.run([sys.executable, "-m", "src.quant.optimizations.opt_stock_ta"], check=True)
+            subprocess.run([sys.executable, "-m", "src.quant.indicators.opt_stock_ta"], check=True)
         except subprocess.CalledProcessError as e:
             print(f"❌ Stock TA Optimization failed: {e}")
 
 def handle_audit(args):
     print("\n🔍 Auditing V5 Strategy via Walk-Forward Validation (Train/Test 70/30)...")
     try:
-        subprocess.run([sys.executable, "-m", "src.quant.optimizations.opt_cw_backtest_audit"], check=True)
+        subprocess.run([sys.executable, "-m", "src.quant.engines.opt_cw_backtest_audit"], check=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ Strategy Audit failed: {e}")
+
+def handle_stats(args):
+    print("\n📊 Generating Portfolio Optimization & Advanced Trading Statistics...")
+    from src.quant.engines.portfolio_optimizer import print_advanced_stats
+    print_advanced_stats(use_backtest=getattr(args, 'backtest', False))
 
 if __name__ == "__main__":
     main()

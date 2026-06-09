@@ -12,13 +12,15 @@
 
 ## 📋 MỤC LỤC
 1. [Ý tưởng Cốt lõi & Luồng Dữ liệu Tổng quát](#1-ý-tưởng-cốt-lõi--luồng-dữ-liệu-tổng-quát)
-2. [Thiết kế Kiến trúc Hệ thống (5 Tầng)](#2-thiết-kế-kiến-trúc-hệ-thống-5-tầng)
+2. [Thiết kế Kiến trúc Hệ thống (8 Bước)](#2-thiết-kế-kiến-trúc-hệ-thống-8-bước)
 3. [Quy trình Ingestion Dữ liệu Kiên cường (Resilient Pipeline)](#3-quy-trình-ingestion-dữ-liệu-kiên-cường)
 4. [Chuẩn hóa & Làm sạch Dữ liệu Tài chính Việt Nam](#4-chuẩn-hóa--làm-sạch-dữ-liệu-tài-chính-việt-nam)
 5. [Động cơ Tính Chỉ số & Gán nhãn Rủi ro (Rule-Based & Z-Score & CAMEL)](#5-động-cơ-tính-chỉ-số--gán-nhãn-rủi-ro)
-6. [Chiến lược Huấn luyện & Đánh giá Mô hình Machine Learning](#6-chiến-lược-huấn-luyện--đánh-giá-mô-hình-machine-learning)
-7. [Lộ trình Triển khai Kỹ thuật (4 Giai đoạn - 8 Tuần)](#7-lộ-trình-triển-khai-kỹ-thuật-4-giai-đoạn---8-tuần)
-8. [Các Lỗi Thường Gặp & Giải Pháp Phòng vệ](#8-các-lỗi-thường-gặp--giải-pháp-phòng-vệ)
+6. [Chiến lược Huấn luyện & Đánh giá Mô hình Machine Learning (Step 6)](#6-chiến-lược-huấn-luyện--đánh-giá-mô-hình-machine-learning)
+7. [Đánh giá Sức khỏe Toàn Thị trường — Batch Inference (Step 7)](#7-đánh-giá-sức-khỏe-toàn-thị-trường--batch-inference-step-7)
+8. [Mô hình Lan truyền Rủi ro Hệ thống DebtRank (Step 8)](#8-mô-hình-lan-truyền-rủi-ro-hệ-thống-debtrank-step-8)
+9. [Lộ trình Triển khai Kỹ thuật (4 Giai đoạn - 8 Tuần)](#9-lộ-trình-triển-khai-kỹ-thuật-4-giai-đoạn---8-tuần)
+10. [Các Lỗi Thường Gặp & Giải Pháp Phòng vệ](#10-các-lỗi-thường-gặp--giải-pháp-phòng-vệ)
 
 ---
 
@@ -426,9 +428,94 @@ class FinancialDistressTrainer:
 # trainer.evaluate()
 ```
 
+
 ---
 
-## 7. LỘ TRÌNH TRIỂN KHAI KỸ THUẬT (4 GIAI ĐOẠN - 8 TUẦN)
+## 7. ĐÁNH GIÁ SỨC KHỎE TOÀN THỊ TRƯỜNG — BATCH INFERENCE (STEP 7)
+
+**File thực thi:** `src/models/credit_step7_evaluate_market.py`  
+**CLI:** `python run.py credit --evaluate`  
+**Đầu vào:** `best_distress_model.pkl`, `scaler.pkl`, `final_processed_dataset.csv`  
+**Đầu ra:** `data/raw/financial_distress/market_health_report.csv`
+
+Step 7 là bước chuyển đổi mô hình học máy đã huấn luyện (Step 6) thành **hệ thống cảnh báo sớm thực chiến** bằng cách chạy suy luận hàng loạt (batch inference) trên toàn bộ doanh nghiệp niêm yết.
+
+### Luồng xử lý Step 7
+```
+best_distress_model.pkl + scaler.pkl
+        │
+        ▼
+ Nạp final_processed_dataset.csv
+        │
+        ▼
+ Lọc bản ghi mới nhất cho mỗi mã (latest year per ticker)
+        │
+        ▼
+ Standardize features → predict_proba()
+        │
+        ▼
+ Gán nhãn Traffic Light: GREEN / YELLOW / RED
+        │
+        ▼
+ Xuất market_health_report.csv
+```
+
+### Ngưỡng phân loại sức khỏe doanh nghiệp
+| Trạng thái | Điều kiện | Ý nghĩa |
+| :---: | :--- | :--- |
+| **💥 RED (DANGER)** | `ml_prob >= 0.50` hoặc `Z'' < 1.10` | Nguy cơ kiệt quệ cực kỳ cao — Hard-Gate loại khỏi CW pricing |
+| **⚠️ YELLOW (WARNING)** | `Z'' <= 2.60` | Vùng xám không ổn định — cần theo dõi |
+| **✅ GREEN (SAFE)** | Còn lại | Nền tảng tài chính vững vàng |
+
+---
+
+## 8. MÔ HÌNH LAN TRUYỀN RỦI RO HỆ THỐNG DEBTRANK (STEP 8)
+
+**File thực thi:** `src/models/credit_step8_contagion_model.py`  
+**Module hỗ trợ:** `src/models/network_builder.py`  
+**CLI:** `python run.py credit --contagion`  
+**Đầu vào:** `market_health_report.csv` (từ Step 7)  
+**Đầu ra:** `data/raw/financial_distress/systemic_health_report.csv`
+
+Step 8 triển khai **Thuật toán DebtRank** — mô hình lan truyền rủi ro hệ thống trên đồ thị mạng lưới doanh nghiệp, đo lường mức độ một cú sốc tài chính tại một nút có thể khuếch đại và lan rộng sang toàn hệ thống.
+
+### Kiến trúc đồ thị mạng lưới (Network Builder)
+
+Đồ thị có hướng $G = (V, E)$ được xây dựng với:
+- **Nodes $V$:** Tất cả 1,533 doanh nghiệp niêm yết, mỗi nút mang thuộc tính `base_risk` (xác suất nền từ XGBoost hoặc volatility proxy).
+- **Edges $E$:** Cạnh có hướng từ $j$ đến $i$ (distress tại $j$ lan truyền sang $i$) với trọng số:
+
+$$W_{ji} = \beta_1 \cdot w_{\text{conglom}} + \beta_2 \cdot w_{\text{industry}} + \beta_3 \cdot w_{\text{corr}}$$
+
+| Kênh liên kết | Hệ số | Công thức |
+| :--- | :---: | :--- |
+| Hệ sinh thái / Tập đoàn (Vingroup, Masan, Gelex…) | $\beta_1 = 0.4$ | $1 / (\|G\| - 1)$ nếu cùng nhóm |
+| Ngành nghề cấp 2 | $\beta_2 = 0.2$ | $1 / (\|Ngành\| - 1)$ nếu cùng ngành |
+| Tương quan giá Pearson (120 phiên) | $\beta_3 = 0.4$ | $\rho_{ij}$ nếu $\rho > 0.5$ |
+
+Tổng trọng số cạnh đến mỗi nút được chuẩn hóa tối đa **0.40** để tránh bùng nổ lan truyền.
+
+### Thuật toán DebtRank (Vòng lặp hội tụ)
+
+$$h_i(t+1) = \text{clip}\left(h_i(t) + \lambda \sum_{j \in \mathcal{N}^-(i)} W_{ji} \cdot \Delta h_j(t), \; 0, \; 1\right)$$
+
+Trong đó:
+- $h_i(t)$: Mức độ kiệt quệ của nút $i$ tại bước $t$ ($\in [0, 1]$)
+- $\lambda = 0.25$: Hệ số suy giảm lan truyền (damping factor)
+- $\Delta h_j(t) = h_j(t) - h_j(t-1)$: Số gia mức độ kiệt quệ tại nút $j$ (chỉ lan truyền khi tăng)
+- Hội tụ khi $\sum_i |h_i(t+1) - h_i(t)| < 10^{-5}$
+
+### Tích hợp vào CW Pricing Pipeline
+
+Kết quả `systemic_health_report.csv` được tự động nạp trong `src/quant/fetcher.py` để:
+
+1. **Hard-Gate:** Loại bỏ chứng quyền có cổ phiếu cơ sở `systemic_prob >= 0.50` hoặc `risk_delta >= 0.15`.
+2. **Phạt điểm liên tục:** `FA_final = FA_base × (1 − min(delta × 3, 0.60) − penalty_abs)`.
+3. **Lưu vào DB:** Các trường `underlying_systemic_prob`, `underlying_systemic_delta`, `underlying_systemic_is_distressed` được đồng bộ vào bảng `market_opportunities` trong `finvista.db`.
+
+---
+
+## 9. LỘ TRÌNH TRIỂN KHAI KỸ THUẬT (4 GIAI ĐOẠN - 8 TUẦN)
 
 Để đưa dự án từ ý tưởng đến một ứng dụng chấm điểm doanh nghiệp SaaS hoàn chỉnh, lộ trình 8 tuần được chia nhỏ như sau:
 
@@ -467,7 +554,7 @@ class FinancialDistressTrainer:
 
 ---
 
-## 8. CÁC LỖI THƯỜNG GẶP & GIẢI PHÁP PHÒNG VỆ
+## 10. CÁC LỖI THƯỜNG GẶP & GIẢI PHÁP PHÒNG VỆ
 
 ### 🚨 Lỗi 1: Lệch pha đơn vị tiền tệ giữa các nguồn dữ liệu
 *   *Mô tả:* Một số nguồn ghi doanh thu là `2000` (đơn vị tỷ VND), nguồn khác ghi `2,000,000,000,000` (đơn vị VND). Trộn lẫn sẽ phá nát các phép tính toán học.
@@ -487,6 +574,10 @@ class FinancialDistressTrainer:
 ### 🚨 Lỗi 4: Báo cáo tài chính bị chỉnh sửa (Window Dressing)
 *   *Mô tả:* Số liệu báo cáo tài chính được doanh nghiệp "xào nấu" làm đẹp trước khi công bố dẫn đến mô hình AI bị đánh lừa.
 *   *Giải pháp:* Tích hợp thêm các chỉ số chất lượng lợi nhuận (Earnings Quality indicators) như **Tỷ lệ Dòng tiền từ HĐKD / Lợi nhuận sau thuế**. Nếu lợi nhuận rất cao nhưng dòng tiền hoạt động liên tục âm, đây là cảnh báo đỏ cho việc ghi nhận doanh thu ảo.
+
+### 🚨 Lỗi 5: DebtRank bùng nổ lan truyền (Contagion Explosion)
+*   *Mô tả:* Nếu không chuẩn hóa trọng số cạnh, tổng trọng số đầu vào của một nút có thể vượt quá 1.0, khiến vòng lặp DebtRank không hội tụ và mọi nút đều đạt `systemic_prob = 1.0`.
+*   *Giải pháp:* Trong `network_builder.py`, sau khi xây dựng xong tất cả cạnh, luôn thực hiện bước **chuẩn hóa tổng trọng số đầu vào** về giới hạn `max_incoming_sum = 0.40`. Điều này đảm bảo hệ số khuếch đại mạng lưới $< 1$ và thuật toán sẽ hội tụ.
 
 ---
 *Tài liệu được thiết kế và lưu trữ tại thư mục dự án Finvista làm cơ sở phát triển kỹ thuật.*

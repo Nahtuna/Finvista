@@ -19,3 +19,6 @@ vnstock>=0.2.7
 
 # Environment variable management
 python-dotenv>=1.0.0
+
+# Web server for Telegram webhook
+Flask>=3.0.0

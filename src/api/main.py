@@ -23,7 +23,7 @@ if BASE_DIR not in sys.path:
 
 from src.api import state
 from src.api.dependencies import limiter
-from src.api.routes import auth, credit, portfolio, warrants
+from src.api.routes import auth, chat, credit, portfolio, warrants
 from src.api.scheduler import start_periodic_scheduler
 from src.api.websocket import websocket_endpoint
 from src.common import config
@@ -55,6 +55,7 @@ app.include_router(auth.router)
 app.include_router(warrants.router)
 app.include_router(portfolio.router)
 app.include_router(credit.router)
+app.include_router(chat.router)
 
 
 @app.exception_handler(RateLimitExceeded)

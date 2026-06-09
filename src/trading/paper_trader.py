@@ -30,8 +30,8 @@ HOSE_LOT_SIZE = 100           # Minimum trading lot
 MAX_ALLOCATION_PCT = 0.20     # Max 20% of total portfolio value per position
 
 # Strategy thresholds
-TAKE_PROFIT_PCT = 0.20        # +20% TP
-STOP_LOSS_PCT = -0.15         # -15% SL
+TAKE_PROFIT_PCT = 0.10        # +10% TP (Optimized)
+STOP_LOSS_PCT = -0.20         # -20% SL (Optimized)
 MATURITY_LIMIT_DAYS = 10      # Exit position if < 10 days left to maturity
 
 def load_portfolio(username: str = "demo") -> dict:
@@ -248,12 +248,112 @@ def execute_buy(symbol: str, underlying: str, price: float, score: float, days_l
     if days_left < MATURITY_LIMIT_DAYS:
         return {"status": "error", "message": f"⏩ Skipping {symbol} (Days to maturity {days_left} is below limit {MATURITY_LIMIT_DAYS} days)."}
 
+    # ── Liquidity Gate ──────────────────────────────────────────────
+    adv10 = 0.0
+    spread_pct = 0.0
+    volume_today = 0.0
+    distress_prob = 0.10
+    try:
+        from src.common.database import SessionLocal, CWHistoricalPrice
+        db = SessionLocal()
+        try:
+            records = (
+                db.query(CWHistoricalPrice)
+                .filter(CWHistoricalPrice.symbol == symbol)
+                .order_by(CWHistoricalPrice.date.desc())
+                .limit(10)
+                .all()
+            )
+            if len(records) > 0:
+                adv10 = sum(r.volume for r in records) / len(records)
+            else:
+                adv10 = 0.0
+        finally:
+            db.close()
+            
+        if os.path.exists(REPORT_PATH):
+            df_rep = pd.read_csv(REPORT_PATH)
+            match = df_rep[df_rep["A_MaCW"] == symbol]
+            if not match.empty:
+                if "Spread_Pct" in match.columns:
+                    spread_pct = float(match["Spread_Pct"].iloc[0])
+                if "D_Volume" in match.columns:
+                    volume_today = float(match["D_Volume"].iloc[0])
+                if "underlying_distress_prob" in match.columns:
+                    distress_prob = float(match["underlying_distress_prob"].iloc[0])
+    except Exception as e:
+        print(f"⚠️ Warning loading liquidity or distress metrics for {symbol}: {e}")
+
+    # Enforce Liquidity Gate
+    effective_vol = adv10 if adv10 > 0 else volume_today
+    if effective_vol < 50000:
+        return {
+            "status": "error",
+            "message": f"❌ Rejected {symbol} (Liquidity Gate: ADV10 is {effective_vol:,.0f} < 50,000 units)."
+        }
+    if spread_pct > 3.0:
+        return {
+            "status": "error",
+            "message": f"❌ Rejected {symbol} (Liquidity Gate: Bid-Ask Spread is {spread_pct:.2f}% > 3.0%)."
+        }
+
     # Live prices dictionary to calculate current NAV
     live_prices = {symbol: price}
     total_nav = get_portfolio_value(portfolio, live_prices)
     
-    # Capital allocation rules
-    max_alloc_value = total_nav * MAX_ALLOCATION_PCT
+    # Capital allocation rules using dynamic Kelly Criterion
+    try:
+        from src.quant.engines.portfolio_optimizer import load_trade_history, load_backtest_trades, calculate_kelly_by_underlying, calculate_kelly
+        
+        # Load all trades (live + backtest fallback)
+        live_trades, _ = load_trade_history(username=username)
+        backtest_trades = load_backtest_trades()
+        all_trades = live_trades + backtest_trades
+        
+        # Calculate Kelly for this specific underlying
+        underlying_kelly = None
+        if all_trades:
+            kelly_by_ul = calculate_kelly_by_underlying(all_trades)
+            for ku in kelly_by_ul:
+                if ku['underlying'] == underlying:
+                    underlying_kelly = ku['kelly_half'] / 100.0  # Use half-Kelly for conservatism
+                    break
+                    
+        # Fallback to strategy-wide half-Kelly if no underlying history or it's negative
+        if underlying_kelly is None:
+            if all_trades:
+                overall_kelly = calculate_kelly(all_trades)
+                underlying_kelly = max(overall_kelly.get('kelly_half', 6.0) / 100.0, 0.05)
+            else:
+                underlying_kelly = 0.060  # Default backtest half-Kelly is 6.0%
+                
+        # Reject trade if underlying has negative Kelly expectation (e.g. FPT, HPG, VIC)
+        if underlying_kelly <= 0:
+            return {
+                "status": "error", 
+                "message": f"❌ Rejected {symbol} (Underlying {underlying} has negative Kelly expectation: {underlying_kelly*100:.1f}%)."
+            }
+            
+        # ── Credit-Linked CW Filter ───────────────────────────────────
+        if distress_prob > 0.30:
+            if distress_prob > 0.50:
+                return {
+                    "status": "error",
+                    "message": f"❌ Rejected {symbol} (Credit-Linked CW Filter: Underlying {underlying} distress risk is CRITICAL: {distress_prob*100:.1f}% > 50% - Complete Ban)."
+                }
+            else:
+                underlying_kelly = underlying_kelly * 0.5
+                print(f"🛡️  Credit-Linked CW Filter: Scaling Kelly size by 50% for {symbol} due to elevated distress probability ({distress_prob*100:.1f}% > 30%).")
+                
+        # Limit concentration to MAX_ALLOCATION_PCT (20%) for risk capping
+        alloc_pct = min(max(underlying_kelly, 0.02), MAX_ALLOCATION_PCT)
+        size_reason = f"Kelly Size {alloc_pct*100:.1f}%"
+    except Exception as e:
+        # Fallback to standard static allocation if calculation fails
+        alloc_pct = MAX_ALLOCATION_PCT
+        size_reason = f"Static Size {alloc_pct*100:.1f}% (Fallback)"
+        
+    max_alloc_value = total_nav * alloc_pct
     target_purchase_val = min(max_alloc_value, portfolio["cash"])
     
     if target_purchase_val < (price * HOSE_LOT_SIZE):
@@ -307,7 +407,7 @@ def execute_buy(symbol: str, underlying: str, price: float, score: float, days_l
         "value": gross_value,
         "fee": fee,
         "date": now_str,
-        "reason": f"Volatility Arbitrage Signal (Score: {score:.1f})"
+        "reason": f"Volatility Arbitrage Signal (Score: {score:.1f}) | {size_reason}"
     })
     
     save_portfolio(portfolio, username=username)
@@ -374,10 +474,71 @@ def execute_sell(symbol: str, price: float, reason: str, username: str = "demo")
         "message": f"💸 SOLD {qty:,} {symbol} at {price:,.0f}đ | Net Received: {net_proceeds:,.0f}đ | P/L: {sign}{p_l:,.0f}đ ({sign}{p_l_pct:.2f}%) | Reason: {reason}"
     }
 
+def get_underlying_technical_metrics(underlying: str) -> dict:
+    """
+    Fetch last 40 daily price records for the underlying stock.
+    Calculate EMA15, ATR14 and ATRr14.
+    """
+    from src.common.database import engine
+    import pandas as pd
+    try:
+        query = f"""
+            SELECT date, close, high, low 
+            FROM stock_history 
+            WHERE symbol = '{underlying}' 
+            ORDER BY date DESC 
+            LIMIT 40
+        """
+        df_stock = pd.read_sql(query, engine)
+        if df_stock.empty or len(df_stock) < 20:
+            return {"ema15": None, "atrr14": 0.025, "latest_close": None}
+            
+        # Reverse to chronological order
+        df_stock = df_stock.iloc[::-1].reset_index(drop=True)
+        df_stock['close'] = df_stock['close'].astype(float)
+        df_stock['high'] = df_stock['high'].astype(float)
+        df_stock['low'] = df_stock['low'].astype(float)
+        
+        # Calculate EMA15
+        df_stock['EMA15'] = df_stock['close'].ewm(span=15, adjust=False).mean()
+        
+        # Calculate ATR14
+        high_low = df_stock['high'] - df_stock['low']
+        high_close = (df_stock['high'] - df_stock['close'].shift()).abs()
+        low_close = (df_stock['low'] - df_stock['close'].shift()).abs()
+        tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        df_stock['ATR14'] = tr.rolling(14).mean()
+        df_stock['ATRr14'] = df_stock['ATR14'] / df_stock['close']
+        
+        latest = df_stock.iloc[-1]
+        return {
+            "ema15": float(latest['EMA15']) if pd.notna(latest['EMA15']) else None,
+            "atrr14": float(latest['ATRr14']) if pd.notna(latest['ATRr14']) else 0.025,
+            "latest_close": float(latest['close']) if pd.notna(latest['close']) else None
+        }
+    except Exception as e:
+        print(f"⚠️ Warning fetching underlying technical metrics for {underlying}: {e}")
+        return {"ema15": None, "atrr14": 0.025, "latest_close": None}
+
+def get_peak_price_since_buy(symbol: str, buy_date_str: str, buy_price: float) -> float:
+    """Get the highest recorded price of the warrant since the purchase date."""
+    from src.common.database import engine
+    import pandas as pd
+    try:
+        # Extract date from buy_date_str (which is ISO timestamp)
+        buy_date = buy_date_str.split('T')[0]
+        query = f"SELECT MAX(high) as peak_price FROM cw_history WHERE symbol = '{symbol}' AND date >= '{buy_date}'"
+        df = pd.read_sql(query, engine)
+        if not df.empty and pd.notna(df['peak_price'].iloc[0]):
+            return max(float(df['peak_price'].iloc[0]), buy_price)
+    except Exception as e:
+        print(f"⚠️ Warning fetching peak price since buy for {symbol}: {e}")
+    return buy_price
+
 def scan_and_trade(force: bool = False, username: str = "demo") -> list:
     """
     Scan the latest quant report, verify signals, and execute HOSE trading rules.
-    1. Triggers STOP LOSS and TAKE PROFIT exits.
+    1. Triggers STOP LOSS and DYNAMIC exits.
     2. Triggers pre-maturity exits (days to maturity < 10 days).
     3. Triggers BUY entries for high-scoring underpriced warrants.
     """
@@ -407,6 +568,8 @@ def scan_and_trade(force: bool = False, username: str = "demo") -> list:
     # Additional dynamic data for advanced exits
     live_ivs = dict(zip(df["A_MaCW"], df["S_IV_Pct"]))
     live_hvs = dict(zip(df["A_MaCW"], df["S_HV_Pct"]))
+    live_deltas = dict(zip(df["A_MaCW"], df["T_Delta"]))
+    live_gearings = dict(zip(df["A_MaCW"], df["F_DonBay"]))
     
     print("\n🔍 Checking active positions for exit triggers (Risk Management & Vol Arbitrage)...")
     # 1. Evaluate Exit Triggers
@@ -419,11 +582,30 @@ def scan_and_trade(force: bool = False, username: str = "demo") -> list:
         days_left = int(live_days.get(symbol, pos["days_at_buy"]))
         iv_pct = live_ivs.get(symbol, 0.0)
         hv_pct = live_hvs.get(symbol, 0.0)
+        warrant_delta = abs(float(live_deltas.get(symbol, 0.5)))
+        warrant_gearing = float(live_gearings.get(symbol, 5.0))
         
         if live_price <= 0:
             continue
             
         p_l_pct = (live_price - pos["buy_price"]) / pos["buy_price"]
+        peak_price = get_peak_price_since_buy(symbol, pos["buy_date"], pos["buy_price"])
+        
+        # Fetch underlying technical indicators dynamically
+        underlying = pos.get("underlying")
+        tech_metrics = get_underlying_technical_metrics(underlying)
+        latest_stock_close = tech_metrics["latest_close"]
+        ema15_val = tech_metrics["ema15"]
+        atrr14 = tech_metrics["atrr14"]
+        
+        # Optimized ATR Multiplier from walk-forward audit (0.8x)
+        atr_multiplier = 0.8
+        sl_pct = max(0.06, min(0.25, atrr14 * warrant_gearing * atr_multiplier))
+        tp_pct = min(0.35, max(0.08, 1.5 * sl_pct))
+        
+        # Dynamic stop levels
+        stop_loss_price = pos["buy_price"] * (1.0 - sl_pct)
+        take_profit_price = pos["buy_price"] * (1.0 + tp_pct)
         
         # Dynamic Convergence Exit: If IV spikes >= HV, the volatility arbitrage premium has evaporated.
         # This is a classic quant options exit strategy.
@@ -431,18 +613,28 @@ def scan_and_trade(force: bool = False, username: str = "demo") -> list:
              res = execute_sell(symbol, live_price, f"VOLATILITY CONVERGED (IV {iv_pct:.1f}% >= HV {hv_pct:.1f}%)", username=username)
              log_actions.append(res["message"])
              continue
-
-        # SL trigger
-        if p_l_pct <= STOP_LOSS_PCT:
-            res = execute_sell(symbol, live_price, f"STOP LOSS HIT ({p_l_pct*100:.1f}%)", username=username)
+ 
+        # 1. Dynamic Take Profit check
+        if live_price >= take_profit_price:
+            res = execute_sell(symbol, live_price, f"TAKE PROFIT HIT (Dynamic: +{tp_pct*100:.1f}%)", username=username)
             log_actions.append(res["message"])
             
-        # TP trigger
-        elif p_l_pct >= TAKE_PROFIT_PCT:
-            res = execute_sell(symbol, live_price, f"TAKE PROFIT HIT (+{p_l_pct*100:.1f}%)", username=username)
+        # 2. Dynamic SL trigger
+        elif live_price <= stop_loss_price:
+            res = execute_sell(symbol, live_price, f"STOP LOSS HIT (Dynamic: -{sl_pct*100:.1f}%)", username=username)
             log_actions.append(res["message"])
             
-        # Expiry decay trigger
+        # 3. Dynamic Exit based on CPCS EMA15 breakdown (cắt lỗ/chốt lời sớm khi gãy xu hướng)
+        elif latest_stock_close is not None and ema15_val is not None and latest_stock_close < ema15_val:
+            res = execute_sell(symbol, live_price, f"CPCS TREND BREAKDOWN (Stock Close {latest_stock_close:.0f} < EMA15 {ema15_val:.0f})", username=username)
+            log_actions.append(res["message"])
+            
+        # 4. Trailing Stop Exit (chỉ kích hoạt khi giá đã tăng vượt +8% từ điểm mua)
+        elif peak_price >= pos["buy_price"] * 1.08 and live_price <= peak_price * 0.93:
+            res = execute_sell(symbol, live_price, f"TRAILING STOP HIT (7% drop from peak {peak_price:,.0f}đ | P/L: {p_l_pct*100:.1f}%)", username=username)
+            log_actions.append(res["message"])
+            
+        # 5. Expiry decay trigger
         elif days_left < MATURITY_LIMIT_DAYS:
             res = execute_sell(symbol, live_price, f"PRE-MATURITY EXIT (Days to Expiry: {days_left} < {MATURITY_LIMIT_DAYS} days)", username=username)
             log_actions.append(res["message"])

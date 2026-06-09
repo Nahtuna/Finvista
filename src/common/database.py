@@ -10,7 +10,7 @@ Author: samvo
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime, ForeignKey, 
@@ -50,7 +50,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     portfolio = relationship("Portfolio", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -141,6 +141,10 @@ class MarketOpportunity(Base):
     prob_itm = Column(Float)
     theoretical_price = Column(Float)
     upside_pct = Column(Float)
+    garch_theoretical_price = Column(Float)
+    garch_upside_pct = Column(Float)
+    merton_theoretical_price = Column(Float)
+    merton_upside_pct = Column(Float)
     proj_3d_flat_pct = Column(Float)
     proj_3d_up_pct = Column(Float)
     proj_3d_down_pct = Column(Float)
@@ -150,7 +154,18 @@ class MarketOpportunity(Base):
     underlying_is_distressed = Column(Integer)
     underlying_altman_z = Column(Float)
     
-    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # DebtRank Network Contagion Risk
+    underlying_systemic_prob = Column(Float)
+    underlying_systemic_delta = Column(Float)
+    underlying_systemic_is_distressed = Column(Integer)
+    
+    # Banking specific health metrics (CAMELS-lite)
+    underlying_nim = Column(Float)
+    underlying_npl = Column(Float)
+    underlying_casa = Column(Float)
+    underlying_car = Column(Float)
+    
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 class CWHistoricalPrice(Base):
     """Time-series historical price data for Covered Warrants."""
@@ -179,6 +194,56 @@ class StockHistoricalPrice(Base):
     close = Column(Float)
     volume = Column(Float)
     ref_price = Column(Float)
+
+class AIAnalysisMemory(Base):
+    """Long-term experience memory for AI Committee decisions."""
+    __tablename__ = "ai_analysis_memory"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, index=True, nullable=False)
+    underlying = Column(String, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    decision = Column(String)  # STRONG BUY, BUY, SKIP, etc.
+    consensus_score = Column(Float)
+    rationale_summary = Column(String)
+    
+    # Quantitative context at time of analysis
+    price_at_analysis = Column(Float)
+    underlying_price_at_analysis = Column(Float)
+    iv_at_analysis = Column(Float)
+    delta_at_analysis = Column(Float)
+    days_to_maturity = Column(Integer)
+    
+    # Outcome tracking (Updated by backtest utility)
+    is_correct = Column(Boolean, nullable=True)
+    max_upside_pct = Column(Float, nullable=True)
+    result_commentary = Column(String, nullable=True)
+
+class CorporateNews(Base):
+    """Financial news related to warrants, underlying stocks, or issuers."""
+    __tablename__ = "corporate_news"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, index=True, nullable=False) # Can be CW code or Stock ticker
+    title = Column(String, nullable=False)
+    link = Column(String, unique=True, nullable=False)
+    date = Column(String)  # YYYY-MM-DD HH:MM
+    source = Column(String, default="Vietstock")
+    summary = Column(String)
+    category = Column(String) # e.g. "Chứng quyền", "Cổ phiếu cơ sở", "Tổ chức phát hành"
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class CorporateEvent(Base):
+    """Corporate events like dividends, meetings, or issuance for underlying stocks."""
+    __tablename__ = "corporate_events"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String, index=True, nullable=False) # Usually Stock ticker
+    event_date = Column(String, index=True) # YYYY-MM-DD
+    event_type = Column(String) # e.g. "Cổ tức tiền mặt", "Thưởng cổ phiếu"
+    description = Column(String)
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # ==========================================

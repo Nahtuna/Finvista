@@ -5,7 +5,7 @@ import threading
 import time
 from datetime import datetime
 
-from src.quant.run_analysis import run_quant_pipeline_programmatic
+from src.quant.engines.run_analysis import run_quant_pipeline_programmatic
 
 
 def start_periodic_scheduler() -> None:

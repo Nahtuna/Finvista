@@ -12,6 +12,7 @@ Author: samvo
 import os
 import json
 import requests
+import html
 from datetime import datetime
 
 CONFIG_PATH = os.path.join("data", "config", "telegram_config.json")
@@ -54,11 +55,13 @@ def load_telegram_config() -> dict:
         print(f"⚠️ Failed to read Telegram configuration: {e}")
         return {}
 
-def send_telegram_alert_batch(warrants_strong_buy: list, warrants_near_expiry: list):
+def send_telegram_alert_batch(warrants_buy_signals: list, warrants_near_expiry: list):
     """
     Send a beautifully formatted, consolidated HTML alert message containing:
     - Elite quantitative picks (STRONG BUY warrants)
+    - Qualified buy opportunities (BUY warrants)
     - Crucial Greek warnings (Days to Expiry < 14 days, highlighting Theta decay)
+    - Interactive inline keyboard for quick actions
     """
     config = load_telegram_config()
     token = config.get("telegram_bot_token", "").strip()
@@ -73,53 +76,75 @@ def send_telegram_alert_batch(warrants_strong_buy: list, warrants_near_expiry: l
         print(f"💡 Please edit the configuration file: {os.path.abspath(CONFIG_PATH)} to set your Bot Token & Chat ID.")
         return
         
-    if not warrants_strong_buy and not warrants_near_expiry:
-        print("💡 [Telegram Alerts] No alerts triggered (0 STRONG BUY and 0 Warrants < 14 days to expiry). Chat is kept clean.")
+    if not warrants_buy_signals and not warrants_near_expiry:
+        print("💡 [Telegram Alerts] No alerts triggered (0 Buy signals and 0 Warrants < 14 days to expiry). Chat is kept clean.")
         return
         
+    # Split signals
+    strong_buys = [cw for cw in warrants_buy_signals if cw.get('U_Signal') == 'STRONG BUY']
+    buys = [cw for cw in warrants_buy_signals if cw.get('U_Signal') == 'BUY']
+        
     # Construct premium HTML message layout
-    msg = "🚀 <b>[FINVISTA QUANT COVERED WARRANT ALERTS]</b> 🚀\n"
-    msg += f"📅 <i>Thời gian: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</i>\n"
-    msg += "=========================\n\n"
+    msg = "🚀 <b>[FINVISTA QUANT ALERTS]</b>\n"
+    msg += f"📅 <i>{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</i>\n"
+    msg += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
     
-    if warrants_strong_buy:
-        msg += "🔥 <b>CƠ HỘI ĐẦU TƯ CỰC MẠNH (STRONG BUY):</b>\n"
-        for cw in warrants_strong_buy[:5]:  # Limit top 5 to keep the message clean and avoid overflow
-            msg += (
-                f"• <b>Mã CW:</b> <code>{cw['A_MaCW']}</code> ({cw['issuer']})\n"
-                f"  - Cổ phiếu cơ sở: <b>{cw['B_MaCPCS']}</b>\n"
-                f"  - Thị giá CW: <b>{cw['C_GiaCW']:,.0f}đ</b> ({cw['price_change_pct']:+.1f}%)\n"
-                f"  - Volatility Arbitrage: <b>IV {cw['S_IV_Pct']:.1f}%</b> vs <b>HV {cw['S_HV_Pct']:.1f}%</b> (<b>{cw['IV_vs_HV_Signal']}</b>)\n"
-                f"  - Hòa vốn: <b>{cw['M_GiaHL']:,.0f}đ</b> | Premium: <b>{cw['Premium_Pct']:+.1f}%</b>\n"
-                f"  - Đòn bẩy: <b>{cw['F_DonBay']:.1f}x</b> | Đáo Hạn: <b>{cw['L_Ngay']} ngày</b>\n"
-                f"  - Điểm Xếp Hạng: 🌟 <b>{cw['G_Score']:.1f}/100</b>\n\n"
-            )
-        if len(warrants_strong_buy) > 5:
-            msg += f"<i>... và {len(warrants_strong_buy) - 5} mã STRONG BUY khác. Xem chi tiết báo cáo CSV!</i>\n\n"
-            
-    if warrants_near_expiry:
-        msg += "🚨 <b>CẢNH BÁO RỦI RO: CHỨNG QUYỀN SẮP ĐÁO HẠN (&lt; 14 ngày):</b>\n"
-        for cw in warrants_near_expiry[:5]:
-            msg += (
-                f"• <b>Mã CW:</b> <code>{cw['A_MaCW']}</code> ({cw['issuer']})\n"
-                f"  - Cổ phiếu cơ sở: <b>{cw['B_MaCPCS']}</b>\n"
-                f"  - Thị giá CW: <b>{cw['C_GiaCW']:,.0f}đ</b> | Ngày còn lại: 🚨 <b>{cw['L_Ngay']} ngày</b>\n"
-                f"  - Hao mòn Theta: 📉 <b>{cw['T_Theta']:+.0f}đ/ngày</b>\n"
-                f"  - Khuyến nghị hiện tại: <b>{cw['U_Signal']}</b>\n\n"
-            )
-        if len(warrants_near_expiry) > 5:
-            msg += f"<i>... và {len(warrants_near_expiry) - 5} mã sắp đáo hạn khác. Hạn chế nắm giữ lâu!</i>\n\n"
-            
-    msg += "=========================\n"
-    msg += "<i>Chúc quý nhà đầu tư giao dịch thành công!</i>\n"
-    msg += "🛡️ <b>Hệ thống Phân Tích Định Lượng Finvista</b>"
+    # Summary stats
+    total_signals = len(strong_buys) + len(buys)
+    msg += f"📊 <b>Tổng quan:</b> {total_signals} tín hiệu\n\n"
     
+    if strong_buys:
+        msg += f"💎 <b>STRONG BUY</b> ({len(strong_buys)} mã)\n"
+        for cw in strong_buys:  # Show all STRONG BUY
+            symbol = html.escape(str(cw['A_MaCW']))
+            msg += (
+                f"• <b>{symbol}</b> | Điểm: <b>{cw['G_Score']:.1f}</b> | "
+                f"Giá: <b>{cw['C_GiaCW']:,.0f}đ</b> ({cw['price_change_pct']:+.1f}%)\n"
+                f"  Đòn bẩy: <b>{cw['F_DonBay']:.1f}x</b> | Đáo hạn: <b>{cw['L_Ngay']} ngày</b>\n"
+            )
+        msg += "\n"
+            
+    if buys:
+        msg += f"🟢 <b>BUY</b> ({len(buys)} mã)\n"
+        for cw in buys:  # Show all BUY
+            symbol = html.escape(str(cw['A_MaCW']))
+            msg += (
+                f"• <b>{symbol}</b> | Điểm: <b>{cw['G_Score']:.1f}</b> | "
+                f"Giá: <b>{cw['C_GiaCW']:,.0f}đ</b> ({cw['price_change_pct']:+.1f}%)\n"
+                f"  Đòn bẩy: <b>{cw['F_DonBay']:.1f}x</b> | Đáo hạn: <b>{cw['L_Ngay']} ngày</b>\n"
+            )
+        msg += "\n"
+            
+    msg += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    msg += "<i>Nhấn nút bên dưới để xem chi tiết</i>\n"
+    msg += "<b>🤖 Finvista Quant System</b>"
+    
+    # Create inline keyboard
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "📊 Xem CSV chi tiết", "callback_data": "view_csv"},
+                {"text": "📥 Tải báo cáo", "callback_data": "download_report"}
+            ],
+            [
+                {"text": "⚙️ Cài đặt", "callback_data": "settings"},
+                {"text": "🔄 Quét lại", "callback_data": "rescan"}
+            ]
+        ]
+    }
+    
+    # Telegram max message length is 4096 characters.
+    # Truncate if necessary, leaving room for the suffix.
+    if len(msg) > 4000:
+        msg = msg[:4000] + "\n\n... [Danh sách đã được rút gọn do giới hạn độ dài của Telegram] ...\n"
+        
     # POST to Telegram API
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": msg,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
     }
     
     try:
@@ -134,6 +159,27 @@ def send_telegram_alert_batch(warrants_strong_buy: list, warrants_near_expiry: l
 
 def generate_financial_commentary(rec: dict) -> str:
     """Generate a high-fidelity Vietnamese financial commentary explaining the root causes of distress."""
+    # Try AI-powered commentary first
+    try:
+        from src.common.ai_client import get_ai_client
+        ai_client = get_ai_client()
+        
+        commentary = ai_client.generate_financial_commentary(
+            ticker=rec.get("ticker", "UNKNOWN"),
+            current_ratio=float(rec.get("current_ratio", 1.0) or 1.0),
+            debt_ratio=float(rec.get("debt_ratio", 0.5) or 0.5),
+            altman_z_score=float(rec.get("altman_z_score", 0.0) or 0.0),
+            profit_after_tax=float(rec.get("profit_after_tax", 0.0) or 0.0),
+            operating_cash_flow=float(rec.get("operating_cash_flow", 0.0) or 0.0),
+            ebit_to_interest=float(rec.get("ebit_to_interest", 9999.0) or 9999.0)
+        )
+        
+        if commentary:
+            return commentary
+    except Exception as e:
+        print(f"⚠️ AI commentary failed, falling back to rule-based: {e}")
+    
+    # Fallback to rule-based commentary
     c_ratio = float(rec.get("current_ratio", 1.0) or 1.0)
     d_ratio = float(rec.get("debt_ratio", 0.5) or 0.5)
     pat = float(rec.get("profit_after_tax", 0.0) or 0.0)
@@ -186,6 +232,7 @@ def send_credit_distress_alert_batch(distressed_records: list):
     """
     Send a beautifully formatted Telegram notification when listed companies 
     are flagged with extreme financial distress or Altman Z-Score fall.
+    - Interactive inline keyboard for quick actions
     """
     config = load_telegram_config()
     token = config.get("telegram_bot_token", "").strip()
@@ -199,41 +246,59 @@ def send_credit_distress_alert_batch(distressed_records: list):
         print("\n📢 [Telegram Alerts] Active Credit alerts are ENABLED but credentials are not configured.")
         return
         
-    msg = "🚨 <b>[CẢNH BÁO FINVISTA - KHỦNG HOẢNG TÍN DỤNG]</b> 🚨\n"
+    msg = "🚨 <b>[CẢNH BÁO KHỦNG HOẢNG TÍN DỤNG]</b> 🚨\n"
     msg += f"📅 <i>Thời gian quét: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</i>\n"
     msg += "=========================\n\n"
     msg += "⚠️ <b>PHÁT HIỆN DOANH NGHIỆP RƠI VÀO VÙNG NGUY HIỂM (Danger Zone):</b>\n\n"
     
-    for rec in distressed_records[:5]:  # Limit top 5 to keep message neat
-        ticker = rec.get("ticker", "UNKNOWN")
+    # Process only top 5 to prevent Telegram max length error
+    max_records = 5
+    for rec in distressed_records[:max_records]:
+        ticker = html.escape(str(rec.get("ticker", "UNKNOWN")))
         z_score = float(rec.get("altman_z_score", 0.0) or 0.0)
         prob = float(rec.get("xgboost_distress_probability", 0.0) or 0.0)
         prob_pct = prob * 100
         
         # Generate dynamic natural language commentary explanation
-        commentary = generate_financial_commentary(rec)
+        commentary = html.escape(generate_financial_commentary(rec))
         
         msg += (
             f"• <b>Mã CP:</b> <code>{ticker}</code>\n"
             f"  - Hệ số Thanh toán: <b>{rec.get('current_ratio', 0.0):.2f}</b>\n"
             f"  - Nợ/Tổng tài sản: <b>{rec.get('debt_ratio', 0.0)*100:.1f}%</b>\n"
-            f"  - Điểm Altman Z'': 💥 <b>{z_score:.2f}</b> (Danger &lt; 1.10)\n"
+            f"  - Điểm Altman Z'': 📉 <b>{z_score:.2f}</b> (Danger &lt; 1.10)\n"
             f"  - Xác suất Kiệt quệ ML: 🚨 <b>{prob_pct:.1f}%</b>\n"
             f"  - 🔍 <b>Nguyên nhân chính:</b> <i>{commentary}</i>\n"
             f"  - 👉 <b>KHUYẾN NGHỊ: ĐÓNG BĂNG tất cả các Chứng quyền liên quan!</b>\n\n"
         )
+
+    if len(distressed_records) > max_records:
+        msg += f"<i>... và {len(distressed_records) - max_records} doanh nghiệp khác. Vui lòng tải báo cáo CSV để xem chi tiết.</i>\n\n"
         
-    if len(distressed_records) > 5:
-        msg += f"<i>... và {len(distressed_records) - 5} mã nguy hiểm khác đã bị loại khỏi rổ an toàn.</i>\n\n"
-        
-    msg += "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    msg += "🛡️ <b>Hệ thống Quản Trị Rủi Ro Finvista Credit Risk</b>"
+    msg += "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    msg += "<i>Nhấn nút bên dưới để hành động</i>\n"
+    msg += "<b>Finvista Credit Risk System</b>"
+    
+    # Create inline keyboard
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "📋 Xem danh sách đầy đủ", "callback_data": "view_full_list"},
+                {"text": "📥 Tải báo cáo rủi ro", "callback_data": "download_risk_report"}
+            ],
+            [
+                {"text": "🔄 Quét lại ngay", "callback_data": "rescan_credit"},
+                {"text": "⚙️ Cài đặt cảnh báo", "callback_data": "alert_settings"}
+            ]
+        ]
+    }
     
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": msg,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
+        "reply_markup": keyboard
     }
     
     try:
@@ -244,3 +309,146 @@ def send_credit_distress_alert_batch(distressed_records: list):
             print(f"⚠️ [Telegram Alerts] Bot returned error code {resp.status_code}: {resp.text}")
     except Exception as e:
         print(f"⚠️ [Telegram Alerts] Connection error while dispatching webhook: {e}")
+
+
+def handle_callback_query(callback_query_id: str, callback_data: str, chat_id: str):
+    """
+    Handle inline keyboard button callbacks from Telegram.
+    This function should be called when a user clicks a button.
+    
+    Note: To use this, you need to set up a webhook or polling mechanism
+    to receive callback queries from Telegram.
+    """
+    config = load_telegram_config()
+    token = config.get("telegram_bot_token", "").strip()
+    
+    if not token or "YOUR_TELEGRAM" in token:
+        print("⚠️ Telegram bot token not configured")
+        return
+    
+    # Process different callback actions
+    response_text = ""
+    alert = False  # Whether to show a notification to the user
+    edit_message = None  # Optional: edit the original message
+    
+    if callback_data == "view_csv":
+        response_text = "📊 File CSV đã sẵn sàng! Kiểm tra thư mục data/processed/"
+        alert = True
+        # Send CSV file if it exists
+        try:
+            from src.common import config
+            csv_path = config.CLEANED_FINANCIALS_FILE
+            if os.path.exists(csv_path):
+                send_document(chat_id, csv_path, "Báo cáo CSV chi tiết")
+        except Exception as e:
+            print(f"⚠️ Error sending CSV: {e}")
+            
+    elif callback_data == "download_report":
+        response_text = "📥 Đang chuẩn bị báo cáo Excel..."
+        alert = True
+        try:
+            from src.common import config
+            excel_path = os.path.join("data", "processed", "excel_cw_report.csv")
+            if os.path.exists(excel_path):
+                send_document(chat_id, excel_path, "Báo cáo Excel")
+        except Exception as e:
+            print(f"⚠️ Error sending report: {e}")
+            
+    elif callback_data == "settings":
+        response_text = "⚙️ Cài đặt chưa được implement"
+        alert = True
+        
+    elif callback_data == "rescan":
+        response_text = "🔄 Đang quét lại thị trường..."
+        alert = True
+        # Trigger rescan (you can call your analysis script here)
+        try:
+            import subprocess
+            subprocess.Popen(["python", "scripts/run_cw.py", "--all"])
+        except Exception as e:
+            print(f"⚠️ Error triggering rescan: {e}")
+            
+    elif callback_data == "view_full_list":
+        response_text = "📋 Đang tải danh sách đầy đủ..."
+        alert = True
+        # Send full list as file or message
+        try:
+            from src.common import config
+            csv_path = config.FINAL_DATASET_FILE
+            if os.path.exists(csv_path):
+                send_document(chat_id, csv_path, "Danh sách đầy đủ")
+        except Exception as e:
+            print(f"⚠️ Error sending full list: {e}")
+            
+    elif callback_data == "download_risk_report":
+        response_text = "📥 Đang tải báo cáo rủi ro..."
+        alert = True
+        try:
+            from src.common import config
+            report_path = os.path.join(config.PROCESSED_DATA_DIR, "data_quality_report.json")
+            if os.path.exists(report_path):
+                send_document(chat_id, report_path, "Báo cáo rủi ro tín dụng")
+        except Exception as e:
+            print(f"⚠️ Error sending risk report: {e}")
+            
+    elif callback_data == "rescan_credit":
+        response_text = "🔄 Đang quét lại rủi ro tín dụng..."
+        alert = True
+        # Trigger credit pipeline rescan
+        try:
+            import subprocess
+            subprocess.Popen(["python", "run.py", "credit"])
+        except Exception as e:
+            print(f"⚠️ Error triggering credit rescan: {e}")
+            
+    elif callback_data == "alert_settings":
+        response_text = "⚙️ Cài đặt cảnh báo chưa được implement"
+        alert = True
+        
+    else:
+        response_text = "❌ Hành động không được hỗ trợ"
+        alert = True
+    
+    # Answer the callback query
+    url = f"https://api.telegram.org/bot{token}/answerCallbackQuery"
+    payload = {
+        "callback_query_id": callback_query_id,
+        "text": response_text,
+        "show_alert": alert
+    }
+    
+    try:
+        resp = requests.post(url, json=payload, timeout=10)
+        if resp.status_code == 200:
+            print(f"✅ Callback handled: {callback_data}")
+        else:
+            print(f"⚠️ Callback error: {resp.status_code}")
+    except Exception as e:
+        print(f"⚠️ Callback handling error: {e}")
+
+
+def send_document(chat_id: str, file_path: str, caption: str = ""):
+    """Send a document/file to Telegram chat"""
+    config = load_telegram_config()
+    token = config.get("telegram_bot_token", "").strip()
+    
+    if not token or "YOUR_TELEGRAM" in token:
+        print("⚠️ Telegram bot token not configured")
+        return
+    
+    url = f"https://api.telegram.org/bot{token}/sendDocument"
+    
+    try:
+        with open(file_path, 'rb') as f:
+            files = {'document': f}
+            data = {
+                'chat_id': chat_id,
+                'caption': caption
+            }
+            resp = requests.post(url, files=files, data=data, timeout=30)
+            if resp.status_code == 200:
+                print(f"✅ Document sent successfully: {file_path}")
+            else:
+                print(f"⚠️ Document send error: {resp.status_code}")
+    except Exception as e:
+        print(f"⚠️ Error sending document: {e}")
