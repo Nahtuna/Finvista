@@ -31,3 +31,11 @@ yfinance>=0.2.30
 pytest>=7.0.0
 pypdf>=4.0.0
 
+# API Gateway & Database
+fastapi>=0.110.0
+uvicorn>=0.28.0
+sqlalchemy>=2.0.0
+pydantic>=2.0.0
+psycopg2-binary>=2.9.0
+
+
