@@ -25,6 +25,9 @@ if not DATABASE_URL:
     print("Please set DATABASE_URL=postgresql://user:password@host:port/database")
     exit(1)
 
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 pg_engine = create_engine(DATABASE_URL)
 pg_session = sessionmaker(bind=pg_engine)()
 

@@ -30,6 +30,9 @@ os.makedirs(DB_DIR, exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     DATABASE_URL = f"sqlite:///{os.path.join(DB_DIR, 'finvista.db')}"
+else:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Setup Engine and Session
 if "sqlite" in DATABASE_URL:
@@ -44,7 +47,7 @@ else:
 from sqlalchemy import event
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    if "sqlite" in DATABASE_URL:
+    if DATABASE_URL and "sqlite" in DATABASE_URL:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL;")
         cursor.execute("PRAGMA synchronous=NORMAL;")
