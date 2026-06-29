@@ -43,4 +43,5 @@ python-multipart>=0.0.9
 openai>=1.0.0
 xgboost>=1.7.0
 mplfinance>=0.12.10b0
+arch>=7.0.0
 
