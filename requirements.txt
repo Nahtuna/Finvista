@@ -40,4 +40,7 @@ psycopg2-binary>=2.9.0
 slowapi>=0.1.9
 PyJWT>=2.0.0
 python-multipart>=0.0.9
+openai>=1.0.0
+xgboost>=1.7.0
+mplfinance>=0.12.10b0
 
