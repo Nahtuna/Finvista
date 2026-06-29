@@ -245,15 +245,6 @@ export function HomePage({ setPage, setSelectedSymbol, language }) {
           }
           onClick={() => setPage("credit")}
         />
-        <FeatureCard
-          title={isEnglish ? "Paper trading" : "Giao dịch giả lập"}
-          text={
-            isEnglish
-              ? "Simulate covered warrant trades in real time under HOSE rules."
-              : "Mô phỏng giao dịch chứng quyền thời gian thực tuân thủ quy định HOSE."
-          }
-          onClick={() => setPage("portfolio")}
-        />
       </div>
     </section>
   );

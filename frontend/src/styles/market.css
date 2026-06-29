@@ -112,7 +112,7 @@
 
 .market-dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.8fr);
+  grid-template-columns: minmax(280px, 1fr) minmax(0, 2.5fr);
   gap: 1rem;
 }
 
@@ -122,6 +122,8 @@
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .market-card-heading {
@@ -156,12 +158,14 @@
 }
 
 .market-breadth-chart {
-  display: grid;
-  min-height: 14rem;
-  grid-template-columns: minmax(9rem, 0.9fr) minmax(8rem, 1fr);
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  min-height: 14rem;
   gap: 1rem;
-  padding: 1rem;
+  padding: 1.25rem;
   background:
     linear-gradient(rgba(234, 213, 223, 0.55) 1px, transparent 1px),
     linear-gradient(90deg, rgba(185, 214, 243, 0.38) 1px, transparent 1px),
@@ -208,6 +212,7 @@
 .market-breadth-legend {
   display: grid;
   gap: 0.65rem;
+  width: 100%;
 }
 
 .market-breadth-legend button {

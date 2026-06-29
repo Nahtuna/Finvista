@@ -126,9 +126,14 @@ const ENGLISH_INDUSTRIES = {
   "Bán lẻ": "Retail",
   "Vật liệu xây dựng": "Construction materials",
   "Công nghệ và thông tin": "Technology & information",
+  "Công nghệ": "Technology",
   "Thực phẩm - Đồ uống": "Food & beverage",
+  "Thực phẩm": "Food",
   "Vận tải - kho bãi": "Transportation & logistics",
+  "Vận tải": "Transportation",
   "SX Nhựa - Hóa chất": "Plastics & chemicals",
+  "Thép": "Steel",
+  "Khác": "Others",
   "Unknown": "Unknown"
 };
 
@@ -314,9 +319,11 @@ export function MarketPage({ setPage, setSelectedSymbol, language = "en" }) {
     const seen = new Set();
     const unique = [];
     collected.forEach((item) => {
-      const key = item.link || item.title;
-      if (!seen.has(key)) {
-        seen.add(key);
+      const titleKey = (item.title || "").trim();
+      const urlKey = (item.url || item.link || "").trim();
+      if (titleKey && !seen.has(titleKey) && (!urlKey || !seen.has(urlKey))) {
+        seen.add(titleKey);
+        if (urlKey) seen.add(urlKey);
         unique.push(item);
       }
     });

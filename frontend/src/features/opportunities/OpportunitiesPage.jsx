@@ -67,6 +67,8 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi" 
   const suppressTableRowClickUntilRef = useRef(0);
 
   const [debouncedUnderlying, setDebouncedUnderlying] = useState(underlying);
+  const [sortColumn, setSortColumn] = useState("composite_g_score");
+  const [sortDirection, setSortDirection] = useState("desc");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -74,6 +76,36 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi" 
     }, 300);
     return () => clearTimeout(timer);
   }, [underlying]);
+
+  function handleSort(column) {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  }
+
+  function getSortedRows(rows) {
+    return [...rows].sort((a, b) => {
+      let aVal = a[sortColumn];
+      let bVal = b[sortColumn];
+      
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+      
+      if (typeof aVal === "string") {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (sortDirection === "asc") {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  }
 
   async function loadOpportunities({ forceRefresh = false, underlyingOverride } = {}) {
     setLoading(true);
@@ -194,13 +226,14 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi" 
   }
 
   const rows = data?.recommendations || [];
+  const sortedRows = getSortedRows(rows);
   const availableIndustries = [
     ...new Set([
       ...(marketMeta?.industries || []),
       ...rows.map((row) => row.underlying_industry).filter(Boolean)
     ])
   ].sort((a, b) => a.localeCompare(b));
-  const filteredRows = rows.filter((row) => {
+  const filteredRows = sortedRows.filter((row) => {
     const activeOk = Number(row.days_to_maturity) > 0;
     const maturityOk =
       !maturityMax || Number(row.days_to_maturity) <= Number(maturityMax);
@@ -511,27 +544,76 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi" 
         <table>
           <thead>
             <tr>
-              <th>{isEnglish ? "CW code" : "Mã CW"}</th>
-              <th>CPCS</th>
-              <th>{isEnglish ? "Sector" : "Ngành"}</th>
-              <th>TCPH</th>
-              <th className="align-right">{isEnglish ? "Price" : "Giá"}</th>
-              <th className="align-right">{isEnglish ? "Underlying px" : "Giá CPCS"}</th>
-              <th className="align-right">Premium</th>
-              <th className="align-right">Volume</th>
-              <th className="align-right">{isEnglish ? "Score" : "Điểm"}</th>
-              <th className="align-right">Gearing</th>
-              <th className="align-right">Delta</th>
-              <th className="align-right">Theta</th>
-              <th className="align-right">IV/HV</th>
-              <th className="align-center">{isEnglish ? "Days left" : "Còn lại"}</th>
-              <th className="align-center">{isEnglish ? "Signal" : "Tín hiệu"}</th>
+              <th onClick={() => handleSort("warrant_symbol")} className="sortable">
+                {isEnglish ? "CW code" : "Mã CW"}
+                {sortColumn === "warrant_symbol" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("underlying_symbol")} className="sortable">
+                CPCS
+                {sortColumn === "underlying_symbol" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("underlying_industry")} className="sortable">
+                {isEnglish ? "Sector" : "Ngành"}
+                {sortColumn === "underlying_industry" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("issuer")} className="sortable">
+                TCPH
+                {sortColumn === "issuer" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("market_price")} className="sortable align-right">
+                {isEnglish ? "Price" : "Giá"}
+                {sortColumn === "market_price" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("price_change_pct")} className="sortable align-right">
+                {isEnglish ? "% Change" : "% Thay đổi"}
+                {sortColumn === "price_change_pct" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("underlying_price")} className="sortable align-right">
+                {isEnglish ? "Underlying px" : "Giá CPCS"}
+                {sortColumn === "underlying_price" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("premium_pct")} className="sortable align-right">
+                Premium
+                {sortColumn === "premium_pct" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("volume")} className="sortable align-right">
+                Volume
+                {sortColumn === "volume" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("composite_g_score")} className="sortable align-right">
+                {isEnglish ? "Score" : "Điểm"}
+                {sortColumn === "composite_g_score" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("effective_gearing")} className="sortable align-right">
+                Gearing
+                {sortColumn === "effective_gearing" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("delta")} className="sortable align-right">
+                Delta
+                {sortColumn === "delta" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("theta_daily_burn")} className="sortable align-right">
+                Theta
+                {sortColumn === "theta_daily_burn" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("implied_volatility_pct")} className="sortable align-right">
+                IV/HV
+                {sortColumn === "implied_volatility_pct" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("days_to_maturity")} className="sortable align-center">
+                {isEnglish ? "Days left" : "Còn lại"}
+                {sortColumn === "days_to_maturity" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
+              <th onClick={() => handleSort("recommendation_signal")} className="sortable align-center">
+                {isEnglish ? "Signal" : "Tín hiệu"}
+                {sortColumn === "recommendation_signal" && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
+              </th>
             </tr>
           </thead>
           <tbody>
             {paginatedRows.length === 0 && !loading ? (
               <tr>
-                <td colSpan="15" className="empty-cell">
+                 <td colSpan="16" className="empty-cell">
                   {isEnglish
                     ? "No matching rows. Adjust filters or reload data."
                     : "Không có dòng phù hợp. Hãy đổi bộ lọc hoặc tải lại dữ liệu."}
@@ -550,16 +632,41 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi" 
                 <td>{displayIndustry(row.underlying_industry, language) || "-"}</td>
                 <td>{row.issuer || "-"}</td>
                 <td className="align-right">{formatMoney(row.market_price)}đ</td>
-                <td className="align-right">{formatMoney(row.underlying_price)}đ</td>
-                <td className="align-right">{formatNumber(row.premium_pct, 1)}%</td>
-                <td className="align-right">{formatMoney(row.volume)}</td>
-                <td className="align-right">{formatNumber(row.composite_g_score, 1)}</td>
-                <td className="align-right">{formatNumber(row.effective_gearing, 2)}x</td>
-                <td className="align-right">{formatNumber(row.delta, 4)}</td>
-                <td className="align-right">{formatNumber(row.theta_daily_burn, 0)}đ</td>
                 <td className="align-right">
-                  {formatNumber(row.implied_volatility_pct, 1)}% /{"  "}
-                  {formatNumber(row.historical_volatility_pct, 1)}%
+                  {row.price_change_pct !== null && row.price_change_pct !== undefined ? (
+                    <span className={Number(row.price_change_pct) > 0 ? "text-green" : Number(row.price_change_pct) < 0 ? "text-red" : ""}>
+                      {Number(row.price_change_pct) > 0 ? "+" : ""}{formatNumber(row.price_change_pct, 1)}%
+                    </span>
+                  ) : "-"}
+                </td>
+                <td className="align-right">{formatMoney(row.underlying_price)}đ</td>
+                <td className="align-right">
+                  <span className={Number(row.premium_pct) < 0 ? "text-green" : Number(row.premium_pct) > 15 ? "text-red" : ""}>
+                    {formatNumber(row.premium_pct, 1)}%
+                  </span>
+                </td>
+                <td className="align-right">{formatMoney(row.volume)}</td>
+                <td className="align-right">
+                  <span className={Number(row.composite_g_score) >= 70 ? "text-green" : Number(row.composite_g_score) <= 50 ? "text-red" : ""}>
+                    {formatNumber(row.composite_g_score, 1)}
+                  </span>
+                </td>
+                <td className="align-right">{formatNumber(row.effective_gearing, 2)}x</td>
+                <td className="align-right">
+                  <span className={Number(row.delta) >= 0.3 && Number(row.delta) <= 0.7 ? "text-green" : Number(row.delta) < 0.15 ? "text-red" : ""}>
+                    {formatNumber(row.delta, 4)}
+                  </span>
+                </td>
+                <td className="align-right">
+                  <span className={Math.abs(Number(row.theta_daily_burn)) > 20 ? "text-red" : ""}>
+                    {formatNumber(row.theta_daily_burn, 0)}đ
+                  </span>
+                </td>
+                <td className="align-right">
+                  <span className={Math.abs(Number(row.implied_volatility_pct) - Number(row.historical_volatility_pct)) > 10 ? "text-yellow" : ""}>
+                    {formatNumber(row.implied_volatility_pct, 1)}% /{"  "}
+                    {formatNumber(row.historical_volatility_pct, 1)}%
+                  </span>
                 </td>
                 <td className="align-center">
                   {row.days_to_maturity ?? "-"} {isEnglish ? "days" : "ngày"}

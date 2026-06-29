@@ -796,3 +796,277 @@ tbody tr:hover .strong-cell {
   background: rgba(20, 24, 32, 0.72);
   color: #ffd6e9;
 }
+
+/* 🤖 AI CHAT WIDGET DARK MODE OVERRIDES */
+.app-shell.color-dark .ai-chat-window-panel {
+  background: var(--surface-panel);
+  border-color: var(--border-soft);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.app-shell.color-dark .ai-chat-header {
+  background: var(--surface-muted);
+  border-bottom-color: var(--border-soft);
+}
+
+.app-shell.color-dark .ai-chat-header-title {
+  color: var(--text-main);
+}
+
+.app-shell.color-dark .ai-chat-header-actions button {
+  color: var(--text-muted);
+}
+
+.app-shell.color-dark .ai-chat-header-actions button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+.app-shell.color-dark .chat-message-row.assistant .bubble {
+  background: var(--surface-muted);
+  border-color: var(--border-soft);
+  color: var(--text-main);
+}
+
+.app-shell.color-dark .chat-message-row.assistant .bubble * {
+  color: inherit;
+}
+
+.app-shell.color-dark .chat-message-row.assistant .avatar {
+  background: rgba(224, 106, 162, 0.15);
+  color: var(--accent-primary);
+}
+
+.app-shell.color-dark .ai-chat-suggestions-ribbon {
+  border-top-color: var(--border-soft);
+}
+
+.app-shell.color-dark .suggestion-chip {
+  background: var(--surface-bg);
+  border-color: var(--border-soft);
+  color: var(--text-muted);
+}
+
+.app-shell.color-dark .suggestion-chip:hover {
+  background: var(--surface-muted);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.app-shell.color-dark .ai-chat-input-row {
+  background: var(--surface-bg);
+  border-top-color: var(--border-soft);
+}
+
+/* 🔄 AUTO-REFRESH TOGGLE DARK MODE */
+.app-shell.color-dark .auto-refresh-container {
+  background: var(--surface-panel);
+  border-color: var(--border-soft);
+}
+
+.app-shell.color-dark .auto-refresh-container:hover {
+  background: var(--surface-muted);
+  border-color: var(--accent-primary);
+}
+
+.app-shell.color-dark .auto-refresh-label {
+  color: var(--text-main);
+}
+
+/* 🏆 HERO METRICS DARK MODE OVERRIDES */
+.app-shell.color-dark .hero-metric {
+  border-left-color: rgba(224, 106, 162, 0.4);
+}
+
+.app-shell.color-dark .hero-metric > span {
+  background: linear-gradient(135deg, rgba(224, 106, 162, 0.25), rgba(90, 155, 210, 0.25));
+  color: var(--accent-primary);
+}
+
+.app-shell.color-dark .hero-metric small {
+  color: var(--text-muted);
+}
+
+.app-shell.color-dark .hero-metric strong {
+  color: var(--text-main);
+}
+
+/* 📈 PREMIUM BRIEF PANEL & TILES DARK MODE */
+.app-shell.color-dark .market-tile {
+  background: linear-gradient(180deg, rgba(22, 26, 34, 0.95), rgba(15, 18, 24, 0.95));
+  border-color: var(--border-soft);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.app-shell.color-dark .market-tile strong {
+  color: var(--text-main);
+}
+
+.app-shell.color-dark .market-tile.highlight {
+  background: linear-gradient(135deg, rgba(224, 106, 162, 0.12), rgba(90, 155, 210, 0.1));
+  border-color: rgba(224, 106, 162, 0.3);
+}
+
+.app-shell.color-dark .market-tile.highlight.danger {
+  background: linear-gradient(135deg, rgba(243, 107, 138, 0.15), rgba(20, 24, 32, 0.8));
+  border-color: rgba(243, 107, 138, 0.4);
+}
+
+.app-shell.color-dark .market-tile.highlight.danger strong {
+  color: #f36b8a;
+}
+
+.app-shell.color-dark .brief-item {
+  background: rgba(22, 26, 34, 0.75);
+  backdrop-filter: blur(12px);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.app-shell.color-dark .brief-item:hover {
+  border-color: rgba(224, 106, 162, 0.45);
+  box-shadow: 0 8px 24px rgba(224, 106, 162, 0.18);
+  transform: translateY(-2px);
+}
+
+.app-shell.color-dark .brief-item span {
+  color: var(--accent-primary);
+}
+
+.app-shell.color-dark .brief-item strong {
+  color: var(--text-main);
+}
+
+.app-shell.color-dark .brief-item.success {
+  border-color: rgba(72, 214, 181, 0.35);
+  background: linear-gradient(135deg, rgba(72, 214, 181, 0.1), rgba(20, 24, 32, 0.8));
+}
+
+.app-shell.color-dark .brief-item.success span,
+.app-shell.color-dark .brief-item.success strong {
+  color: #48d6b5;
+}
+
+.app-shell.color-dark .brief-item.danger {
+  border-color: rgba(243, 107, 138, 0.38);
+  background: linear-gradient(135deg, rgba(243, 107, 138, 0.1), rgba(20, 24, 32, 0.8));
+}
+
+.app-shell.color-dark .brief-item.danger span,
+.app-shell.color-dark .brief-item.danger strong {
+  color: #f36b8a;
+}
+
+/* 🌌 FUTURISTIC GLOW FOR HERO MARKET PANEL (RIGHT SIDE) */
+.app-shell.color-dark .hero-market-panel {
+  background: 
+    radial-gradient(circle at 90% 10%, rgba(224, 106, 162, 0.18), transparent 45%),
+    radial-gradient(circle at 10% 90%, rgba(90, 155, 210, 0.14), transparent 45%),
+    linear-gradient(180deg, rgba(22, 26, 35, 0.95), rgba(15, 18, 24, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 24px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ⚡️ SCI-FI SHINE & GLOW FOR THE TOP SIGNAL CARD */
+.app-shell.color-dark .market-tile.highlight {
+  background: 
+    linear-gradient(135deg, rgba(224, 106, 162, 0.22), rgba(90, 155, 210, 0.2)),
+    rgba(22, 26, 34, 0.9);
+  border: 1px solid rgba(224, 106, 162, 0.45);
+  box-shadow: 
+    0 12px 28px rgba(224, 106, 162, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-shell.color-dark .market-tile.highlight::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  transform: skewX(-20deg);
+  animation: shineAnimation 6s infinite ease-in-out;
+}
+
+@keyframes shineAnimation {
+  0% { left: -100%; }
+  35% { left: 200%; }
+  100% { left: 200%; }
+}
+
+/* 🏷️ LINK BUTTON AS GLOWING PILL */
+.app-shell.color-dark .hero-market-panel .link-button {
+  background: rgba(224, 106, 162, 0.15) !important;
+  color: var(--accent-primary) !important;
+  border: 1px solid rgba(224, 106, 162, 0.3) !important;
+  padding: 0.25rem 0.75rem !important;
+  border-radius: 999px !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 0 0 0 rgba(224, 106, 162, 0);
+}
+
+.app-shell.color-dark .hero-market-panel .link-button:hover {
+  background: var(--accent-primary) !important;
+  color: #121722 !important;
+  box-shadow: 0 4px 12px rgba(224, 106, 162, 0.35) !important;
+  transform: translateY(-1px);
+}
+
+/* 📊 STATS TILES COLORING & CENTERING */
+.app-shell.color-dark .market-tile-row {
+  gap: 0.75rem;
+}
+
+.app-shell.color-dark .market-tile-row .market-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.85rem;
+  background: rgba(22, 26, 34, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.85rem;
+}
+
+.app-shell.color-dark .market-tile-row .market-tile span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+  font-weight: 700;
+}
+
+.app-shell.color-dark .market-tile-row .market-tile strong {
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.app-shell.color-dark .market-tile-row .market-tile:first-child strong {
+  color: #48d6b5; /* bright cyan-green for buy signals count */
+  text-shadow: 0 0 8px rgba(72, 214, 181, 0.25);
+}
+
+.app-shell.color-dark .market-tile-row .market-tile:last-child strong {
+  color: #f36b8a; /* bright pink-red for skip signals count */
+  text-shadow: 0 0 8px rgba(243, 107, 138, 0.25);
+}
+
+
+
+
+
+

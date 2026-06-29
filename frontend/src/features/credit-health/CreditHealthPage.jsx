@@ -7,6 +7,8 @@ import { Input } from "../../components/ui/input.jsx";
 import { ErrorBox, LoadingBox, MetricCard } from "../../components/ui/status.jsx";
 import { formatNumber } from "../../lib/formatters.js";
 
+// Set to true to show the AI (SHAP) model explanations section during presentations
+const SHOW_SHAP_EXPLANATION = false;
 
 function Ratio({ label, value }) {
   return (
@@ -166,7 +168,7 @@ export function CreditHealthPage({ language = "vi" }) {
                 </div>
               </KpiGroup>
 
-              {data.shap_contributions && Object.keys(data.shap_contributions).length ? (
+              {SHOW_SHAP_EXPLANATION && data.shap_contributions && Object.keys(data.shap_contributions).length ? (
                 <KpiGroup
                   title={isEnglish ? "XAI Model Explanations (SHAP)" : "Giải thích mô hình AI (SHAP)"}
                   description={isEnglish ? "Key drivers pushing the bank rating towards Safe (green/negative) or Distress (red/positive)." : "Các chỉ báo chính đóng góp đẩy điểm tín dụng ngân hàng về Safe (xanh/âm) hoặc Distress (đỏ/dương)."}
@@ -247,7 +249,7 @@ export function CreditHealthPage({ language = "vi" }) {
                 </div>
               </KpiGroup>
 
-              {data.shap_contributions && Object.keys(data.shap_contributions).length ? (
+              {SHOW_SHAP_EXPLANATION && data.shap_contributions && Object.keys(data.shap_contributions).length ? (
                 <KpiGroup
                   title={isEnglish ? "XAI Model Explanations (SHAP)" : "Giải thích mô hình AI (SHAP)"}
                   description={isEnglish ? "Key drivers pushing the XGBoost rating towards Safe (green/negative) or Distress (red/positive)." : "Các chỉ báo chính đóng góp đẩy điểm XGBoost về Safe (xanh/âm) hoặc Distress (đỏ/dương)."}

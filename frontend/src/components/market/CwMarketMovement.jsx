@@ -116,39 +116,41 @@ export function CwMarketMovement({
       </div>
 
       <div className="movement-grid">
-        <article className="movement-card breadth-card">
-          <div className="movement-card-title">
-            <span>{isEnglish ? "Signal breadth" : "Độ rộng tín hiệu"}</span>
-            <strong>{formatMoney(safeRows.length)} CW</strong>
-          </div>
-          <SignalPie
-            isEnglish={isEnglish}
-            items={[
-              { label: isEnglish ? "Buy" : "Mua", value: buyRows.length, color: "#008b7a" },
-              { label: isEnglish ? "Skip" : "Bỏ qua", value: skipRows.length, color: "#d94a6f" },
-              { label: isEnglish ? "Neutral" : "Trung tính", value: neutralRows.length, color: "#c9952f" }
-            ]}
-            total={pieTotal}
-          />
-        </article>
+        <div className="movement-left-column">
+          <article className="movement-card breadth-card">
+            <div className="movement-card-title">
+              <span>{isEnglish ? "Signal breadth" : "Độ rộng tín hiệu"}</span>
+              <strong>{formatMoney(safeRows.length)} CW</strong>
+            </div>
+            <SignalPie
+              isEnglish={isEnglish}
+              items={[
+                { label: isEnglish ? "Buy" : "Mua", value: buyRows.length, color: "#008b7a" },
+                { label: isEnglish ? "Neutral" : "Trung tính", value: neutralRows.length, color: "#c9952f" },
+                { label: isEnglish ? "Skip" : "Bỏ qua", value: skipRows.length, color: "#d94a6f" }
+              ]}
+              total={pieTotal}
+            />
+          </article>
 
-        <article className="movement-card flow-card">
-          <div className="movement-card-title">
-            <span>{isEnglish ? "CW traded value" : "Giá trị giao dịch CW"}</span>
-            <strong>{formatMoney(totalFlow)}đ</strong>
-          </div>
-          <div className="flow-bars">
-            {flowGroups.map((item) => (
-              <FlowRow
-                key={item.key}
-                item={item}
-                topFlow={topFlow}
-                totalFlow={totalFlow}
-                isEnglish={isEnglish}
-              />
-            ))}
-          </div>
-        </article>
+          <article className="movement-card flow-card">
+            <div className="movement-card-title">
+              <span>{isEnglish ? "CW traded value" : "Giá trị giao dịch CW"}</span>
+              <strong>{formatMoney(totalFlow)}đ</strong>
+            </div>
+            <div className="flow-bars">
+              {flowGroups.map((item) => (
+                <FlowRow
+                  key={item.key}
+                  item={item}
+                  topFlow={topFlow}
+                  totalFlow={totalFlow}
+                  isEnglish={isEnglish}
+                />
+              ))}
+            </div>
+          </article>
+        </div>
 
         <article className="movement-card heatmap-card">
           <div className="movement-card-title">
@@ -280,8 +282,11 @@ function SignalPie({ items, total, isEnglish }) {
       <div className="pie-legend">
         {items.map((item) => (
           <span key={item.label}>
-            <i style={{ background: item.color }} />
-            {item.label} <strong>{item.value}</strong>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <i style={{ background: item.color }} />
+              {item.label}
+            </span>
+            <strong>{item.value}</strong>
           </span>
         ))}
       </div>

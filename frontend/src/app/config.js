@@ -4,7 +4,6 @@ export const NAV_ITEMS = {
     { id: "market", label: "Tổng quan thị trường" },
     { id: "cw", label: "Cơ hội CW" },
     { id: "credit", label: "Sức khỏe tín dụng" },
-    { id: "portfolio", label: "Giao dịch giả lập" },
     { id: "detail", label: "Chi tiết CW" }
   ],
   en: [
@@ -12,7 +11,6 @@ export const NAV_ITEMS = {
     { id: "market", label: "Market Overview" },
     { id: "cw", label: "CW Opportunities" },
     { id: "credit", label: "Credit Health" },
-    { id: "portfolio", label: "Paper Trading" },
     { id: "detail", label: "CW Detail" }
   ]
 };

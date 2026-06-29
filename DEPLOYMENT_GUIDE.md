@@ -245,7 +245,7 @@ CREATE TABLE company_distress_analysis (
     industry_adjusted_roaa FLOAT,
     industry_roaa_percentile FLOAT,
     industry_adjusted_roae FLOAT,
-    industry_roaa_percentile FLOAT,
+    industry_roae_percentile FLOAT,
     industry_adjusted_debt_ratio FLOAT,
     industry_debt_ratio_percentile FLOAT,
     current_ratio FLOAT,
