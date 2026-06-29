@@ -5,8 +5,8 @@ import os
 import json as _json
 import joblib
 
-from src.common import config
-_MODEL_DIR = os.path.join(config.DATA_DIR, "models")
+from src.core import config
+
 distress_model = None
 distress_scaler = None
 distress_threshold = 0.5
@@ -21,9 +21,9 @@ def load_distress_models() -> None:
     """Load credit risk model artifacts at application startup."""
     global distress_model, distress_scaler, distress_threshold
     try:
-        distress_model = joblib.load(os.path.join(_MODEL_DIR, "best_distress_model.pkl"))
-        distress_scaler = joblib.load(os.path.join(_MODEL_DIR, "scaler.pkl"))
-        thr_cfg_path = os.path.join(_MODEL_DIR, "threshold_config.json")
+        distress_model = joblib.load(config.BEST_DISTRESS_MODEL)
+        distress_scaler = joblib.load(config.SCALER_ARTIFACT)
+        thr_cfg_path = config.THRESHOLD_CONFIG
         if os.path.exists(thr_cfg_path):
             with open(thr_cfg_path) as f:
                 distress_threshold = _json.load(f).get("active_threshold", 0.5)

@@ -1,2 +1,0 @@
-"""Covered warrant engine package."""
-

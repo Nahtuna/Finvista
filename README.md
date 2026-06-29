@@ -1,423 +1,567 @@
-# 🏆 FINVISTA: NỀN TẢNG ĐỊNH GIÁ & QUẢN TRỊ RỦI RO CHỨNG QUYỀN (SAAS PRO)
+# 🏆 FINVISTA — Nền Tảng Định Giá & Quản Trị Rủi Ro Chứng Quyền
 
 <p align="center">
-  <a href="https://github.com/Nahtuna/Finvista">
-    <img src="https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python">
-    <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
-    <img src="https://img.shields.io/badge/SQLAlchemy-D31900?style=for-the-badge&logo=python&logoColor=white" alt="SQLAlchemy">
-    <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
-  </a>
+  <img src="https://img.shields.io/badge/Python-3.9%20|%203.10%20|%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/SQLAlchemy-D31900?style=for-the-badge&logo=sqlalchemy&logoColor=white" alt="SQLAlchemy">
+  <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/Gemini_AI-8E75B2?style=for-the-badge&logo=google&logoColor=white" alt="Gemini AI">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/JWT_Auth-Isolated-orange?style=flat-square&logo=json-web-tokens&logoColor=white" alt="JWT">
-  <img src="https://img.shields.io/badge/Realtime-WebSockets-brightgreen?style=flat-square" alt="WebSockets">
-  <img src="https://img.shields.io/badge/Rate_Limiting-Active-red?style=flat-square" alt="Rate Limiting">
-  <img src="https://img.shields.io/badge/Tests-15%2F15%20Passed-success?style=flat-square&logo=pytest&logoColor=white" alt="Tests">
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/HMM_Regime-Active-4CAF50?style=flat-square" alt="HMM">
+  <img src="https://img.shields.io/badge/XGBoost_Forecast-Active-FF6F00?style=flat-square" alt="XGBoost">
+  <img src="https://img.shields.io/badge/DRL_Portfolio-Active-9C27B0?style=flat-square" alt="DRL">
+  <img src="https://img.shields.io/badge/GARCH_Vol-Active-2196F3?style=flat-square" alt="GARCH">
+  <img src="https://img.shields.io/badge/Merton_Model-Active-E91E63?style=flat-square" alt="Merton">
+  <img src="https://img.shields.io/badge/SABR_Vol_Surface-Active-00BCD4?style=flat-square" alt="SABR">
 </p>
 
-> **Quantitative Covered Warrant Core Engine & Enterprise API Gateway (Vietnamese Financial Markets)**  
-> Trụ sở nghiên cứu: **UPGen Deutsches Haus Tower, Quận 1, TP. Hồ Chí Minh**
+<p align="center">
+  <img src="https://img.shields.io/badge/JWT_Auth-Secured-FF5722?style=flat-square&logo=json-web-tokens&logoColor=white" alt="JWT">
+  <img src="https://img.shields.io/badge/WebSocket-Realtime-00E676?style=flat-square" alt="WebSocket">
+  <img src="https://img.shields.io/badge/Rate_Limiting-Active-F44336?style=flat-square" alt="Rate Limiting">
+  <img src="https://img.shields.io/badge/Tests-15%2F15_Passed-4CAF50?style=flat-square&logo=pytest&logoColor=white" alt="Tests">
+  <img src="https://img.shields.io/badge/License-MIT-0288D1?style=flat-square" alt="License">
+</p>
 
-
----
-
-## 🌟 Tổng Quan Dự Án
-
-**Finvista** là giải pháp toán học tài chính tinh gọn và bảo mật cao giúp định giá, phát hiện cơ hội giao dịch lệch giá biến động (Volatility Arbitrage) và quản trị rủi ro cho **Chứng quyền có bảo đảm (Covered Warrants - CW)** tại Việt Nam.
-
-Nền tảng đã được tái cấu trúc hoàn chỉnh theo chuẩn **Kiến trúc Sạch (Clean Architecture)** với một cổng điều khiển trung tâm duy nhất `run.py` tại thư mục gốc, hệ thống lưu trữ bền vững SQLite bằng ORM SQLAlchemy, xác thực người dùng bảo mật cao JWT, cổng API Gateway tích hợp WebSockets thời gian thực và Rate Limiting bảo vệ máy chủ.
-
-### 🚀 Hedge Fund Grade Automation & Intelligence (MỚI)
-*   **Master Orchestrator:** Trình điều khiển trung tâm tự động hóa toàn bộ quy trình: cào tin tức, đồng bộ dữ liệu Vĩ mô (Lãi suất liên ngân hàng), và chấm điểm rủi ro định kỳ mỗi 5 phút (`python run.py orchestrator`).
-*   **Deep Crawler & AI Telegram Alerts:** Cào sâu tin tức và lịch chốt quyền cổ tức từ Vietstock (tự động phân trang AJAX). AI tóm tắt tin tức trong 3 câu và bắn cảnh báo điểm mua/bán thẳng vào Telegram cá nhân.
-*   **News Impact Backtesting:** Lớp định lượng kiểm chứng lịch sử: tính toán xác suất tăng/giảm giá của Chứng quyền ngay sau khi một loại sự kiện doanh nghiệp được công bố.
-
-### 🔥 Điểm Nhấn Thuật Toán Định Giá (Pro-Trader Logic)
-Hệ thống lõi định lượng (`pricing_core.py`) được thiết lập bộ lọc cứng (**Hard Gates**) vô cùng khắt khe, tích hợp các nguyên lý thực chiến cao cấp nhất trên thị trường Việt Nam:
-*   **Chống "Úp sọt" Premium (Max Premium < 18%):** Lọc bỏ ngay các mã CW bị nhà phát hành định giá quá cao (ảo giá).
-*   **Chống "Vé số" Deep OTM (Min Delta > 0.15):** Ngăn chặn dòng tiền đổ vào các mã quá xa điểm hòa vốn (xác suất thắng thấp).
-*   **Tránh bom hẹn giờ Theta (Maturity > 15 ngày):** Tự động loại bỏ CW sắp đáo hạn để tránh hao mòn thời gian ăn lẹm vào vốn.
-*   **Lọc Thanh khoản Sổ lệnh (Smart Spread Check):** Đọc bảng giá Mua/Bán (Bid/Ask) ngay khi thị trường vừa mở cửa để loại trừ các mã bị Spread quá rộng (> 15%) hoặc mất thanh khoản.
+<p align="center">
+  <b>Quantitative Covered Warrant Engine & Enterprise API Gateway · Vietnamese Financial Markets</b><br>
+  <sub>📍 UPGen Deutsches Haus Tower, Quận 1, TP. Hồ Chí Minh</sub>
+</p>
 
 ---
 
-## 📂 Kiến Trúc Dự Án Hoàn Chỉnh (Clean Architecture)
+## 📖 Mục Lục
 
-```
-Finvista/
-├── alembic/                         📂 FILE MIGRATION CỦA DATABASE (Đồng bộ Schema tự động)
-├── data/                            📂 THƯ MỤC DỮ LIỆU CỤC BỘ (Không commit Git)
-│   ├── raw/                         ├─ Dữ liệu thô (giá thô, báo cáo tài chính thô)
-│   ├── processed/                   ├─ Dữ liệu đã làm sạch & biên dịch (Greeks, lịch sử đồng bộ)
-│   ├── config/                      ├─ Cấu hình hệ thống (Telegram Bot, Paper portfolio)
-│   └── finvista.db                  └─ Cơ sở dữ liệu SQLite chính của hệ thống SaaS
-├── docs/                            📂 TÀI LIỆU HỆ THỐNG & ĐỒ ÁN (Đã chuẩn hóa)
-│   ├── 01-saas-architecture-blueprint.md  ├─ Thiết kế kiến trúc SaaS & Lộ trình
-│   ├── 02-unified-integration-plan.md     ├─ Kế hoạch hợp nhất CW & Credit Risk
-│   ├── 03-financial-distress-roadmap.md   ├─ Lộ trình hệ thống kiệt quệ tài chính
-│   ├── 04-roadmap.md                      ├─ Lộ trình phát triển chi tiết
-│   ├── 05-cw-metrics-handbook.md          ├─ Cẩm nang chỉ số chứng quyền
-│   ├── 06-quick-start.md                  ├─ Hướng dẫn khởi chạy nhanh dự án
-│   └── 07-modern-data-stack-architecture.md └─ Kiến trúc Modern Data Stack & Data Quality
-├── src/                             🧠 THƯ MỤC MÃ NGUỒN CHÍNH
-│   ├── api/                         ├─ API Gateway (WebSockets, REST routes)
-│   ├── common/                      ├─ Cơ sở hạ tầng dùng chung (Database config, Utils)
-│   ├── etl/                         ├─ Pipeline dữ liệu: Trích xuất, biến đổi và nạp (ETL)
-│   ├── models/                      ├─ Mô hình ML (Step 6–8): Train, Evaluate, DebtRank Contagion
-│   ├── quant/                       ├─ Thư viện định lượng, BSM pricing & Backtester T+2.5
-│   └── trading/                     └─ Chạy giả lập Paper Trading & Telegram Alert Bot
-├── tests/                           🧪 BỘ KIỂM THỬ TỰ ĐỘNG (pytest 15/15 cases thành công 100%)
-├── tools/                           📂 TIỆN ÍCH HỖ TRỢ (Setup API, Dò Chat ID Telegram)
-├── run.py                           🏆 TRÌNH ĐIỀU KHIỂN TRUNG TÂM (CLI - ENTRYPOINT DUY NHẤT)
-├── .env.example                     ⚙️ Tệp cấu hình môi trường mẫu cho Nhà phát triển
-├── requirements.txt                 ⚙️ Danh sách thư viện phụ thuộc cực nhẹ
-└── LICENSE                          ⚙️ Giấy phép phần mềm MIT
+- [⚡ Quick Start](#-quick-start)
+- [🌟 Tổng Quan](#-tổng-quan)
+- [🧩 Các Module Chính](#-các-module-chính)
+- [🏗️ Kiến Trúc Hệ Thống](#️-kiến-trúc-hệ-thống--luồng-dữ-liệu)
+- [✨ Tính Năng](#-tính-năng)
+- [📦 Cài Đặt](#-cài-đặt)
+- [⚙️ Cấu Hình](#️-cấu-hình)
+- [🚀 Sử Dụng](#-sử-dụng)
+- [📂 Cấu Trúc Dự Án](#-cấu-trúc-dự-án)
+- [📊 Hiệu Suất](#-hiệu-suất)
+- [🧪 Kiểm Thử](#-kiểm-thử)
+- [🗺️ Lộ Trình](#️-lộ-trình)
+- [📄 Giấy Phép](#-giấy-phép)
+
+---
+
+## ⚡ Quick Start
+
+```bash
+# 1. Clone & cài đặt
+git clone https://github.com/Nahtuna/Finvista.git && cd Finvista
+pip install -e .
+
+# 2. Cấu hình môi trường
+cp .env.example .env   # Điền TELEGRAM_BOT_TOKEN, JWT_SECRET_KEY...
+
+# 3. Khởi chạy
+python run.py api      # → REST API tại http://127.0.0.1:8008/docs
+python run.py scan     # → Quét & cảnh báo CW qua Telegram
+python run.py trade --portfolio  # → Xem danh mục Paper Trading
 ```
 
 ---
 
-## ⚙️ Cấu Hình Môi Trường (.env)
+## 🌟 Tổng Quan
 
-Hệ thống quản lý thông tin nhạy cảm qua tệp `.env` tại thư mục gốc. Trước khi khởi chạy, hãy sao chép tệp mẫu và điền thông tin thực tế:
+**Finvista** là giải pháp toán học tài chính tinh gọn và bảo mật cao giúp **định giá, phát hiện cơ hội Volatility Arbitrage và quản trị rủi ro** cho Chứng quyền có bảo đảm (Covered Warrants - CW) tại thị trường Việt Nam.
+
+Nền tảng được tái cấu trúc hoàn chỉnh theo chuẩn **Clean Architecture** với:
+- 🎯 **CLI trung tâm** duy nhất tại `run.py`
+- 🗄️ **SQLite/PostgreSQL** qua ORM SQLAlchemy + Alembic migrations
+- 🔐 **JWT authentication** đa người dùng, isolated
+- ⚡ **FastAPI Gateway** tích hợp WebSocket real-time & Rate Limiting
+- 🤖 **Gemini AI Committee** ra quyết định giao dịch tự động
+
+---
+
+## 🧩 Các Module Chính
+
+| Module | Công nghệ | Mô tả |
+|--------|-----------|-------|
+| **💳 Credit Risk** | Merton Model · HistGBM · DebtRank | ETL 8 bước, ML dự báo kiệt quệ tài chính, mô phỏng lan truyền hệ thống |
+| **📈 CW Pricing** | SABR · Black-Scholes · GEX Engine | Định giá lý thuyết, giải ngược IV, tính Greeks, backtest Delta-Adaptive |
+| **🌊 Regime Analysis** | HMM · GARCH · XGBoost · DRL | Phát hiện chế độ thị trường, dự báo biến động, tối ưu danh mục DRL |
+| **📰 News Impact** | NLP · ML Classifier | Pipeline 6 bước: cào → align → tính xác suất → huấn luyện ML |
+| **🤝 Trading Engine** | Gemini AI · Paper Trader | AI Committee đồng thuận, Paper Trading mô phỏng HOSE, stress test |
+| **🔧 Infra & Scripts** | FastAPI · Telegram · Scrapers | API gateway, bot Telegram, scrapers SSI/Vietstock, data pipelines |
+
+---
+
+## 🏗️ Kiến Trúc Hệ Thống & Luồng Dữ Liệu
+
+> Sơ đồ tổ chức theo **4 tầng logic (Top-Down)**. Dữ liệu chạy từ tầng Thu thập → Phân tích → Quyết định → Phân phối.
+
+```mermaid
+flowchart TD
+    classDef ingestion fill:#1a2e4a,stroke:#3b82f6,color:#93c5fd,stroke-width:2px
+    classDef analytics fill:#1a3a2a,stroke:#22c55e,color:#86efac,stroke-width:2px
+    classDef decision  fill:#3a1a2a,stroke:#ec4899,color:#f9a8d4,stroke-width:2px
+    classDef delivery  fill:#2a1a3a,stroke:#a855f7,color:#d8b4fe,stroke-width:2px
+
+    %% ── LAYER 1: DATA INGESTION ──────────────────────────
+    subgraph L1["⬇️ LAYER 1 · Data Ingestion"]
+        direction TB
+        MS["🕷️ Market Scrapers\nvietstock · SSI · orderbook · trade"]
+        DP["🔄 Data Pipelines\nbackfill_ml_data · market_gex_report · load_csv"]
+        TH["📡 Telegram Hub\ntelegram_hub · news_alerts · webhook"]
+        DB["🗄️ DB & Cache\ncore/database · market_cache · alembic"]
+    end
+
+    %% ── LAYER 2: CORE ANALYTICS ─────────────────────────
+    subgraph L2["🔬 LAYER 2 · Core Analytics"]
+        direction TB
+        subgraph CR["💳 Credit Risk"]
+            CR1["ETL Pipeline\ncredit_step1→5"]
+            CR2["ML Models\nmerton · bank/fi/re_scoring"]
+            CR3["Systemic Risk\nnetwork_builder · contagion"]
+        end
+        subgraph CWP["📈 CW Pricing"]
+            CW1["Data Extraction\nextract_ssi_cw_*"]
+            CW2["Pricing Engine\npricing_core · sabr · gex"]
+            CW3["Backtest & Rank\nbacktester · ranker · reporter"]
+        end
+        subgraph RA["🌊 Regime Analysis"]
+            RA1["Indicators\nhmm · garch · kalman · ema"]
+            RA2["Forecasting\nxgboost · drl_agent · regime_model"]
+            RA3["Portfolio Ops\noptimiser · backtest · plotting"]
+        end
+        subgraph NI["📰 News Impact"]
+            NI1["Pipeline\nnews_step1_prepare → news_step6_train_ml"]
+        end
+    end
+
+    %% ── LAYER 3: DECISION ENGINE ─────────────────────────
+    subgraph L3["⚙️ LAYER 3 · Decision Engine"]
+        direction TB
+        TE1["🤝 AI Committee\nai_committee_service · ai_client"]
+        TE2["📋 Orchestrator\norchestrator · core/utils"]
+        TE3["📄 Paper Trading\npaper_trader · paper_trader_runner"]
+        TE4["💼 Portfolio Service\nportfolio_service · stress_test"]
+    end
+
+    %% ── LAYER 4: DELIVERY & UI ───────────────────────────
+    subgraph L4["🌐 LAYER 4 · Delivery & UI"]
+        direction TB
+        API["🔌 FastAPI Routes\nauth · chat · portfolio · warrants · credit"]
+        WS["⚡ WebSocket & Scheduler\nwebsocket · scheduler · state"]
+        OUT1["📱 Telegram Bot"]
+        OUT2["🌐 REST API"]
+        OUT3["⚡ Real-time Feed"]
+    end
+
+    %% ── DATA FLOW ARROWS ─────────────────────────────────
+    MS -->|"raw market data"| CR1
+    MS -->|"price / vol data"| CW1
+    MS -->|"OHLCV + macro"| RA1
+    DP -->|"ML features"| CR2
+    DP -->|"historical CW"| CW3
+    DP -->|"market data"| RA2
+    TH -->|"news events"| NI1
+    DB -->|"DB reads"| CR1
+    DB -->|"CW data"| CW2
+    DB -->|"regime features"| RA1
+
+    CR1 -->|"cleaned features"| CR2
+    CR2 -->|"default prob (PD)"| CR3
+    CW1 -->|"CW static & price"| CW2
+    CW2 -->|"prices & Greeks"| CW3
+    RA1 -->|"signals & vol"| RA2
+    RA2 -->|"regime + weights"| RA3
+    NI1 -->|"sentiment score"| RA1
+
+    CR2 -->|"credit scores"| TE1
+    CR3 -->|"systemic risk map"| TE1
+    CW3 -->|"ranked CW opps"| TE1
+    RA2 -->|"regime forecast"| TE1
+    RA3 -->|"portfolio weights"| TE2
+    NI1 -->|"sentiment signal"| TE1
+
+    TE1 -->|"AI consensus"| TE2
+    TE2 -->|"signals"| TE3
+    TE2 -->|"instructions"| TE4
+    TE3 -->|"trade results"| TE4
+
+    TE4 -->|"portfolio state"| API
+    TE4 -->|"alerts"| OUT1
+    TE1 -->|"AI analysis"| API
+    API --> WS
+    WS --> OUT2
+    WS --> OUT3
+    OUT1 -->|"user commands"| TH
+    TH -->|"command routing"| TE2
+
+    class MS,DP,TH,DB ingestion
+    class CR1,CR2,CR3,CW1,CW2,CW3,RA1,RA2,RA3,NI1 analytics
+    class TE1,TE2,TE3,TE4 decision
+    class API,WS,OUT1,OUT2,OUT3 delivery
+```
+
+| Tầng | Màu | Khối chức năng |
+|------|-----|----------------|
+| **L1 · Data Ingestion** | 🔵 Blue | Market Scrapers · Data Pipelines · Telegram Hub · DB/Cache |
+| **L2 · Core Analytics** | 🟢 Green | Credit Risk · CW Pricing · Regime Analysis · News Impact |
+| **L3 · Decision Engine** | 🔴 Pink | AI Committee · Orchestrator · Paper Trading · Portfolio |
+| **L4 · Delivery & UI** | 🟣 Purple | FastAPI Routes · WebSocket · Telegram Bot · REST API |
+
+---
+
+## ✨ Tính Năng
+
+### 🚀 Tự Động Hóa & Trí Tuệ Cấp Hedge Fund
+- **vnstock 4.0.4 Unified UI Support:** Pipeline dữ liệu vĩ mô và doanh nghiệp tương thích hoàn toàn kiến trúc mới nhất.
+- **Master Orchestrator:** Trình điều khiển trung tâm tự động hóa toàn bộ: cào tin tức, đồng bộ Vĩ mô (Lãi suất liên ngân hàng), chấm điểm rủi ro định kỳ mỗi 5 phút (`python run.py orchestrator`).
+- **Deep Crawler & AI Telegram Alerts:** Cào sâu tin tức, lịch chốt quyền cổ tức từ Vietstock (AJAX). AI tóm tắt 3 câu, bắn cảnh báo điểm mua/bán thẳng Telegram.
+- **News Impact Backtesting:** Tính xác suất tăng/giảm giá CW ngay sau khi sự kiện doanh nghiệp được công bố.
+
+### 🔥 Thuật Toán Định Giá Cấp Chuyên Gia
+`pricing_core.py` tích hợp bộ lọc cứng (**Hard Gates**) thực chiến cao cấp:
+- **Chống "Úp sọt" Premium** `(Max Premium < 18%)` — Lọc CW bị nhà phát hành định giá ảo.
+- **Chống "Vé số" Deep OTM** `(Min Delta > 0.15)` — Ngăn dòng tiền vào mã xa điểm hòa vốn.
+- **Tránh bom Theta** `(Maturity > 15 ngày)` — Loại bỏ CW sắp đáo hạn.
+- **Smart Spread Check** `(Spread < 15%)` — Đọc Bid/Ask thực khi thị trường vừa mở cửa.
+
+### 🧠 AI Committee (Gemini LLM)
+- Tổng hợp tín hiệu từ **Credit Risk + CW Pricing + Regime + News** thành quyết định đồng thuận.
+- Tự động thực thi lệnh trên Paper Trader với cơ chế cắt lỗ/chốt lời động.
+
+---
+
+## 📦 Cài Đặt
+
+### Yêu Cầu
+- Python **3.9, 3.10 hoặc 3.11**
+- pip package manager
+
+### Thiết Lập
+
+```bash
+# Clone repository
+git clone https://github.com/Nahtuna/Finvista.git
+cd Finvista
+
+# Tạo virtual environment (khuyên dùng)
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Cài đặt package ở chế độ editable
+pip install -e .
+
+# Hoặc chỉ cài dependencies
+pip install -r requirements.txt
+```
+
+### Import Package
+
+```python
+from finvista.modules.cw_pricing.models.pricing_core import calculate_greeks_for_cw
+from finvista.common import config
+```
+
+> **Ghi chú:** `python run.py` dùng `from src.modules...` (tương thích ngược). Import `finvista.*` là chuẩn sau khi `pip install -e .`.
+
+---
+
+## ⚙️ Cấu Hình
+
 ```bash
 cp .env.example .env
 ```
-Các biến cấu hình chính hỗ trợ nạp động bao gồm:
-*   `DATABASE_URL`: Đường dẫn SQLite (mặc định) hoặc PostgreSQL/MySQL khi deploy production.
-*   `JWT_SECRET_KEY`: Khóa mã hóa bảo mật tài khoản đa người dùng.
-*   `TELEGRAM_BOT_TOKEN` & `TELEGRAM_CHAT_ID`: Credentials để đẩy cảnh báo thị trường thời gian thực.
+
+### Biến Môi Trường Chính
+
+| Biến | Mô tả |
+|------|-------|
+| `DATABASE_URL` | SQLite (mặc định) hoặc PostgreSQL khi deploy |
+| `JWT_SECRET_KEY` | Khóa mã hóa JWT đa người dùng |
+| `TELEGRAM_BOT_TOKEN` | Token bot Telegram |
+| `TELEGRAM_CHAT_ID` | Chat ID nhận cảnh báo |
+| `GEMINI_API_KEY` | API key Gemini AI cho AI Committee |
 
 ---
 
-## ⚡ Hướng Dẫn Vận Hành Qua Trình Điều Khiển Trung Tâm (`run.py`)
+## 🚀 Sử Dụng
 
-Tất cả các chức năng của hệ thống được hợp nhất về trình CLI chuyên nghiệp tại thư mục gốc. Bạn chỉ cần chạy thông qua `python run.py`.
+Tất cả chức năng hợp nhất vào CLI tại `python run.py`.
 
-### 1. Khởi chạy API Gateway & WebSocket Server
-Khởi chạy cổng API Gateway phục vụ SaaS đa người dùng, tích hợp Rate Limiting và WebSocket stream dữ liệu:
+### API Gateway & WebSocket
+
 ```bash
 python run.py api
+# → REST API Swagger: http://127.0.0.1:8008/docs
+# → WebSocket: ws://127.0.0.1:8008/api/ws
 ```
-*   **REST API Swagger:** Truy cập [http://127.0.0.1:8008/docs](http://127.0.0.1:8008/docs) để xem tài liệu tương tác đầy đủ.
-*   **WebSocket Endpoint:** `ws://127.0.0.1:8008/api/ws` (dùng để stream NAV danh mục và trạng thái quét thị trường thời gian thực).
 
----
+### Quét CW & Cảnh Báo Telegram
 
-### 2. Định Giá Chứng Quyền & Cảnh Báo Telegram
-Nạp dữ liệu từ Vietcap API, giải ngược IV, tính Greeks lý thuyết và đẩy cảnh báo tức thời:
 ```bash
-# Quét thị trường với chiến thuật Mặc định (Balanced)
-python run.py scan --strategy balanced
-
-# Quét thị trường với chiến thuật An Toàn (Safe)
-python run.py scan --strategy safe
-
-# Quét thị trường với chiến thuật Aggressive (Đòn bẩy cao)
-python run.py scan --strategy aggressive
-
-# Gom nhóm cơ hội theo Cổ phiếu cơ sở (CPCS)
-python run.py scan --group-by cpcs --all
+python run.py scan --strategy balanced    # Chiến thuật cân bằng
+python run.py scan --strategy safe        # Chiến thuật an toàn
+python run.py scan --strategy aggressive  # Đòn bẩy cao
+python run.py scan --group-by cpcs --all  # Nhóm theo cổ phiếu cơ sở
 ```
 
----
+### Phân Tích Lịch Sử IV vs HV
 
-### 3. Nghiên Cứu Lịch Sử Biến Động IV vs HV
-Phân tích đường cong biến động lịch sử, phát hiện lệch giá biến động (Volatility Arbitrage) và in biểu đồ ASCII:
 ```bash
 python run.py history --symbol CACB2510 --days 10
 ```
 
----
+### Paper Trading
 
-### 4. Giả Lập Giao Dịch Thực Chiến HOSE (Paper Trading)
-Mô phỏng tài khoản vốn 100 Triệu VND, khớp lệnh theo đúng luật HOSE, tự động chốt lời/cắt lỗ:
 ```bash
-# Xem bảng điều khiển tài sản & vị thế nắm giữ của tài khoản hiện tại
-python run.py trade --portfolio
-
-# Quét tín hiệu thị trường và thực thi lệnh (Cắt lỗ -15%, Chốt lời +20%)
-python run.py trade --scan
-
-# Chạy bot tự động hóa quét lệnh liên tục 5 phút một lần
-python run.py trade --scan --loop 300
-
-# Reset tài khoản demo về 100 Triệu VND ban đầu
-python run.py trade --reset
+python run.py trade --portfolio          # Xem bảng điều khiển tài sản
+python run.py trade --scan               # Quét & thực thi lệnh
+python run.py trade --scan --loop 300    # Bot tự động mỗi 5 phút
+python run.py trade --reset              # Reset về 100 Triệu VND
 ```
 
----
-
-### 5. Pipeline Chấm Điểm & Huấn Luyện Học Máy (Credit & Financial Distress — 8 Bước)
-Cào dữ liệu BCTC, tính các chỉ số tài chính, gán nhãn rủi ro kiệt quệ tài chính và huấn luyện so sánh 11 mô hình ML. Pipeline được chia thành **8 bước** rõ ràng:
+### Credit Risk Pipeline (8 Bước)
 
 | Bước | Lệnh | Mô tả |
-| :--: | :--- | :--- |
+|:----:|:-----|:------|
 | **1–5** | `python run.py credit` | ETL: Thu thập BCTC, làm sạch, tính chỉ số, gán nhãn Altman Z'' |
 | **6** | `python run.py credit --train` | Huấn luyện & so sánh 11+ mô hình → `best_distress_model.pkl` |
 | **7** | `python run.py credit --evaluate` | Batch inference → `market_health_report.csv` |
 | **8** | `python run.py credit --contagion` | DebtRank lan truyền hệ thống → `systemic_health_report.csv` |
 
-```bash
-# Bước 1–5: Cào dữ liệu & gán nhãn rủi ro
-python run.py credit
+---
 
-# Bước 6: Huấn luyện & so sánh 11 mô hình Machine Learning với bộ tham số tối ưu
-python run.py credit --train
+## 📂 Cấu Trúc Dự Án
 
-# Bước 7: Đánh giá sức khỏe toàn thị trường (batch inference)
-python run.py credit --evaluate
-
-# Bước 8: Mô phỏng lan truyền rủi ro hệ thống DebtRank
-python run.py credit --contagion
+```
+Finvista/
+├── pyproject.toml                    ⚙️  Package metadata (pip install -e .)
+├── run.py                            🏆  CLI entrypoint duy nhất
+├── requirements.txt
+├── alembic/                          📂  Database migrations
+├── alembic.ini
+│
+├── configs/                          ⚙️  Runtime configs (gitignored)
+│   ├── macro_indicators.json
+│   ├── opt_cw_params.json
+│   ├── paper_portfolio.json
+│   ├── sector_mapping.json
+│   ├── telegram_config.json
+│   └── underlying_hv_cache.json
+│
+├── artifacts/                        💾  Trained models (.pkl)
+│   ├── credit_risk/                  best_distress_model · scaler · shap
+│   ├── cw_pricing/                   ml_pricing_model · ml_hybrid_vol_model
+│   └── regime_analysis/              xgboost_regime_*.pkl
+│
+├── data/                             📂  Dữ liệu cục bộ (gitignored)
+│   ├── raw/
+│   ├── processed/
+│   └── finvista.db
+│
+├── docs/
+│   ├── 1_Usage/                      📖  quick_start · CW handbook · Telegram guide
+│   └── 2_Internal/
+│       ├── Architecture/
+│       ├── Planning/                 roadmap.md
+│       ├── Research/
+│       └── Archive/
+│
+├── scripts/                          🔧  Batch / research scripts
+│   ├── data_pipelines/               backfill_ml_data · market_gex_report
+│   ├── maintenance/
+│   ├── model_training/
+│   └── trading/                      stress_test · batch_reports · Telegram setup
+│
+├── src/                              🧠  Package nguồn → cài với tên `finvista`
+│   ├── api/                          FastAPI gateway
+│   │   ├── main.py
+│   │   ├── scheduler.py
+│   │   ├── websocket.py
+│   │   ├── state.py
+│   │   ├── dependencies.py
+│   │   └── routes/                   auth · chat · portfolio · warrants · credit
+│   │
+│   ├── core/                         Shared utilities
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   └── utils.py
+│   │
+│   ├── infra/                        Infrastructure adapters
+│   │   ├── ai_client.py              Gemini LLM wrapper
+│   │   ├── chart_generator.py
+│   │   ├── market_cache.py
+│   │   ├── news_alerts.py
+│   │   ├── orderbook_scraper.py
+│   │   ├── telegram_alerts.py
+│   │   ├── telegram_hub.py
+│   │   ├── telegram_webhook.py
+│   │   └── trade_scraper.py
+│   │
+│   ├── templates/                    HTML report templates
+│   │
+│   └── modules/                      4 Domain Bounded Contexts
+│       ├── credit_risk/              💳  Rủi ro tín dụng & Merton
+│       │   ├── etl/                  vietstock_scraper · merton_data_ingestor · filter
+│       │   ├── models/               credit_step1-8 · merton_engine · bank/fi/re_scoring
+│       │   ├── systemic/             network_builder (DebtRank contagion)
+│       │   └── service.py
+│       │
+│       ├── cw_pricing/               📈  Định giá CW & backtest
+│       │   ├── etl/                  extract_ssi_cw_* · load_csv_to_db
+│       │   ├── models/               pricing_core · pricing_core_enhanced · sabr · gex
+│       │   ├── backtest/             backtester · ranker · reporter · portfolio_optimizer
+│       │   └── service.py
+│       │
+│       ├── regime_analysis/          🌊  HMM / DRL regime & forecasting
+│       │   ├── etl/                  extract_ssi_stock_all · macro_scraper
+│       │   ├── indicators/           hmm_regime · garch · kalman · multi_tf_ema
+│       │   ├── forecasting/          xgboost_trainer · drl_portfolio_agent
+│       │   ├── portfolio/            optimiser · backtest · regime_model
+│       │   └── service.py
+│       │
+│       └── trading_engine/           🚀  Paper trading & AI orchestration
+│           ├── ai_committee_service.py
+│           ├── orchestrator.py
+│           ├── paper_trader.py
+│           ├── paper_trader_runner.py
+│           └── portfolio_service.py
+│
+└── tests/                            🧪  pytest suite (15/15 passed)
 ```
 
-
 ---
 
-## 📊 Hiệu Suất Hệ Thống (System Performance Metrics)
+## 📊 Hiệu Suất
 
-Hệ thống Finvista được chứng thực hiệu năng định lượng nghiêm ngặt qua cả hai phân hệ: Mô hình học máy dự báo rủi ro tín dụng và Backtest chiến lược giao dịch chứng quyền.
+### 1. Credit Risk ML — Dự Báo Kiệt Quệ Tài Chính (Out-of-Time Test Set)
 
-### 1. Phân Hệ Machine Learning: Dự Báo Kiệt Quệ Tài Chính (Out-of-Time Test Set)
-Kết quả đánh giá so sánh hiệu năng của 10 mô hình học máy trên tập kiểm thử tương lai (Dữ liệu 2023-2024 không tham gia huấn luyện):
+| Thuật Toán | Accuracy | Precision | Recall | F1-Score | ROC-AUC |
+|:-----------|:--------:|:---------:|:------:|:--------:|:-------:|
+| **HistGradientBoosting ✅** | **81.60%** | **68.70%** | **81.94%** | **74.74%** | **0.8930** |
+| Random Forest | 80.72% | 66.84% | 83.26% | 74.15% | 0.8973 |
+| LightGBM | 79.11% | 64.01% | 84.80% | 72.95% | 0.8927 |
+| GradientBoosting | 79.30% | 64.49% | 83.81% | 72.89% | 0.8817 |
+| XGBoost | 79.15% | 64.20% | 84.14% | 72.83% | 0.8914 |
+| CatBoost | 79.55% | 65.27% | 82.16% | 72.75% | 0.8888 |
+| Logistic Regression | 75.93% | 59.84% | 83.70% | 69.79% | 0.8590 |
+| LinearSVC | 75.90% | 59.92% | 82.82% | 69.53% | 0.8545 |
+| KNN | 76.19% | 60.61% | 80.84% | 69.28% | 0.8587 |
+| ExtraTrees | 74.84% | 58.32% | 84.91% | 69.15% | 0.8652 |
+| GaussianNB | 63.83% | 46.12% | 52.97% | 49.31% | 0.6701 |
 
-| Thuật Toán                      |  Accuracy  | Precision (Class 1) | Recall (Class 1) |  F1-Score  |  ROC-AUC   |
-| :------------------------------ | :--------: | :-----------------: | :--------------: | :--------: | :--------: |
-| **HistGradientBoosting (Best)** | **81.60%** |     **68.70%**      |    **81.94%**    | **74.74%** | **0.8930** |
-| **Random Forest**               |   80.72%   |       66.84%        |      83.26%      |   74.15%   | **0.8973** |
-| **LightGBM**                    |   79.11%   |       64.01%        |      84.80%      |   72.95%   |   0.8927   |
-| **GradientBoosting**            |   79.30%   |       64.49%        |      83.81%      |   72.89%   |   0.8817   |
-| **XGBoost**                     |   79.15%   |       64.20%        |      84.14%      |   72.83%   |   0.8914   |
-| **CatBoost**                    |   79.55%   |       65.27%        |      82.16%      |   72.75%   |   0.8888   |
-| **Logistic Regression**         |   75.93%   |       59.84%        |      83.70%      |   69.79%   |   0.8590   |
-| **LinearSVC**                   |   75.90%   |       59.92%        |      82.82%      |   69.53%   |   0.8545   |
-| **KNN**                         |   76.19%   |       60.61%        |      80.84%      |   69.28%   |   0.8587   |
-| **ExtraTrees**                  |   74.84%   |       58.32%        |      84.91%      |   69.15%   |   0.8652   |
-| **GaussianNB**                  |   63.83%   |       46.12%        |      52.97%      |   49.31%   |   0.6701   |
+> ✅ **`HistGradientBoosting`** được chọn production: F1 **74.74%**, Recall **81.94%** (phát hiện sớm rủi ro). Độ ổn định theo năm: **89.99%** (2023) và **84.05%** (2024).
 
-*   **Mô hình lựa chọn:** `HistGradientBoosting` được xuất ra production nhờ độ cân bằng tối ưu giữa F1-Score (**74.74%**) và khả năng phát hiện sớm rủi ro (Recall **81.94%**).
-*   **Độ ổn định theo năm:** Đạt F1-Score **89.99%** trong năm 2023 và **84.05%** trong năm 2024.
+### 2. CW Strategy — Delta-Adaptive Exit vs Baseline
 
----
+| Chỉ Số | Baseline | Delta-Adaptive Exit | Δ |
+|:-------|:--------:|:-------------------:|:---:|
+| **Win Rate** | 83.33% | **85.71%** | 📈 +2.38% |
+| **Số Giao Dịch** | 9 lệnh | **21 lệnh** | 📈 ×2.3 |
+| **Sharpe Ratio** | 1.85 | **2.14** | 📈 +0.29 |
+| **Profit Factor** | 2.56 | **3.41** | 📈 +0.85 |
+| **Max Drawdown** | -11.10% | -27.73% | ⚖️ Trong tầm kiểm soát |
 
-### 2. Phân Hệ Định Lượng: Chiến Lược Chứng Quyền Delta-Adaptive Exit
-Kết quả Walk-Forward Validation so sánh giữa bộ lọc cố định (Baseline) và cơ chế thoát lệnh tối ưu theo Delta (Delta-Adaptive Exit):
-
-| Chỉ Số Performance              | Baseline (Bảo Vệ Cứng) | Delta-Adaptive Exit (Tối Ưu) | Trạng Thái Cải Thiện                           |
-| :------------------------------ | :--------------------: | :--------------------------: | :--------------------------------------------- |
-| **Tỷ Lệ Thắng (Win Rate)**      |         83.33%         |          **85.71%**          | 📈 Tăng thêm **+2.38%**                         |
-| **Số Lượng Giao Dịch (Trades)** |         9 lệnh         |         **21 lệnh**          | 📈 Tăng gấp **2.3 lần** (Tăng ý nghĩa thống kê) |
-| **Sharpe Ratio**                |          1.85          |           **2.14**           | 📈 Vượt xa benchmark tiêu chuẩn ($>1.30$)       |
-| **Profit Factor (PF)**          |          2.56          |           **3.41**           | 📈 Tỷ suất Lợi nhuận / Rủi ro vượt trội         |
-| **Max Drawdown (MDD)**          |        -11.10%         |         **-27.73%**          | ⚖️ Nằm trong tầm kiểm soát an toàn ($>-35.0%$)  |
-
-> **Nhận Định Đánh Giá:** Cơ chế thoát lệnh theo Delta giúp bảo vệ các mã chứng quyền nhạy cảm (Delta thấp) khỏi suy hao thời gian (Theta decay), đồng thời giữ lại các mã an toàn sâu trong vị thế (Delta cao), nâng cao hiệu suất đầu tư đáng kể trên tập kiểm định ngoại mẫu.
-
-#### 📝 Chi Tiết Báo Cáo Từng Giai Đoạn (Train, Test, Simulate Reports)
-
-Dưới đây là các phần báo cáo đầy đủ về OVERVIEW, PERFORMANCE và ANALYSIS được xuất ra trực tiếp từ trình CLI kiểm định (`python run.py audit`):
+### 3. Walk-Forward Validation — 3 Giai Đoạn
 
 <details>
-<summary><b>📊 1. STAGE: TRAIN (Tập Huấn Luyện Trong Mẫu - In-Sample)</b></summary>
+<summary><b>📊 STAGE: TRAIN (In-Sample)</b></summary>
 
 ```text
 ==========================================================================================
  STAGE: TRAIN
 ==========================================================================================
-
 [1] OVERVIEW
-------------------------------------------------------------------------------------------
-Aggregate Data:
   Sharpe: 0.23 | CAGR: -0.98% | Max Drawdown: -15.15% | Profit Factor: 1.30 | Calmar: -0.06
 
-Yearly Breakdown:
-Year   | Sharpe   | CAGR       | Max Drawdown   | Profit Factor | Calmar  
-------------------------------------------------------------------------------------------
-2026   | 0.23     |      -0.98% | -15.15        % | 1.30          | -0.06    
-------------------------------------------------------------------------------------------
-
 [2] PERFORMANCE
-------------------------------------------------------------------------------------------
-Transaction Analysis                | Performance Metrics                
-------------------------------------------------------------------------------------------
-  Initial Capital : 100,000,000 VND          |  Cumulative Return : -0.98%
-  Net Equity      : 99,015,108 VND           |  CAGR              : -0.98%
-  Total Profit    : -0.98%                   |  Win Rate          : 69.23%
-  Total Fees      : 480,027 VND              |  Profit Factor (PF): 1.30
-  Total Trades    : 13                       |  Sharpe Ratio      : 0.23
-  Largest Win     : +19.39%                  |  Sortino Ratio     : 0.25
-  Largest Loss    : -55.45%                  |  Calmar Ratio      : -0.06
-  Avg Win         : +14.67%                  |  Payoff Ratio      : 0.41
-  Avg Loss        : -35.85%                  |  Volatility        : 0.35
-  Unrealized PnL  : 0 VND                    |  Max Drawdown      : -15.15%
-------------------------------------------------------------------------------------------
-Advanced Metrics:
-  Recovery Factor : -0.06
-  Kelly Criterion : -4.38%
-  Omega Ratio     : 1.10
-  Ulcer Index     : 0.0526
-  VaR (95%)       : -1.74%
-  CVaR (95%)      : -2.31%
-------------------------------------------------------------------------------------------
+  Initial Capital : 100,000,000 VND   |  Cumulative Return : -0.98%
+  Net Equity      : 99,015,108 VND    |  Win Rate          : 69.23%
+  Total Trades    : 13                |  Sharpe Ratio      : 0.23
+  Largest Win     : +19.39%           |  Sortino Ratio     : 0.25
+  Largest Loss    : -55.45%           |  Max Drawdown      : -15.15%
+  VaR (95%)       : -1.74%           |  CVaR (95%)        : -2.31%
 
-[3] ANALYSIS (Benchmark Status)
-------------------------------------------------------------------------------------------
-Metric                    | Target          | Actual       | Status    
-------------------------------------------------------------------------------------------
-Sharpe Ratio              | >= 1.3          | 0.23         | FAIL      
-CAGR                      | >= 15.0%        | -0.98%       | FAIL      
-Max Drawdown              | >= -35.0%       | -15.15%      | PASS      
-Profit Factor             | >= 1.2          | 1.30         | PASS      
-Calmar Ratio              | >= 1.1          | -0.06        | FAIL      
-------------------------------------------------------------------------------------------
-IS Testing Status: All 5 | Pass 2 | Fail 3 | Pending 0
-==========================================================================================
+[3] ANALYSIS — IS Testing Status: All 5 | Pass 2 | Fail 3 | Pending 0
 ```
 </details>
 
 <details>
-<summary><b>📊 2. STAGE: TEST (Tập Kiểm Thử Ngoại Mẫu - Out-of-Sample)</b></summary>
+<summary><b>📊 STAGE: TEST (Out-of-Sample) ✅</b></summary>
 
 ```text
 ==========================================================================================
  STAGE: TEST
 ==========================================================================================
-
 [1] OVERVIEW
-------------------------------------------------------------------------------------------
-Aggregate Data:
   Sharpe: 2.14 | CAGR: +853.19% | Max Drawdown: -27.73% | Profit Factor: 3.41 | Calmar: 30.77
 
-Yearly Breakdown:
-Year   | Sharpe   | CAGR       | Max Drawdown   | Profit Factor | Calmar  
-------------------------------------------------------------------------------------------
-2026   | 2.14     |     +23.42% | -27.73        % | 3.41          | 0.84    
-------------------------------------------------------------------------------------------
-
 [2] PERFORMANCE
-------------------------------------------------------------------------------------------
-Transaction Analysis                | Performance Metrics                
-------------------------------------------------------------------------------------------
-  Initial Capital : 100,000,000 VND          |  Cumulative Return : +23.37%
-  Net Equity      : 123,370,455 VND          |  CAGR              : +853.19%
-  Total Profit    : +23.37%                  |  Win Rate          : 85.71%
-  Total Fees      : 583,674 VND              |  Profit Factor (PF): 3.41
-  Total Trades    : 21                       |  Sharpe Ratio      : 2.14
-  Largest Win     : +71.43%                  |  Sortino Ratio     : 4.11
-  Largest Loss    : -40.00%                  |  Calmar Ratio      : 30.77
-  Avg Win         : +16.43%                  |  Payoff Ratio      : 0.57
-  Avg Loss        : -28.90%                  |  Volatility        : 1.60
-  Unrealized PnL  : 0 VND                    |  Max Drawdown      : -27.73%
-------------------------------------------------------------------------------------------
-Advanced Metrics:
-  Recovery Factor : 0.84
-  Kelly Criterion : +60.58%
-  Omega Ratio     : 1.62
-  Ulcer Index     : 0.1709
-  VaR (95%)       : -1.74%
-  CVaR (95%)      : -2.31%
-------------------------------------------------------------------------------------------
+  Initial Capital : 100,000,000 VND   |  Cumulative Return : +23.37%
+  Net Equity      : 123,370,455 VND   |  Win Rate          : 85.71%
+  Total Trades    : 21                |  Sharpe Ratio      : 2.14
+  Largest Win     : +71.43%           |  Sortino Ratio     : 4.11
+  Largest Loss    : -40.00%           |  Max Drawdown      : -27.73%
+  Kelly Criterion : +60.58%           |  Omega Ratio       : 1.62
 
-[3] ANALYSIS (Benchmark Status)
-------------------------------------------------------------------------------------------
-Metric                    | Target          | Actual       | Status    
-------------------------------------------------------------------------------------------
-Sharpe Ratio              | >= 1.3          | 2.14         | PASS      
-CAGR                      | >= 15.0%        | +853.19%     | PASS      
-Max Drawdown              | >= -35.0%       | -27.73%      | PASS      
-Profit Factor             | >= 1.2          | 3.41         | PASS      
-Calmar Ratio              | >= 1.1          | 30.77        | PASS      
-------------------------------------------------------------------------------------------
-IS Testing Status: All 5 | Pass 5 | Fail 0 | Pending 0
-==========================================================================================
+[3] ANALYSIS — OOS Testing Status: All 5 | Pass 5 | Fail 0 | Pending 0 ✅
 ```
 </details>
 
 <details>
-<summary><b>📊 3. STAGE: SIMULATE (Toàn Bộ Quá Trình - Full History)</b></summary>
+<summary><b>📊 STAGE: SIMULATE (Full Period)</b></summary>
 
 ```text
 ==========================================================================================
  STAGE: SIMULATE
 ==========================================================================================
-
 [1] OVERVIEW
-------------------------------------------------------------------------------------------
-Aggregate Data:
   Sharpe: 1.01 | CAGR: +67.15% | Max Drawdown: -27.77% | Profit Factor: 2.28 | Calmar: 2.42
 
-Yearly Breakdown:
-Year   | Sharpe   | CAGR       | Max Drawdown   | Profit Factor | Calmar  
-------------------------------------------------------------------------------------------
-2026   | 1.01     |     +23.18% | -27.77        % | 2.28          | 0.83    
-------------------------------------------------------------------------------------------
-
 [2] PERFORMANCE
-------------------------------------------------------------------------------------------
-Transaction Analysis                | Performance Metrics                
-------------------------------------------------------------------------------------------
-  Initial Capital : 100,000,000 VND          |  Cumulative Return : +23.16%
-  Net Equity      : 123,157,209 VND          |  CAGR              : +67.15%
-  Total Profit    : +23.16%                  |  Win Rate          : 79.41%
-  Total Fees      : 1,063,701 VND            |  Profit Factor (PF): 2.28
-  Total Trades    : 34                       |  Sharpe Ratio      : 1.01
-  Largest Win     : +71.43%                  |  Sortino Ratio     : 1.36
-  Largest Loss    : -55.45%                  |  Calmar Ratio      : 2.42
-  Avg Win         : +15.75%                  |  Payoff Ratio      : 0.59
-  Avg Loss        : -26.64%                  |  Volatility        : 0.85
-  Unrealized PnL  : 0 VND                    |  Max Drawdown      : -27.77%
-------------------------------------------------------------------------------------------
-Advanced Metrics:
-  Recovery Factor : 0.83
-  Kelly Criterion : +44.58%
-  Omega Ratio     : 1.38
-  Ulcer Index     : 0.0938
-  VaR (95%)       : -5.46%
-  CVaR (95%)      : -10.17%
-------------------------------------------------------------------------------------------
+  Initial Capital : 100,000,000 VND   |  Cumulative Return : +23.16%
+  Net Equity      : 123,157,209 VND   |  Win Rate          : 79.41%
+  Total Trades    : 34                |  Sharpe Ratio      : 1.01
+  Largest Win     : +71.43%           |  Sortino Ratio     : 1.36
+  Largest Loss    : -55.45%           |  Max Drawdown      : -27.77%
+  VaR (95%)       : -5.46%           |  CVaR (95%)        : -10.17%
 
-[3] ANALYSIS (Benchmark Status)
-------------------------------------------------------------------------------------------
-Metric                    | Target          | Actual       | Status    
-------------------------------------------------------------------------------------------
-Sharpe Ratio              | >= 1.3          | 1.01         | FAIL      
-CAGR                      | >= 15.0%        | +67.15%      | PASS      
-Max Drawdown              | >= -35.0%       | -27.77%      | PASS      
-Profit Factor             | >= 1.2          | 2.28         | PASS      
-Calmar Ratio              | >= 1.1          | 2.42         | PASS      
-------------------------------------------------------------------------------------------
-IS Testing Status: All 5 | Pass 4 | Fail 1 | Pending 0
-==========================================================================================
+[3] ANALYSIS — Status: All 5 | Pass 4 | Fail 1 | Pending 0
+```
 </details>
 
----
+### 4. CW Benchmark — 23 Mã Thực Tế
 
-### 3. Tóm Tắt Kết Quả Trung Bình Trên 23 Mã Chứng Quyền (CW Benchmark)
-
-Đánh giá hiệu năng tích hợp bộ lọc phái sinh trên 23 mã chứng quyền thực tế với hai chiến lược cốt lõi:
-
-| Chiến Lược                                     | Cấu Hình             | Lợi Nhuận TB | Sharpe Ratio | Max Drawdown (MDD) | Hướng Dẫn Thực Chiến                                                                                                                                                                                              |
-| :--------------------------------------------- | :------------------- | :----------: | :----------: | :----------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Volatility Arbitrage** <br>(Mua Định Giá Rẻ) | Standard (Không lọc) | **+33.15%**  |   **1.71**   |      -11.23%       | **KHÔNG DÙNG BỘ LỌC:** Bộ lọc làm giảm **-9.34%** hiệu năng do ngăn chặn các điểm mua "giá hời" khi thị trường phái sinh rung lắc ngắn hạn. Đối với chiến lược Mean-Reversion này, không nên sử dụng bộ lọc.      |
-|                                                | Filtered (Có bộ lọc) |   +23.81%    |     1.57     |      -11.10%       |                                                                                                                                                                                                                   |
-| **Pro Quant** <br>(Động Lượng TA)              | Standard (Không lọc) |   -10.51%    |    -0.93     |      -20.01%       | **BẮT BUỘC DÙNG BỘ LỌC:** Bộ lọc cải thiện hiệu năng rõ rệt: tăng **+3.39%** lợi nhuận, nâng Sharpe Ratio thêm **+0.45**, giảm MaxDD **3.53%** nhờ phòng thủ tốt trước các tín hiệu bứt phá giả (false breakout). |
-|                                                | Filtered (Có bộ lọc) |  **-7.12%**  |  **-0.48**   |    **-16.48%**     |                                                                                                                                                                                                                   |
+| Chiến Lược | Cấu Hình | Lợi Nhuận TB | Sharpe | MDD | Khuyến Nghị |
+|:-----------|:---------|:------------:|:------:|:---:|:------------|
+| **Volatility Arbitrage** | Standard | **+33.15%** | **1.71** | -11.23% | ❌ Không dùng bộ lọc (giảm -9.34% hiệu năng) |
+| Volatility Arbitrage | Filtered | +23.81% | 1.57 | -11.10% | |
+| Pro Quant (TA Momentum) | Standard | -10.51% | -0.93 | -20.01% | ✅ Bắt buộc dùng bộ lọc |
+| **Pro Quant (TA Momentum)** | **Filtered** | **-7.12%** | **-0.48** | **-16.48%** | ↑ +3.39% · Sharpe +0.45 · MDD -3.53% |
 
 ---
 
-## 🧪 Bộ Kiểm Thử Tự Động (Test Suite)
+## 🧪 Kiểm Thử
 
-Hệ thống được đảm bảo tính ổn định tuyệt đối nhờ bộ suite kiểm thử tích hợp REST API và kiểm thử đơn vị logic toán học. Chạy kiểm thử tức thời qua:
 ```bash
 python -m pytest -s
 ```
-*Kết quả kiểm thử đạt tỉ lệ thành công 100% (15/15 cases passed), bảo chứng cho chất lượng backend sẵn sàng đưa vào vận hành thực tế.*
+
+> **15/15 test cases passed** — Bao gồm REST API integration tests & unit tests logic toán học.
 
 ---
 
-## 🎯 Lộ Trình Giai Đoạn Frontend (ROADMAP)
-Hãy xem chi tiết tệp [04-roadmap.md](docs/04-roadmap.md) để nắm được:
-*   **Gap Analysis:** Đánh giá độ khớp giữa hồ sơ thiết kế khả thi **Finvista (PDF)** và mã nguồn thực tế.
-*   **Giai đoạn 5 (Active):** Kế hoạch xây dựng giao diện ReactJS + TailwindCSS tương tác đồ thị và bảng nhiệt 2D Scenario P/L Heatmap chuyên nghiệp.
+## 🗺️ Lộ Trình
+
+Xem chi tiết tại [`docs/2_Internal/Planning/roadmap.md`](docs/2_Internal/Planning/roadmap.md):
+
+- **Gap Analysis:** Đánh giá độ khớp giữa thiết kế PDF và codebase thực tế
+- **Giai đoạn 5 (Active):** ReactJS + TailwindCSS · Đồ thị tương tác · 2D Scenario P/L Heatmap
+
+---
+
+## 📄 Giấy Phép
+
+Dự án này được cấp phép theo **MIT License** — xem tệp [LICENSE](LICENSE) để biết chi tiết.

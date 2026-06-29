@@ -35,6 +35,9 @@ Thumbs.db
 data/
 !data/.gitkeep
 
+# ML artifacts (large binaries; JSON configs may be tracked selectively)
+artifacts/*.pkl
+
 # Temporary & Cache
 cache/
 .cache/
@@ -69,3 +72,7 @@ docs/img/
 
 # Excluded Launchers
 Start_Finvista_API.bat
+
+# Runtime outputs and artifacts
+results/
+artifacts/

@@ -5,7 +5,7 @@ import os
 import base64
 import hashlib
 import hmac
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import jwt
 from dotenv import load_dotenv
@@ -66,7 +66,7 @@ def create_access_token(data: dict) -> str:
 
 def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     """Dependency to retrieve the currently authenticated user."""
-    from src.common.database import SessionLocal, User
+    from src.core.database import SessionLocal, User
 
     db = SessionLocal()
     try:

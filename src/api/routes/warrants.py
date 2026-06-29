@@ -19,8 +19,8 @@ from pydantic import BaseModel, Field
 from src.api import state
 from src.api.dependencies import limiter
 from src.api.websocket import manager
-from src.services.warrant_service import WarrantService
-from src.services.ai_committee_service import AICommitteeService
+from src.modules.cw_pricing.service import WarrantService
+from src.modules.trading_engine.ai_committee_service import AICommitteeService
 
 router = APIRouter(tags=["warrants"])
 ai_committee = AICommitteeService()
@@ -70,7 +70,7 @@ def get_cw_opportunities(
     underlying: Optional[str] = Query(
         None, description="Filter by underlying stock ticker (e.g. HPG)"
     ),
-    limit: int = Query(10, ge=1, le=100, description="Max recommendations to return"),
+    limit: int = Query(10, ge=1, le=1000, description="Max recommendations to return"),
     force_refresh: bool = Query(
         False, description="Force running full market crawl and calculations"
     ),
@@ -137,7 +137,7 @@ async def trigger_market_scan(
     Rate limited to 1 execution per minute per client IP. Broadcasts completion state to WebSockets.
     """
     try:
-        from src.quant.engines.run_analysis import run_quant_pipeline_programmatic
+        from src.modules.cw_pricing.backtest.run_analysis import run_quant_pipeline_programmatic
         print("⚡ Manual trigger: Real-time quantitative scanner initiated...")
         
         # We still run this directly here to manage the state and websocket broadcast
@@ -173,7 +173,7 @@ async def trigger_market_scan(
 async def run_async_scan_task(strategy: str):
     """Worker function to run heavy quant calculations in a worker thread and broadcast over WS."""
     try:
-        from src.quant.engines.run_analysis import run_quant_pipeline_programmatic
+        from src.modules.cw_pricing.backtest.run_analysis import run_quant_pipeline_programmatic
         print(f"⚙️ [Async Background Task] Starting full quant scan under strategy: {strategy}")
         await asyncio.to_thread(run_quant_pipeline_programmatic, strategy=strategy)
         print("✅ [Async Background Task] Successfully completed scan and synchronized to database.")
@@ -231,7 +231,7 @@ def get_warrant_simulation(symbol: str):
 @router.get("/api/warrants/{symbol}/history")
 def get_warrant_history(
     symbol: str,
-    days: int = Query(15, ge=5, le=60, description="Number of trading sessions to look back"),
+    days: int = Query(15, ge=5, le=300, description="Number of trading sessions to look back"),
 ):
     """
     Retrieve historical volatility structures and Greeks via WarrantService.

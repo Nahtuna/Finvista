@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from src.api.dependencies import get_current_user
 from src.api.websocket import manager
-from src.services.portfolio_service import PortfolioService
+from src.modules.trading_engine.portfolio_service import PortfolioService
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 

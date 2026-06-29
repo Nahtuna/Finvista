@@ -23,10 +23,10 @@ if BASE_DIR not in sys.path:
 
 from src.api import state
 from src.api.dependencies import limiter
-from src.api.routes import auth, chat, credit, portfolio, warrants
+from src.api.routes import auth, chat, credit, market, news_impact, portfolio, regime, warrants, analyst, reports
 from src.api.scheduler import start_periodic_scheduler
 from src.api.websocket import websocket_endpoint
-from src.common import config
+from src.core import config
 
 app = FastAPI(
     title="Finvista Quantitative REST API Gateway",
@@ -43,6 +43,8 @@ app = FastAPI(
 app.state.limiter = limiter
 state.load_distress_models()
 
+from fastapi import Request
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -51,11 +53,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Remove deprecated and unneeded headers
+    for h in ["x-xss-protection", "X-XSS-Protection", "x-frame-options", "X-Frame-Options", "expires", "Expires"]:
+        if h in response.headers:
+            del response.headers[h]
+
+    # Add modern CSP and security/cache headers
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'self'"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    
+    # Ensure charset=utf-8 is specified for JSON responses
+    c_type = response.headers.get("content-type", "")
+    if "application/json" in c_type and "charset" not in c_type:
+        response.headers["content-type"] = f"{c_type}; charset=utf-8"
+        
+    return response
+
 app.include_router(auth.router)
 app.include_router(warrants.router)
 app.include_router(portfolio.router)
 app.include_router(credit.router)
 app.include_router(chat.router)
+app.include_router(news_impact.router)
+app.include_router(regime.router)
+app.include_router(market.router)
+app.include_router(analyst.router)
+app.include_router(reports.router)
 
 
 @app.exception_handler(RateLimitExceeded)
@@ -94,6 +122,10 @@ def read_root():
             "corporate_credit_health": "/api/credit-health/{ticker}",
             "cw_opportunities": "/api/warrants/opportunities",
             "dynamic_greeks_calculator": "/api/warrants/greeks",
+            "news_impact": "/api/news-impact/{ticker}",
+            "news_ml_signal": "/api/news-impact/{ticker}/ml-signal",
+            "market_regime": "/api/regime/market",
+            "ticker_regime": "/api/regime/{ticker}",
         },
         "systems": {
             "credit_risk_model": "XGBoost Credit Classifier v1.0 (Sequential OOT Trained)",
@@ -105,9 +137,8 @@ def read_root():
 @app.get("/api/health")
 def health_check():
     """Retrieve runtime diagnostics, model registry integrity, and cached state."""
-    model_dir = os.path.join(config.DATA_DIR, "models")
-    model_exists = os.path.exists(os.path.join(model_dir, "best_distress_model.pkl"))
-    scaler_exists = os.path.exists(os.path.join(model_dir, "scaler.pkl"))
+    model_exists = os.path.exists(config.BEST_DISTRESS_MODEL)
+    scaler_exists = os.path.exists(config.SCALER_ARTIFACT)
     dataset_exists = os.path.exists(config.FINAL_DATASET_FILE)
 
     dataset_rows = 0

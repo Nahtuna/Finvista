@@ -29,7 +29,7 @@ class TokenResponse(BaseModel):
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_user(req: UserRegisterRequest):
     """Register a new quant trader account."""
-    from src.common.database import SessionLocal, User
+    from src.core.database import SessionLocal, User
 
     db = SessionLocal()
     try:
@@ -60,7 +60,7 @@ def register_user(req: UserRegisterRequest):
 @router.post("/login", response_model=TokenResponse)
 def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
     """Authenticate credentials and return a secure JWT Access Token."""
-    from src.common.database import SessionLocal, User
+    from src.core.database import SessionLocal, User
 
     db = SessionLocal()
     try:
