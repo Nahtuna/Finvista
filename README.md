@@ -45,7 +45,10 @@
 - [📂 Cấu Trúc Dự Án](#-cấu-trúc-dự-án)
 - [📊 Hiệu Suất](#-hiệu-suất)
 - [🧪 Kiểm Thử](#-kiểm-thử)
-- [🗺️ Lộ Trình](#️-lộ-trình)
+- [� Deployment](#-deployment)
+- [📘 Documentation](#-documentation)
+- [🤝 Contributing](#-contributing)
+- [�️ Lộ Trình](#️-lộ-trình)
 - [📄 Giấy Phép](#-giấy-phép)
 
 ---
@@ -549,7 +552,150 @@ Finvista/
 python -m pytest -s
 ```
 
-> **15/15 test cases passed** — Bao gồm REST API integration tests & unit tests logic toán học.
+> **25/25 test cases passed** — Bao gồm REST API integration tests & unit tests logic toán học.
+
+---
+
+## 🚢 Deployment
+
+### Production Deployment
+
+Finvista supports deployment to cloud platforms with automated CI/CD:
+
+**Backend (FastAPI)**
+- Platform: Render.com / Railway / AWS EC2
+- Database: Supabase PostgreSQL (recommended) or SQLite
+- ML Models: Included in deployment or cloud storage
+- See [`DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) for detailed instructions
+
+**Frontend (React + Vite)**
+- Platform: Vercel / Netlify
+- Build: Static site generation
+- Environment: Production API URL
+- Automatic deployments on git push
+
+**CI/CD Pipeline**
+- GitHub Actions for automated testing
+- Automated deployment on main branch
+- Security scanning with Trivy
+- Code coverage reporting
+
+### Quick Deploy
+
+```bash
+# 1. Setup Supabase (recommended)
+# Follow DEPLOYMENT_GUIDE.md Phase 1
+
+# 2. Deploy Backend
+# Connect GitHub repo to Render.com
+# Set environment variables (DATABASE_URL, JWT_SECRET, etc.)
+
+# 3. Deploy Frontend  
+# Connect GitHub repo to Vercel
+# Set VITE_API_BASE_URL to backend URL
+```
+
+### Environment Variables
+
+Required for production deployment:
+```bash
+DATABASE_URL=postgresql://...
+JWT_SECRET_KEY=your-secret-key
+TELEGRAM_BOT_TOKEN=your-telegram-token
+TELEGRAM_CHAT_ID=your-chat-id
+GEMINI_API_KEY=your-gemini-key
+```
+
+---
+
+## 📘 Documentation
+
+### User Documentation
+- **[User Guide](docs/1_Usage/USER_GUIDE.md)** - Comprehensive user manual
+- **[API Documentation](docs/1_Usage/API_DOCUMENTATION.md)** - REST API reference
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+
+### Technical Documentation
+- **Architecture** - System design and data flow
+- **Module Documentation** - Each module's detailed documentation
+- **Research Papers** - Academic background and methodologies
+
+### Quick Links
+- **Interactive API Docs**: `/docs` endpoint (Swagger UI)
+- **ReDoc**: `/redoc` endpoint
+- **Health Check**: `/api/health` endpoint
+
+---
+
+## 🤝 Contributing
+
+### Development Setup
+
+```bash
+# 1. Clone repository
+git clone https://github.com/Nahtuna/Finvista.git
+cd Finvista
+
+# 2. Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -e .
+cd frontend && npm install
+
+# 4. Setup environment
+cp .env.example .env
+cp frontend/.env.example frontend/.env
+
+# 5. Run development servers
+# Terminal 1: Backend
+python run.py api
+
+# Terminal 2: Frontend
+cd frontend && npm run dev
+```
+
+### Code Style
+
+**Python**
+- Linter: `ruff check src/`
+- Formatter: `black src/`
+- Type hints recommended
+
+**JavaScript/React**
+- ESLint configured
+- Prettier for formatting
+- Functional components with hooks
+
+### Testing
+
+```bash
+# Backend tests
+python -m pytest tests/ -v
+
+# Frontend tests
+cd frontend && npm test
+
+# Coverage report
+pytest --cov=src --cov-report=html
+```
+
+### Pull Request Process
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+### Guidelines
+
+- Write meaningful commit messages
+- Add tests for new features
+- Update documentation
+- Follow existing code style
+- Ensure all tests pass
 
 ---
 
