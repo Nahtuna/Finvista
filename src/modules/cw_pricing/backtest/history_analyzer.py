@@ -98,37 +98,40 @@ def analyze_historical_warrant(cw_symbol: str, lookback_days: int = 20) -> pd.Da
     """
     cw_symbol = cw_symbol.upper().strip()
     
-    # Step 1: Resolve metadata from our master report or database
+    # Step 1: Resolve metadata from database first (more reliable on cloud), fallback to CSV
     meta = None
-    if os.path.exists(REPORT_PATH):
+    
+    # Try database first
+    try:
+        from src.core.database import SessionLocal, MarketOpportunity
+        db = SessionLocal()
+        try:
+            db_row = db.query(MarketOpportunity).filter(MarketOpportunity.symbol == cw_symbol).first()
+            if db_row:
+                # Map database fields to expected format
+                meta = {
+                    "B_MaCPCS": db_row.underlying,
+                    "R_Strike": db_row.strike_price,
+                    "hidden_ratio": db_row.ratio if db_row.ratio else "1:1",
+                    "Q_DaoHan": (datetime.now() + timedelta(days=db_row.days_to_maturity)).strftime("%Y-%m-%d") if db_row.days_to_maturity else datetime.now().strftime("%Y-%m-%d")
+                }
+                print(f"✅ Found warrant metadata in database for {cw_symbol}")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"❌ Database lookup failed: {e}, trying CSV fallback...")
+    
+    # Fallback to CSV report if database didn't return data
+    if meta is None and os.path.exists(REPORT_PATH):
+        print(f"⚠️ Database lookup failed, trying CSV report fallback...")
         df = pd.read_csv(REPORT_PATH)
         match = df[df["A_MaCW"] == cw_symbol]
         if not match.empty:
             meta = match.iloc[0]
+            print(f"✅ Found warrant metadata in CSV report for {cw_symbol}")
     
     if meta is None:
-        print(f"⚠️ Warrant '{cw_symbol}' not found in CSV report, trying database fallback...")
-        try:
-            from src.core.database import SessionLocal, MarketOpportunity
-            db = SessionLocal()
-            try:
-                db_row = db.query(MarketOpportunity).filter(MarketOpportunity.symbol == cw_symbol).first()
-                if db_row:
-                    # Map database fields to expected format
-                    meta = {
-                        "B_MaCPCS": db_row.underlying,
-                        "R_Strike": db_row.strike_price,
-                        "hidden_ratio": db_row.ratio if db_row.ratio else "1:1",
-                        "Q_DaoHan": (datetime.now() + timedelta(days=db_row.days_to_maturity)).strftime("%Y-%m-%d") if db_row.days_to_maturity else datetime.now().strftime("%Y-%m-%d")
-                    }
-                    print(f"✅ Found warrant metadata in database for {cw_symbol}")
-            finally:
-                db.close()
-        except Exception as e:
-            print(f"❌ Database fallback failed: {e}")
-    
-    if meta is None:
-        print(f"❌ Warrant '{cw_symbol}' was not found in CSV report or database.")
+        print(f"❌ Warrant '{cw_symbol}' was not found in database or CSV report.")
         return pd.DataFrame()
         
     underlying_symbol = meta["B_MaCPCS"]
