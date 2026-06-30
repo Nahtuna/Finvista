@@ -28,7 +28,13 @@ def get_corporate_credit_health(ticker: str):
     Retrieve deep fundamental credit indicators and XGBoost bankruptcy alert ratings.
     Delegates all heavy lifting to CreditRiskService.
     """
-    return CreditRiskService.get_credit_health(ticker)
+    try:
+        return CreditRiskService.get_credit_health(ticker)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Credit health service temporarily unavailable: {str(e)}"
+        )
 
 
 @router.get("/api/credit-risk/scan")

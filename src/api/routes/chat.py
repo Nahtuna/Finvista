@@ -56,6 +56,13 @@ async def chat_completion(request: ChatRequest, req_raw: Request):
         
         ai_client = get_ai_client()
         
+        # Check if AI client is properly configured
+        if ai_client.use_web_api and not ai_client._is_port_open(8081):
+            raise HTTPException(
+                status_code=503,
+                detail="AI service unavailable. Please configure OPENROUTER_API_KEY in environment variables."
+            )
+        
         # 1. Resolve optional logged-in user
         current_user = await get_optional_current_user(req_raw)
         
