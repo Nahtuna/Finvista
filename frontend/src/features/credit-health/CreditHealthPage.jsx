@@ -229,7 +229,7 @@ export function CreditHealthPage({ language = "vi" }) {
                   <Ratio label={isEnglish ? "Liquidity" : "Thanh khoản"} value={ratios.liquidity_current_ratio} />
                   <Ratio label="ROA" value={ratios.roa} />
                   <Ratio label="ROE" value={ratios.roe} />
-                  <Ratio label="EBIT/assets" value={ratios.ebit_to_assets} />
+                  <Ratio label="EBIT/tài sản" value={ratios.ebit_to_assets} />
                   <Ratio label="ICR" value={ratios.icr} />
                   <Ratio label="OCF/debt" value={ratios.ocf_to_total_debt} />
                 </div>
