@@ -203,43 +203,51 @@ def analyze_historical_warrant(cw_symbol: str, lookback_days: int = 20) -> pd.Da
     stock_hist['rolling_hv'] = stock_hist['log_return'].rolling(40).std() * np.sqrt(252)
     
     # Step 3: Fetch historical quotes for the Covered Warrant
+    # Try database first (more reliable on cloud environments)
     start_date_cw_dt = now - timedelta(days=lookback_days + 5)
     start_date_cw_str = start_date_cw_dt.strftime('%Y-%m-%d')
     print(f"📡 Retrieving historical quotes for warrant {cw_symbol} from {start_date_cw_str}...")
     cw_hist = pd.DataFrame()
+    
+    # Try database first
     try:
-        cw_quote = vnstock.Quote(symbol=cw_symbol)
-        cw_hist = cw_quote.history(start=start_date_cw_str, end=end_date_str)
-    except Exception as e:
-        print(f"❌ Failed to fetch warrant historical quotes: {e}")
-        
-    if cw_hist.empty or 'close' not in cw_hist.columns:
-        print("⚠️ Warrant historical quotes are empty or failed. Trying SQLite DB fallback...")
+        from src.core.database import SessionLocal, CWHistoricalPrice
+        db = SessionLocal()
         try:
-            from src.core.database import SessionLocal, CWHistoricalPrice
-            db = SessionLocal()
-            try:
-                db_rows = db.query(CWHistoricalPrice).filter(
-                    CWHistoricalPrice.symbol == cw_symbol,
-                    CWHistoricalPrice.date >= start_date_cw_str,
-                    CWHistoricalPrice.date <= end_date_str
-                ).order_by(CWHistoricalPrice.date).all()
-                if db_rows:
-                    cw_hist = pd.DataFrame([{
-                        'date': r.date,
-                        'open': r.open,
-                        'high': r.high,
-                        'low': r.low,
-                        'close': r.close / 1000.0,  # Convert to thousands to match vnstock unit
-                        'volume': r.volume
-                    } for r in db_rows])
-            finally:
-                db.close()
-        except Exception as dbe:
-            print(f"❌ SQLite DB fallback failed for warrant: {dbe}")
+            db_rows = db.query(CWHistoricalPrice).filter(
+                CWHistoricalPrice.symbol == cw_symbol,
+                CWHistoricalPrice.date >= start_date_cw_str,
+                CWHistoricalPrice.date <= end_date_str
+            ).order_by(CWHistoricalPrice.date).all()
+            if db_rows:
+                cw_hist = pd.DataFrame([{
+                    'date': r.date,
+                    'open': r.open,
+                    'high': r.high,
+                    'low': r.low,
+                    'close': r.close / 1000.0,  # Convert to thousands to match vnstock unit
+                    'volume': r.volume
+                } for r in db_rows])
+                print(f"✅ Loaded {len(db_rows)} rows from database for {cw_symbol}")
+            else:
+                print(f"⚠️ No data found in database for {cw_symbol}, trying vnstock API...")
+        finally:
+            db.close()
+    except Exception as dbe:
+        print(f"❌ Database fetch failed for warrant: {dbe}, trying vnstock API...")
+    
+    # Fallback to vnstock API if database didn't return data
+    if cw_hist.empty or 'close' not in cw_hist.columns:
+        try:
+            cw_quote = vnstock.Quote(symbol=cw_symbol)
+            cw_hist = cw_quote.history(start=start_date_cw_str, end=end_date_str)
+            print(f"✅ Loaded data from vnstock API for {cw_symbol}")
+        except Exception as e:
+            print(f"❌ Failed to fetch warrant historical quotes from vnstock: {e}")
 
     if cw_hist.empty or 'close' not in cw_hist.columns:
         print("❌ Warrant historical quotes are empty.")
+        print(f"⚠️ Returning empty DataFrame - this will cause 404 error in API")
         return pd.DataFrame()
         
     if 'time' in cw_hist.columns and 'date' not in cw_hist.columns:
