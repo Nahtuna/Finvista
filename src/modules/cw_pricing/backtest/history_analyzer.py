@@ -98,18 +98,39 @@ def analyze_historical_warrant(cw_symbol: str, lookback_days: int = 20) -> pd.Da
     """
     cw_symbol = cw_symbol.upper().strip()
     
-    # Step 1: Resolve metadata from our master report
-    if not os.path.exists(REPORT_PATH):
-        print(f"❌ Master analysis report not found at {REPORT_PATH}. Run python run_cw.py first!")
+    # Step 1: Resolve metadata from our master report or database
+    meta = None
+    if os.path.exists(REPORT_PATH):
+        df = pd.read_csv(REPORT_PATH)
+        match = df[df["A_MaCW"] == cw_symbol]
+        if not match.empty:
+            meta = match.iloc[0]
+    
+    if meta is None:
+        print(f"⚠️ Warrant '{cw_symbol}' not found in CSV report, trying database fallback...")
+        try:
+            from src.core.database import SessionLocal, MarketOpportunity
+            db = SessionLocal()
+            try:
+                db_row = db.query(MarketOpportunity).filter(MarketOpportunity.symbol == cw_symbol).first()
+                if db_row:
+                    # Map database fields to expected format
+                    meta = {
+                        "B_MaCPCS": db_row.underlying,
+                        "R_Strike": db_row.strike_price,
+                        "hidden_ratio": db_row.ratio if db_row.ratio else "1:1",
+                        "Q_DaoHan": (datetime.now() + timedelta(days=db_row.days_to_maturity)).strftime("%Y-%m-%d") if db_row.days_to_maturity else datetime.now().strftime("%Y-%m-%d")
+                    }
+                    print(f"✅ Found warrant metadata in database for {cw_symbol}")
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"❌ Database fallback failed: {e}")
+    
+    if meta is None:
+        print(f"❌ Warrant '{cw_symbol}' was not found in CSV report or database.")
         return pd.DataFrame()
         
-    df = pd.read_csv(REPORT_PATH)
-    match = df[df["A_MaCW"] == cw_symbol]
-    if match.empty:
-        print(f"❌ Warrant '{cw_symbol}' was not found in the latest market scans.")
-        return pd.DataFrame()
-        
-    meta = match.iloc[0]
     underlying_symbol = meta["B_MaCPCS"]
     strike = float(meta["R_Strike"])
     ratio_str = meta["hidden_ratio"]
