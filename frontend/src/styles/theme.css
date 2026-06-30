@@ -1027,32 +1027,47 @@ tbody tr:hover .strong-cell {
 }
 
 /* 📊 STATS TILES COLORING & CENTERING */
-.app-shell.color-dark .market-tile-row {
+.market-tile-row {
   gap: 0.75rem;
 }
 
-.app-shell.color-dark .market-tile-row .market-tile {
+.market-tile-row .market-tile {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   padding: 0.85rem;
-  background: rgba(22, 26, 34, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.26);
   border-radius: 0.85rem;
 }
 
-.app-shell.color-dark .market-tile-row .market-tile span {
+.market-tile-row .market-tile span {
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-bottom: 0.2rem;
   font-weight: 700;
 }
 
-.app-shell.color-dark .market-tile-row .market-tile strong {
+.market-tile-row .market-tile strong {
   font-size: 1.8rem;
   line-height: 1.2;
+}
+
+.market-tile-row .market-tile:first-child strong {
+  color: var(--buy, #008b7a);
+  text-shadow: 0 0 8px rgba(0, 139, 122, 0.15);
+}
+
+.market-tile-row .market-tile:last-child strong {
+  color: var(--sell, #d94a6f);
+  text-shadow: 0 0 8px rgba(217, 74, 111, 0.15);
+}
+
+.app-shell.color-dark .market-tile-row .market-tile {
+  background: rgba(22, 26, 34, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .app-shell.color-dark .market-tile-row .market-tile:first-child strong {
