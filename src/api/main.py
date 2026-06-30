@@ -47,7 +47,11 @@ from fastapi import Request
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://finvista-chi.vercel.app",
+        "https://finvista-xppw.onrender.com",
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
