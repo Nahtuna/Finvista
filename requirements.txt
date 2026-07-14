@@ -44,4 +44,5 @@ openai>=1.0.0
 xgboost>=1.7.0
 mplfinance>=0.12.10b0
 arch>=7.0.0
+networkx>=3.0
 
