@@ -312,6 +312,197 @@ Giải quyết triệt để độ trễ tính toán của các mô hình phân 
 *   **vnstock 4.0.4 Unified UI Support:** Hệ thống đã được nâng cấp toàn diện để tương thích với cấu trúc Domain-based mới của thư viện vnstock (Fundamental, Reference, Quote APIs), đảm bảo pipeline dữ liệu vận hành ổn định trên các nguồn dữ liệu v4.x mới nhất.
 
 ---
-**Trạng thái cập nhật:** 12/06/2026 - *Hội đồng Công nghệ Finvista*
+
+## 10. YÊU CẦU KỸ THUẬT MỚI (CẬP NHẬT 30/06/2026)
+
+> [!IMPORTANT]
+> Các yêu cầu dưới đây được đề xuất từ quá trình vận hành thực tế và cần được ưu tiên tích hợp vào các giai đoạn phát triển tiếp theo.
+
+---
+
+### 10.1. AI Chat – Hỗ Trợ Nội Dung Đa Phương Thức (Multimodal Rich Content)
+
+**Vấn đề hiện tại:**
+Hiện tại `AIChatWidget.jsx` chỉ render text với math và bảng (Markdown cơ bản). AI Chat **chưa hỗ trợ**:
+- Hình ảnh (biểu đồ từ backend, ảnh tải lên từ người dùng)
+- Biểu đồ tương tác (candlestick, line chart, heatmap P/L) nội tuyến trong chat
+- Code blocks với syntax highlighting và nút copy
+- Mermaid diagrams (sơ đồ kiến trúc, flow chart)
+
+**Giải pháp kỹ thuật đề xuất:**
+
+#### A. Syntax Highlighting cho Code Blocks
+*   **Thư viện:** Tích hợp `react-syntax-highlighter` (hoặc `Prism.js` nhẹ hơn) để render các khối ` ```python `, ` ```json `, ` ```bash ` trong câu trả lời của AI.
+*   **Nút Copy:** Thêm button copy-to-clipboard nằm ở góc phải của mỗi code block.
+*   **Backend:** Không cần thay đổi – chỉ cần đảm bảo AI được prompt để xuất code có đánh dấu ngôn ngữ.
+
+#### B. Biểu Đồ Nhúng Trong Chat (Inline Charts)
+*   **Cơ chế:** AI khi muốn trả về biểu đồ sẽ xuất ra một JSON có cấu trúc đặc biệt được bọc trong code fence:
+    ```
+    ```chart
+    { "type": "line", "title": "VN30 7 ngày", "data": [...] }
+    ```
+    ```
+*   **Frontend:** `parseTextAndTables()` trong `AIChatWidget.jsx` nhận dạng block ` ```chart ` và render `<Recharts LineChart>` hoặc `<ApexCharts>` thay vì text thô.
+*   **Backend (`chat.py`):** Mở rộng context builder – khi người dùng hỏi về biểu đồ giá, hàm `get_price_chart_data(symbol, days)` trả về JSON có thể đưa thẳng vào prompt cho AI.
+
+#### C. Hỗ Trợ Hình Ảnh (Vision / Image Upload)
+*   **Người dùng gửi ảnh:** Thêm nút 📎 upload ảnh trong chat widget. Ảnh được encode `base64` và gửi kèm qua API.
+*   **AI Client (`ai_client.py`):** Mở rộng hàm `chat()` để hỗ trợ `content` dạng multipart (text + image_url) theo chuẩn OpenAI Vision API – OpenRouter đã hỗ trợ sẵn với `google/gemini-2.5-flash`.
+*   **Backend:** Cập nhật `ChatMessage` schema trong `chat.py` thêm trường `image_base64: Optional[str]`.
+*   **Use case chính:** Người dùng chụp màn hình biểu đồ nến và hỏi AI phân tích pattern Wyckoff → AI Vision trả lời phân tích kỹ thuật.
+
+#### D. Mermaid Diagram Rendering
+*   **Thư viện:** Tích hợp `mermaid` (CDN hoặc npm) để render block ` ```mermaid ` thành sơ đồ SVG ngay trong chat.
+*   **Use case:** AI giải thích kiến trúc Multi-Agent hoặc flow quyết định bằng sơ đồ trực quan.
+
+**Files cần sửa:**
+- `frontend/src/components/chat/AIChatWidget.jsx` – Thêm renderer cho code, chart, image, mermaid
+- `src/api/routes/chat.py` – Thêm `image_base64` vào `ChatMessage`, cập nhật `ChatRequest`
+- `src/infra/ai_client.py` – Nâng cấp `chat()` hỗ trợ Vision multipart content
+
+---
+
+### 10.2. Tăng Tốc Load Data Lên Frontend (Frontend Data Loading Optimization)
+
+**Vấn đề hiện tại:**
+Frontend hiện load tất cả dữ liệu cùng lúc khi vào trang, không có phân trang hay lazy-loading, dẫn đến trải nghiệm chậm khi dữ liệu lớn.
+
+**Giải pháp kỹ thuật đề xuất:**
+
+#### A. HTTP-Level Caching với ETag & Cache-Control
+*   **Backend (FastAPI):** Thêm header `ETag` (hash của response content) và `Cache-Control: max-age=60` vào các endpoint tĩnh (danh sách cơ hội, credit risk table).
+*   **Frontend:** Sử dụng `If-None-Match` để browser/client trả về `304 Not Modified` thay vì tải lại toàn bộ payload khi dữ liệu chưa đổi.
+*   **Lợi ích:** Giảm 80-90% payload cho các request lặp lại trong cùng một phiên.
+
+#### B. API Response Compression (Gzip / Brotli)
+*   **Backend:** Bật `GZipMiddleware` của FastAPI (đã có sẵn, chỉ cần thêm 1 dòng):
+    ```python
+    from fastapi.middleware.gzip import GZipMiddleware
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+    ```
+*   **Lợi ích:** Giảm ~70% kích thước payload JSON lớn (bảng 1,447 công ty).
+
+#### C. Pagination & Cursor-based Loading
+*   **Backend:** Thêm tham số `page`, `page_size` (hoặc `cursor`) vào các endpoint trả về list lớn: `/api/credit`, `/api/warrants/opportunities`.
+*   **Frontend:** Tích hợp **Intersection Observer** để tự động load thêm khi người dùng cuộn đến cuối bảng (infinite scroll) thay vì load tất cả.
+
+#### D. React Query / SWR để Quản Lý Cache Client-Side
+*   **Thư viện:** Tích hợp `@tanstack/react-query` (đã phổ biến trong hệ sinh thái Vite/React).
+*   **Lợi ích:**
+    - Tự động deduplicate request trùng lặp
+    - Background refetch khi tab được focus lại
+    - Optimistic updates cho Paper Trading
+    - Stale-while-revalidate: hiển thị data cũ ngay lập tức, cập nhật ngầm
+*   **Cách dùng:**
+    ```jsx
+    const { data, isLoading } = useQuery({
+      queryKey: ['opportunities'],
+      queryFn: fetchOpportunities,
+      staleTime: 60_000,        // giữ fresh 60s
+      refetchInterval: 120_000, // refetch mỗi 2 phút
+    });
+    ```
+
+#### E. Code Splitting & Lazy Route Loading
+*   Chia nhỏ bundle JavaScript bằng `React.lazy()` + `Suspense` cho từng trang (Credit Health, Portfolio, Warrant Detail).
+*   Kết hợp với `Vite` dynamic import để giảm thời gian First Contentful Paint (FCP).
+
+#### F. Skeleton Loading & Progressive Rendering
+*   Thay thế spinner bằng skeleton placeholder (giả lập layout bảng) để người dùng cảm nhận tốc độ cao hơn thực tế.
+*   Render dữ liệu quan trọng nhất (summary cards, top 5 cơ hội) trước, các bảng chi tiết sau.
+
+**Files cần sửa:**
+- `src/api/main.py` – Thêm GZipMiddleware, ETag middleware
+- `src/api/routes/*.py` – Thêm pagination params
+- `frontend/package.json` – Thêm `@tanstack/react-query`
+- `frontend/src/` – Refactor data fetching hooks sang React Query, thêm skeleton components
+
+---
+
+### 10.3. Tăng Tốc Cào Dữ Liệu & Chỉ Cập Nhật Dữ Liệu Mới (Incremental Scraping Engine)
+
+**Vấn đề hiện tại:**
+Bộ cào hiện tại luôn cào lại toàn bộ dữ liệu kể cả khi dữ liệu đã tồn tại trong DB, dẫn đến:
+- Lãng phí tài nguyên mạng và thời gian
+- Dễ bị rate-limit bởi nguồn dữ liệu
+- Khó scale khi số lượng ticker tăng
+
+**Giải pháp kỹ thuật đề xuất:**
+
+#### A. Incremental Scraping – Chỉ Cào Dữ Liệu Chưa Có
+*   **Nguyên tắc:** Trước khi cào, truy vấn DB để lấy `MAX(date)` hoặc `MAX(year, quarter)` cho từng ticker. Chỉ fetch dữ liệu từ điểm đó trở đi.
+*   **Ví dụ – Lịch sử giá (OHLCV):**
+    ```python
+    last_date = db.query(func.max(StockHistoricalPrice.date)).filter_by(symbol=symbol).scalar()
+    start_date = (last_date + timedelta(days=1)) if last_date else DEFAULT_START
+    # Chỉ fetch từ start_date → hôm nay
+    ```
+*   **Ví dụ – Tài chính doanh nghiệp (BCTC):**
+    ```python
+    existing_periods = {(r.year, r.quarter) for r in db.query(CompanyFinancial).filter_by(ticker=ticker)}
+    # Chỉ cào các kỳ chưa có trong existing_periods
+    ```
+*   **Ước tính lợi ích:** Giảm 95% lượng request sau lần cào đầu tiên (chỉ fetch dữ liệu của ngày/quý mới nhất).
+
+#### B. Upsert Pattern – Chống Trùng Lặp Khi Insert
+*   Thay `db.add()` bằng **SQLAlchemy Upsert** (`insert(...).on_conflict_do_update(...)`) để đảm bảo an toàn khi chạy song song hoặc re-run:
+    ```python
+    from sqlalchemy.dialects.sqlite import insert
+    stmt = insert(StockHistoricalPrice).values(**record)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=['symbol', 'date'],
+        set_={'close': stmt.excluded.close, 'volume': stmt.excluded.volume, ...}
+    )
+    db.execute(stmt)
+    ```
+
+#### C. Async Parallel Scraping với HTTPX + asyncio
+*   **Hiện trạng:** Bộ cào chạy tuần tự (sync), 1 ticker/lần.
+*   **Nâng cấp:** Viết lại bộ scraper chính bằng `httpx.AsyncClient` + `asyncio.gather()`:
+    ```python
+    async def scrape_all(tickers: list[str]):
+        async with httpx.AsyncClient() as client:
+            tasks = [scrape_one(client, ticker) for ticker in tickers]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+    ```
+*   **Semaphore Rate Limiting:** Dùng `asyncio.Semaphore(10)` để giới hạn 10 request đồng thời, tránh bị block:
+    ```python
+    sem = asyncio.Semaphore(10)
+    async def scrape_one(client, ticker):
+        async with sem:
+            return await client.get(url, ...)
+    ```
+*   **Ước tính:** Giảm thời gian cào 200 ticker từ ~20 phút (sync) xuống ~1-2 phút (async parallel với semaphore 10).
+
+#### D. Change Detection – Bỏ Qua Ticker Không Có Dữ Liệu Mới
+*   Lưu `last_scraped_at` và `data_hash` (MD5 của dữ liệu) vào bảng `scraper_state`.
+*   Nếu API trả về cùng hash → bỏ qua, không insert lại.
+*   Tự động re-scrape các ticker có `error_count > 3` với backoff delay.
+
+#### E. Scraper State Dashboard (API Endpoint)
+*   Bổ sung endpoint `GET /api/admin/scraper/status` trả về:
+    - Ticker nào đã được cào / chưa cào hôm nay
+    - Số lượng records mới vs bỏ qua (duplicate)
+    - Error log theo ticker
+    - Estimated time to completion
+*   Giúp monitoring dễ dàng mà không cần xem log terminal.
+
+#### F. Scheduled Incremental Jobs (Cron với APScheduler)
+*   Thay vì cào toàn bộ mỗi 15 phút, thiết lập lịch thông minh:
+    - **Trong phiên (09:00-15:00):** Cào giá realtime CW + cơ sở mỗi 3 phút (chỉ giá, không cào BCTC)
+    - **Cuối phiên (15:05):** Cào OHLCV đóng phiên cho toàn bộ danh sách (chỉ ngày hôm nay)
+    - **Hàng tuần (Chủ nhật 02:00):** Cào BCTC mới nhất (incremental by quarter)
+    - **Hàng tháng:** Cào lại dữ liệu FA đầy đủ để detect revision/restatement
+
+**Files cần sửa/tạo mới:**
+- `src/infra/scraper_engine.py` **[MỚI]** – Async scraper với semaphore, incremental logic
+- `src/core/database.py` – Thêm bảng `scraper_state` (ticker, last_scraped_at, data_hash, error_count)
+- `src/api/scheduler.py` – Cập nhật lịch chạy scraper theo phân loại job
+- `src/api/routes/` – Thêm `admin.py` với endpoint `/api/admin/scraper/status`
+
+---
+
+**Trạng thái cập nhật:** 30/06/2026 - *Hội đồng Công nghệ Finvista*
 
 
