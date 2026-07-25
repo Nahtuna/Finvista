@@ -156,36 +156,46 @@ def analyze_historical_warrant(cw_symbol: str, lookback_days: int = 20) -> pd.Da
     
     print(f"📡 Retrieving historical quotes for stock {underlying_symbol} from {start_date_stock_str}...")
     stock_hist = pd.DataFrame()
+    
+    # Try SQLite DB first
     try:
-        stock_quote = vnstock.Quote(symbol=underlying_symbol)
-        stock_hist = stock_quote.history(start=start_date_stock_str, end=end_date_str)
-    except Exception as e:
-        print(f"❌ Failed to fetch stock historical quotes: {e}")
-        
-    if stock_hist.empty or 'close' not in stock_hist.columns:
-        print("⚠️ Stock historical quotes are empty or failed. Trying SQLite DB fallback...")
+        from src.core.database import SessionLocal, StockHistoricalPrice
+        db = SessionLocal()
         try:
-            from src.core.database import SessionLocal, StockHistoricalPrice
-            db = SessionLocal()
-            try:
-                db_rows = db.query(StockHistoricalPrice).filter(
-                    StockHistoricalPrice.symbol == underlying_symbol,
-                    StockHistoricalPrice.date >= start_date_stock_str,
-                    StockHistoricalPrice.date <= end_date_str
-                ).order_by(StockHistoricalPrice.date).all()
-                if db_rows:
-                    stock_hist = pd.DataFrame([{
-                        'date': r.date,
-                        'open': r.open,
-                        'high': r.high,
-                        'low': r.low,
-                        'close': r.close / 1000.0,  # Convert to thousands to match vnstock unit
-                        'volume': r.volume
-                    } for r in db_rows])
-            finally:
-                db.close()
-        except Exception as dbe:
-            print(f"❌ SQLite DB fallback failed for stock: {dbe}")
+            db_rows = db.query(StockHistoricalPrice).filter(
+                StockHistoricalPrice.symbol == underlying_symbol,
+                StockHistoricalPrice.date >= start_date_stock_str,
+                StockHistoricalPrice.date <= end_date_str
+            ).order_by(StockHistoricalPrice.date).all()
+            if db_rows:
+                # Divide by 1000 if values are raw VND to align with standard vnstock price scale (k VND)
+                # Wait! Let's check: in SQLite stock_history, FPT is 8820.0, which is raw VND.
+                # Standard vnstock returns values in k VND, e.g. 8.89 (which is 8890.0 VND).
+                # Actually, wait! In the previous print of FPT, the values are 8820.0 (VND).
+                # In history_analyzer.py: close is divided by 1000.0 (e.g. r.close / 1000.0) to match vnstock's unit.
+                stock_hist = pd.DataFrame([{
+                    'date': r.date,
+                    'open': r.open / 1000.0 if r.open is not None else None,
+                    'high': r.high / 1000.0 if r.high is not None else None,
+                    'low': r.low / 1000.0 if r.low is not None else None,
+                    'close': r.close / 1000.0,  # Convert to thousands to match vnstock unit
+                    'volume': r.volume
+                } for r in db_rows])
+                print(f"✅ Loaded {len(stock_hist)} stock historical quotes from SQLite DB.")
+        finally:
+            db.close()
+    except Exception as dbe:
+        print(f"❌ SQLite DB query failed for stock: {dbe}")
+
+    # Fallback to external vnstock API if SQLite is empty
+    if stock_hist.empty or len(stock_hist) < 20:
+        print("⚠️ SQLite DB has insufficient data. Falling back to external vnstock API...")
+        try:
+            stock_quote = vnstock.Quote(symbol=underlying_symbol)
+            stock_hist = stock_quote.history(start=start_date_stock_str, end=end_date_str)
+            print(f"✅ Fetched {len(stock_hist)} stock historical quotes from external vnstock.")
+        except Exception as e:
+            print(f"❌ Failed to fetch stock historical quotes from vnstock: {e}")
 
     if stock_hist.empty or 'close' not in stock_hist.columns:
         print("❌ Stock historical quotes are empty.")
@@ -223,12 +233,18 @@ def analyze_historical_warrant(cw_symbol: str, lookback_days: int = 20) -> pd.Da
                 CWHistoricalPrice.date <= end_date_str
             ).order_by(CWHistoricalPrice.date).all()
             if db_rows:
+                def to_thousands(val):
+                    if val is None:
+                        return None
+                    val_float = float(val)
+                    return val_float / 1000.0 if val_float > 20.0 else val_float
+
                 cw_hist = pd.DataFrame([{
                     'date': r.date,
-                    'open': r.open,
-                    'high': r.high,
-                    'low': r.low,
-                    'close': r.close / 1000.0,  # Convert to thousands to match vnstock unit
+                    'open': to_thousands(r.open),
+                    'high': to_thousands(r.high),
+                    'low': to_thousands(r.low),
+                    'close': to_thousands(r.close),
                     'volume': r.volume
                 } for r in db_rows])
                 print(f"✅ Loaded {len(db_rows)} rows from database for {cw_symbol}")
@@ -434,11 +450,24 @@ def analyze_historical_warrant(cw_symbol: str, lookback_days: int = 20) -> pd.Da
         title=cw_symbol
     )
     
-    # Save historical run to data
-    out_dir = os.path.join("data", "historical_research")
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, f"{cw_symbol}_iv_trend.csv")
-    merged.to_csv(out_path, index=False)
-    print(f"💾 Historical research logs successfully saved to {out_path}")
+    # Save historical run to SQLite database
+    import sqlite3
+    db_path = os.path.join("data", "finvista.db")
+    if os.path.exists(db_path):
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            for _, row in merged.iterrows():
+                d_str = row['date'].strftime("%Y-%m-%d") if hasattr(row['date'], 'strftime') else str(row['date'])[:10]
+                cw_close = float(row.get('close_cw', 0.0))
+                cursor.execute("""
+                    INSERT OR REPLACE INTO cw_history (symbol, date, close, volume)
+                    VALUES (?, ?, ?, ?)
+                """, (cw_symbol, d_str, cw_close, int(row.get('volume_cw', 0) or 0)))
+            conn.commit()
+            conn.close()
+            print(f"💾 Historical research logs successfully saved to SQLite database ({db_path}: cw_history)")
+        except Exception as e:
+            print(f"⚠️ Warning: Could not save to SQLite DB: {e}")
     
     return merged

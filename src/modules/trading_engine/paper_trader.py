@@ -313,7 +313,7 @@ def execute_buy(symbol: str, underlying: str, price: float, score: float, days_l
         # Load market data from DB
         try:
             from src.modules.cw_pricing.backtest.reporter import load_opportunities_from_db
-            df_rep = load_opportunities_from_db(fallback_to_csv=True)
+            df_rep = load_opportunities_from_db(fallback_to_csv=False)
             if not df_rep.empty:
                 match = df_rep[df_rep["A_MaCW"] == symbol]
                 if not match.empty:
@@ -444,16 +444,20 @@ def execute_sell(symbol: str, price: float, reason: str, username: str = "demo")
     pos = portfolio["positions"][symbol]
     qty = pos["qty"]
     
-    # T+2.5 Settlement lock check
+    # T+2.5 Settlement lock check (Bypass for manual user orders)
+    is_manual = "Manual" in (reason or "") or "User" in (reason or "") or "user" in (reason or "").lower()
     now = datetime.now()
-    settlement_dt = datetime.fromisoformat(pos["settlement_date"])
-    if now < settlement_dt:
-        time_left = settlement_dt - now
-        hours_left = time_left.total_seconds() / 3600.0
-        return {
-            "status": "error", 
-            "message": f"🔒 Position in {symbol} is locked in T+2.5 settlement cycle! Available in {hours_left:.1f}h."
-        }
+    try:
+        settlement_dt = datetime.fromisoformat(pos["settlement_date"])
+        if not is_manual and now < settlement_dt:
+            time_left = settlement_dt - now
+            hours_left = time_left.total_seconds() / 3600.0
+            return {
+                "status": "error", 
+                "message": f"🔒 Vị thế {symbol} đang khóa T+2.5! Sẽ mở khóa sau {hours_left:.1f}h."
+            }
+    except Exception:
+        pass
         
     # ── REAL-TIME SLIPPAGE CALCULATION ──────────────────────────────
     from src.infra.orderbook_scraper import get_real_order_book, calculate_slippage
@@ -578,7 +582,7 @@ def scan_and_trade(force: bool = False, username: str = "demo", approved_symbols
     
     # Load market data from DB
     from src.modules.cw_pricing.backtest.reporter import load_opportunities_from_db
-    df = load_opportunities_from_db(fallback_to_csv=True)
+    df = load_opportunities_from_db(fallback_to_csv=False)
     if df.empty:
         log_actions.append("❌ Market data not available in DB or CSV. Run python run.py cw first to fetch market data!")
         return log_actions
@@ -768,7 +772,7 @@ def print_portfolio_dashboard():
     live_ratios = {}
     try:
         from src.modules.cw_pricing.backtest.reporter import load_opportunities_from_db
-        df = load_opportunities_from_db(fallback_to_csv=True)
+        df = load_opportunities_from_db(fallback_to_csv=False)
         if not df.empty:
             live_prices = dict(zip(df["A_MaCW"], df["C_GiaCW"]))
             live_deltas = dict(zip(df["A_MaCW"], df["T_Delta"]))

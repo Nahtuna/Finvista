@@ -27,7 +27,7 @@ from src.modules.cw_pricing.models.pricing_core import calculate_gamma, parse_ra
 from src.modules.cw_pricing.backtest.fetcher import fetch_market_cw_data
     
 def get_ssi_cw_volume_data(symbol: str) -> Dict[str, Any]:
-    """Fetch outstanding quantity and total listed quantity from SSI."""
+    """Fetch outstanding quantity and total listed quantity from SSI with enhanced error handling."""
     url = "https://iboard.ssi.com.vn/gateway/graphql"
     query = """
     query stockDetails($symbol: String) {
@@ -35,6 +35,8 @@ def get_ssi_cw_volume_data(symbol: str) -> Dict[str, Any]:
         symbol
         totalListedQty
         outstandingQty
+        totalVolume
+        matchPrice
       }
     }
     """
@@ -45,10 +47,16 @@ def get_ssi_cw_volume_data(symbol: str) -> Dict[str, Any]:
     }
     headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
     try:
-        r = requests.post(url, json=payload, headers=headers, timeout=5)
+        r = requests.post(url, json=payload, headers=headers, timeout=10)
         if r.status_code == 200:
-            return r.json().get("data", {}).get("stockDetails", {})
-    except: pass
+            data = r.json().get("data", {}).get("stockDetails", {})
+            if data:
+                # Ensure outstandingQty is returned, if not calculate from totalListedQty
+                if not data.get("outstandingQty") and data.get("totalListedQty"):
+                    data["outstandingQty"] = data["totalListedQty"]
+                return data
+    except Exception as e:
+        print(f"Warning: Failed to fetch volume data for {symbol}: {e}")
     return {}
 
 def calculate_aggregate_gex(underlying_symbol: str, spot_price: Optional[float] = None) -> Dict[str, Any]:

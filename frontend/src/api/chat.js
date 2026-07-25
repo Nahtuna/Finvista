@@ -63,3 +63,7 @@ export function generateFinancialCommentary({
     method: "POST"
   });
 }
+
+export function getChatContextSummary() {
+  return request("/api/chat/context-summary", { method: "GET" });
+}

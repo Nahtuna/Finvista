@@ -213,12 +213,12 @@ def prepare_vnindex_features(df: pd.DataFrame) -> pd.DataFrame:
     if len(df) < 50:
         raise ValueError("Not enough data to calculate rolling features (need >= 50 sessions for KAMA)")
         
-    df['kama'] = calculate_kama(df['close'], er_period=21, fast=5, slow=100)
-    df['trend'] = (df['kama'] > df['kama'].shift(1)).astype(int)
+    df['kama'] = calculate_kama(df['close'], er_period=10, fast=2, slow=30)
+    df['trend'] = (df['close'].rolling(5, min_periods=1).mean() > df['kama']).astype(int)
     
     df['log_return'] = np.log(df['close'] / df['close'].shift(1))
-    df['rolling_vol'] = df['log_return'].rolling(window=20).std() * np.sqrt(252)
-    df['rolling_volume_ma'] = df['volume'].rolling(window=20).mean()
+    df['rolling_vol'] = df['log_return'].rolling(window=10).std() * np.sqrt(252)
+    df['rolling_volume_ma'] = df['volume'].rolling(window=10).mean()
     df['log_volume_ratio'] = np.log(df['volume'] / df['rolling_volume_ma'].replace(0, np.nan))
     
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -326,3 +326,253 @@ def fit_vnindex_hmm(features_df: pd.DataFrame, n_states: int = 4, random_state: 
     )
     
     return hybrid_model, scaler
+
+
+def fit_vnindex_hmm_walkforward(features_df: pd.DataFrame,
+                                  train_window: int = 500,
+                                  test_window: int = 50,
+                                  n_restarts: int = 3,
+                                  vol_threshold: float = 0.20,
+                                  random_state: int = 42,
+                                  three_state: bool = False) -> tuple:
+    """
+    Walk-forward validation for VNINDEX HMM regime detection.
+
+    Parameters:
+    - features_df: DataFrame with KAMA trend, log_return, rolling_vol, log_volume_ratio
+    - train_window: Training window size in days (default 500)
+    - test_window: Test window size in days (default 50)
+    - n_restarts: Number of EM restarts per window to avoid local optima (default 3)
+    - vol_threshold: Fixed, causal, absolute annualised-vol cutoff (default 0.20 = 20%/yr).
+      A window's "high vol" cluster is only treated as a real High-Vol regime if its
+      average annualised volatility clears this threshold. Otherwise, the whole test
+      window is forced to "Low Vol" instead of being split by within-window rank alone.
+    - random_state: Base random seed
+    - three_state: If True, use 3-state HMM (Low/Medium/High Vol) instead of 2-state
+
+    Returns:
+    - walk_forward_states: full array of 4-state labels (NaN outside coverage) for 2-state
+                             or 3-state labels (0,1,2) for three_state mode
+    - walk_forward_probs:  full array of probabilities (NaN outside coverage)
+    - coverage_mask:       boolean array, True where a walk-forward label exists
+    - window_meta:         list of dicts, one per window, for auditing
+    """
+    from sklearn.preprocessing import StandardScaler
+    import warnings
+
+    T = len(features_df)
+    if T < train_window + test_window:
+        raise ValueError(f"Data too short: {T} days, need at least {train_window + test_window}")
+
+    walk_forward_states = np.full(T, np.nan)
+    walk_forward_probs = np.full((T, 3 if three_state else 4), np.nan)
+    coverage_mask = np.zeros(T, dtype=bool)
+    window_meta = []
+
+    trends = features_df['trend'].values.astype(int)
+    X_raw = features_df[['log_return', 'rolling_vol', 'log_volume_ratio']].values
+
+    start_idx = 0
+    while start_idx + train_window + test_window <= T:
+        train_end = start_idx + train_window
+        test_end = train_end + test_window
+
+        print(f"  Window {start_idx}-{train_end} (train) -> {train_end}-{test_end} (test)")
+
+        X_train_raw = X_raw[start_idx:train_end]
+        trends_train = trends[start_idx:train_end]
+
+        # Fit scaler ONLY on this training window (no look-ahead)
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train_raw)
+
+        # Fit HMM with multiple restarts to avoid EM local optima
+        n_hmm_states = 3 if three_state else 2
+        best_model = None
+        best_score = -np.inf
+        for restart in range(n_restarts):
+            rs = random_state + restart * 1000
+            model = GaussianHMM(
+                n_components=n_hmm_states, covariance_type="full",
+                n_iter=500, tol=1e-4, random_state=rs,
+                init_params="mcs", params="mcs",
+            )
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    model.fit(X_train)
+                if is_valid_model(model):
+                    score = model.score(X_train)
+                    if score > best_score:
+                        best_score = score
+                        best_model = model
+            except Exception as e:
+                print(f"    Restart {restart} failed: {e}")
+                continue
+
+        if best_model is None:
+            print(f"  [!] Window {start_idx}: no valid model found, skipping")
+            start_idx += test_window
+            continue
+
+        hmm_states_train = best_model.predict(X_train)
+
+        # Actual annualised vol of each raw HMM state cluster (train window)
+        state_actual_vols = []
+        for k in range(n_hmm_states):
+            mask = hmm_states_train == k
+            if mask.any():
+                daily_std = features_df.iloc[start_idx:train_end].loc[mask, 'log_return'].std()
+                state_actual_vols.append(daily_std * np.sqrt(252))
+            else:
+                state_actual_vols.append(0.0)
+
+        # Keep internal Gaussian components ordered low->high (for transmat/means consistency)
+        idx_sort = np.argsort(state_actual_vols)
+        best_model.startprob_ = best_model.startprob_[idx_sort]
+        best_model.transmat_ = best_model.transmat_[np.ix_(idx_sort, idx_sort)]
+        best_model.means_ = best_model.means_[idx_sort]
+        best_model._covars_ = best_model._covars_[idx_sort]
+        sorted_vols = np.array(state_actual_vols)[idx_sort]  # [low_state_vol, ...]
+
+        # For 2-state: window_had_real_crisis checks if high vol clears threshold
+        # For 3-state: check if high vol (index 2) clears threshold
+        if three_state:
+            # 3-state: Low (0), Medium (1), High (2)
+            # High vol regime only considered "real" if it clears threshold
+            window_had_real_crisis = bool(sorted_vols[2] >= vol_threshold)
+            window_meta.append({
+                "start": start_idx, "train_end": train_end, "test_end": test_end,
+                "low_state_vol": float(sorted_vols[0]), 
+                "medium_state_vol": float(sorted_vols[1]),
+                "high_state_vol": float(sorted_vols[2]),
+                "window_had_real_crisis": window_had_real_crisis,
+            })
+        else:
+            # 2-state: Low (0), High (1)
+            window_had_real_crisis = bool(sorted_vols[1] >= vol_threshold)
+            window_meta.append({
+                "start": start_idx, "train_end": train_end, "test_end": test_end,
+                "low_state_vol": float(sorted_vols[0]), "high_state_vol": float(sorted_vols[1]),
+                "window_had_real_crisis": window_had_real_crisis,
+            })
+
+        # Predict on test window (scale with the SAME scaler fit on train)
+        X_test_raw = X_raw[train_end:test_end]
+        X_test = scaler.transform(X_test_raw)
+        trends_test = trends[train_end:test_end]
+
+        hmm_states_test = best_model.predict(X_test)       # already re-ordered 0=low, 1=med, 2=high (or 0=low, 1=high)
+        hmm_probs_test = best_model.predict_proba(X_test)  # columns already re-ordered
+
+        if three_state:
+            # 3-State Logic:
+            # If the highest-vol cluster clears threshold, use actual HMM states (0,1,2)
+            # Otherwise, collapse: force everyone to "Low Vol" (state 0)
+            if window_had_real_crisis:
+                semantic_states_test = hmm_states_test  # 0, 1, 2 as-is
+                p_low_test = hmm_probs_test[:, 0]
+                p_med_test = hmm_probs_test[:, 1]
+                p_high_test = hmm_probs_test[:, 2]
+            else:
+                # Collapse: whole window is calm -> force everyone "Low Vol"
+                semantic_states_test = np.zeros(len(hmm_states_test), dtype=int)
+                p_low_test = np.ones(len(hmm_states_test))
+                p_med_test = np.zeros(len(hmm_states_test))
+                p_high_test = np.zeros(len(hmm_states_test))
+
+            # Combine with trend: 3 states × 2 trends = 6 possible, but we map to 3 semantic states
+            # Since 3-state HMM already captures volatility levels, we use HMM states directly
+            # The trend is logged but not used for state combination in 3-state mode
+            combined_states_test = semantic_states_test
+            combined_probs_test = np.column_stack([p_low_test, p_med_test, p_high_test])
+        else:
+            # 2-State Logic (original)
+            if window_had_real_crisis:
+                semantic_high_test = hmm_states_test                     # 0/1 as-is
+                p_low_test = hmm_probs_test[:, 0]
+                p_high_test = hmm_probs_test[:, 1]
+            else:
+                # Collapse: whole window is calm -> force everyone "Low Vol"
+                semantic_high_test = np.zeros(len(hmm_states_test), dtype=int)
+                p_low_test = np.ones(len(hmm_states_test))
+                p_high_test = np.zeros(len(hmm_states_test))
+
+            combined_states_test = 2 * (1 - trends_test) + semantic_high_test
+            combined_probs_test = np.zeros((len(X_test), 4), dtype=float)
+            for t in range(len(X_test)):
+                tr = trends_test[t]
+                if tr == 1:
+                    combined_probs_test[t] = [p_low_test[t], p_high_test[t], 0.0, 0.0]
+                else:
+                    combined_probs_test[t] = [0.0, 0.0, p_low_test[t], p_high_test[t]]
+
+        walk_forward_states[train_end:test_end] = combined_states_test
+        walk_forward_probs[train_end:test_end] = combined_probs_test
+        coverage_mask[train_end:test_end] = True
+
+        start_idx += test_window
+
+    return walk_forward_states, walk_forward_probs, coverage_mask, window_meta
+
+
+def fit_vnindex_hmm_3state(features_df: pd.DataFrame, random_state: int = 42) -> tuple:
+    """
+    Fits a 3-state HMM directly on standardized features for 3-state HMM mode.
+    Returns (HMMModelWrapper, scaler).
+    """
+    from sklearn.preprocessing import StandardScaler
+    from hmmlearn.hmm import GaussianHMM
+    import os, sys, warnings
+    
+    X_raw = features_df[['log_return', 'rolling_vol', 'log_volume_ratio']].values
+    
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_raw)
+    
+    # Train 3-State HMM Model
+    model = GaussianHMM(
+        n_components=3,
+        covariance_type="full",
+        n_iter=500,
+        tol=1e-4,
+        random_state=random_state,
+        init_params="mcs",
+        params="mcs",
+    )
+    
+    # Suppress output during training
+    devnull = open(os.devnull, "w")
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    sys.stdout = devnull
+    sys.stderr = devnull
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model.fit(X_scaled)
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+        devnull.close()
+    
+    # Sort states by volatility
+    if is_valid_model(model):
+        states = model.predict(X_scaled)
+        state_vols = []
+        for k in range(3):
+            mask = (states == k)
+            if mask.any():
+                state_vols.append(features_df.iloc[mask]['log_return'].std())
+            else:
+                state_vols.append(999.0)
+        
+        idx_sort = np.argsort(state_vols)
+        
+        # Permute parameters
+        model.startprob_ = model.startprob_[idx_sort]
+        model.transmat_ = model.transmat_[np.ix_(idx_sort, idx_sort)]
+        model.means_ = model.means_[idx_sort]
+        model._covars_ = model._covars_[idx_sort]
+    
+    return model, scaler

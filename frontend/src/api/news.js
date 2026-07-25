@@ -23,3 +23,10 @@ export function runNewsPipeline(ticker, eventDate = null, keyword = null, trainM
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return request(`/api/news-impact/${ticker.trim().toUpperCase()}/pipeline${suffix}`);
 }
+
+export function getFireantArticles(symbol = null, limit = 50) {
+  const params = new URLSearchParams();
+  if (symbol) params.set("symbol", symbol);
+  params.set("limit", String(limit));
+  return request(`/api/fireant/articles?${params.toString()}`);
+}

@@ -278,8 +278,8 @@ def dispatch_telegram_alerts(final_df):
         sys.stderr.write(f"\n⚠️ Failed to dispatch Telegram Webhook alerts: {e}\n")
 
 
-def load_opportunities_from_db(fallback_to_csv: bool = True) -> pd.DataFrame:
-    """Load quantitative scan results from SQLite/PostgreSQL Database or fallback to CSV."""
+def load_opportunities_from_db(fallback_to_csv: bool = False) -> pd.DataFrame:
+    """Load quantitative scan results strictly from SQLite/PostgreSQL Database."""
     df = pd.DataFrame()
     try:
         from src.core.database import SessionLocal, MarketOpportunity
@@ -341,14 +341,6 @@ def load_opportunities_from_db(fallback_to_csv: bool = True) -> pd.DataFrame:
             db.close()
     except Exception as e:
         print(f"⚠️ Error loading opportunities from database: {e}")
-        
-    if df.empty and fallback_to_csv:
-        if os.path.exists(REPORT_PATH):
-            try:
-                df = pd.read_csv(REPORT_PATH)
-                print(f"ℹ️ Loaded opportunities from CSV fallback: {REPORT_PATH}")
-            except Exception as e:
-                print(f"⚠️ Error loading fallback CSV: {e}")
                 
     return df
 

@@ -11,7 +11,7 @@ Usage:
   python run.py cw --strategy balanced   (Trigger Covered Warrants Market Scanner)
   python run.py credit --pipeline        (Run Credit Risk Ingestion & Classification)
   python run.py credit --train           (Train Credit Distress XGBoost Model)
-  python run.py history --symbol CACB2510 (Analyze warrant historical volatility)
+  python run.py history --symbol CACB2511 (Analyze warrant historical volatility)
   python run.py trade --portfolio        (View paper trading account dashboard)
   python run.py trade --scan             (Scan BSM signals and execute paper trades)
 
@@ -373,6 +373,16 @@ def handle_stats(args):
     from src.modules.cw_pricing.backtest.portfolio_optimizer import print_advanced_stats
     print_advanced_stats(use_backtest=getattr(args, 'backtest', False))
 
+def handle_regime(args):
+    from scripts.regime_cli import run_regime_analysis
+    symbol = getattr(args, 'symbol', 'VNINDEX') or 'VNINDEX'
+    days = getattr(args, 'days', 500)
+    timeframe = getattr(args, 'tf', '4H') or '4H'
+    save_plot = not getattr(args, 'no_plot', False)
+    run_regime_analysis(symbol=symbol, days=days, timeframe=timeframe, save_plot=save_plot)
+
+
+
 def main():
     print_banner()
     
@@ -463,6 +473,13 @@ def main():
     parser_ra = subparsers.add_parser('regime-audit', help="Run VNINDEX multivariate HMM regime detection audit")
     parser_ra.add_argument('--days', type=int, default=1250)
 
+    parser_regime = subparsers.add_parser('regime', help="Run standalone Market Regime analysis (Creed Grid + HMM)")
+    parser_regime.add_argument('--symbol', '-s', type=str, default='VNINDEX', help="Ticker symbol (e.g. VNINDEX, HPG)")
+    parser_regime.add_argument('--tf', '--timeframe', type=str, default='4H', choices=['4H', '1D', '1H'], help="Timeframe resolution (default: 4H)")
+    parser_regime.add_argument('--days', '-d', type=int, default=500, help="Lookback days")
+    parser_regime.add_argument('--no-plot', action='store_true', help="Disable PNG chart rendering")
+
+
     # ── SUBCOMMAND: NEWS IMPACT ──
     def _add_news_args(p):
         p.add_argument('--symbol', '-s', type=str, help="Ticker symbol (e.g. VHM)")
@@ -492,8 +509,10 @@ def main():
     elif args.command == 'audit': handle_audit(args)
     elif args.command == 'stats': handle_stats(args)
     elif args.command == 'drl': handle_drl(args)
+    elif args.command == 'regime': handle_regime(args)
     elif args.command == 'regime-portfolio': handle_regime_portfolio(args)
     elif args.command == 'regime-audit': handle_regime_audit(args)
+
     elif args.command in ('news-impact', 'news'): handle_news_impact(args)
     elif args.command == 'orchestrator': handle_orchestrator(args)
 

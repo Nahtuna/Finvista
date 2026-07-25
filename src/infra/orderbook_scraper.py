@@ -22,9 +22,23 @@ def get_order_book_ssi(symbol: str) -> Optional[Dict[str, Any]]:
         bestBid1 priceBid1 volBid1
         bestBid2 priceBid2 volBid2
         bestBid3 priceBid3 volBid3
+        bestBid4 priceBid4 volBid4
+        bestBid5 priceBid5 volBid5
+        bestBid6 priceBid6 volBid6
+        bestBid7 priceBid7 volBid7
+        bestBid8 priceBid8 volBid8
+        bestBid9 priceBid9 volBid9
+        bestBid10 priceBid10 volBid10
         bestOffer1 priceOffer1 volOffer1
         bestOffer2 priceOffer2 volOffer2
         bestOffer3 priceOffer3 volOffer3
+        bestOffer4 priceOffer4 volOffer4
+        bestOffer5 priceOffer5 volOffer5
+        bestOffer6 priceOffer6 volOffer6
+        bestOffer7 priceOffer7 volOffer7
+        bestOffer8 priceOffer8 volOffer8
+        bestOffer9 priceOffer9 volOffer9
+        bestOffer10 priceOffer10 volOffer10
       }
     }
     """
@@ -40,7 +54,7 @@ def get_order_book_ssi(symbol: str) -> Optional[Dict[str, Any]]:
             if data:
                 d = data[0]
                 res = {"symbol": symbol, "bids": [], "asks": []}
-                for i in range(1, 4):
+                for i in range(1, 11):
                     if d.get(f"priceBid{i}"):
                         res["bids"].append({"price": float(d[f"priceBid{i}"]), "volume": int(d[f"volBid{i}"])})
                     if d.get(f"priceOffer{i}"):
@@ -50,14 +64,14 @@ def get_order_book_ssi(symbol: str) -> Optional[Dict[str, Any]]:
     return None
 
 def get_order_book_vps(symbol: str) -> Optional[Dict[str, Any]]:
-    """Try fetching from VPS API."""
+    """Try fetching from VPS API with Top 10 depth."""
     url = f"https://bgapidatafeed.vps.com.vn/getstocksnapshot/{symbol}"
     try:
         r = requests.get(url, timeout=5)
         if r.status_code == 200:
             d = r.json()
             res = {"symbol": symbol, "bids": [], "asks": []}
-            for i in range(1, 4):
+            for i in range(1, 11):
                 p_bid = d.get(f"bidPrice{i}")
                 v_bid = d.get(f"bidVol{i}")
                 if p_bid: res["bids"].append({"price": float(p_bid), "volume": int(v_bid)})

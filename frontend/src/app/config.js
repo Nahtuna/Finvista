@@ -1,23 +1,27 @@
 export const NAV_ITEMS = {
   vi: [
-    { id: "intro", label: "Trang chủ" },
-    { id: "market", label: "Tổng quan thị trường" },
-    { id: "cw", label: "Cơ hội CW" },
-    { id: "credit", label: "Sức khỏe tín dụng" },
-    { id: "detail", label: "Chi tiết CW" }
+    { id: "intro", label: "Tổng quan" },
+    { id: "market", label: "Thị trường & Vĩ mô" },
+    { id: "cw", label: "Scanner & Phân tích" },
+    { id: "portfolio", label: "Danh mục & Watchlist" },
+    { id: "news", label: "Tin tức & Phân tích" },
+    { id: "alerts", label: "Tiện ích & Cảnh báo" },
+    { id: "settings", label: "Cài đặt" }
   ],
   en: [
-    { id: "intro", label: "Home" },
-    { id: "market", label: "Market Overview" },
-    { id: "cw", label: "CW Opportunities" },
-    { id: "credit", label: "Credit Health" },
-    { id: "detail", label: "CW Detail" }
+    { id: "intro", label: "Overview" },
+    { id: "market", label: "Market & Macro" },
+    { id: "cw", label: "Scanner & Analytics" },
+    { id: "portfolio", label: "Portfolio & Watchlist" },
+    { id: "news", label: "News & Analysis" },
+    { id: "alerts", label: "Utilities & Alerts" },
+    { id: "settings", label: "Settings" }
   ]
 };
 
 export const DEFAULT_PREFERENCES = {
   theme: "soft",
-  colorMode: "light",
+  colorMode: "dark",
   density: "comfortable",
   smoothMotion: true,
   tableHints: true,
@@ -28,7 +32,8 @@ export const DEFAULT_PREFERENCES = {
 export const STORAGE_KEYS = {
   language: "finvista-language",
   preferences: "finvista-preferences",
-  filterPresets: "finvista-cw-filter-presets"
+  filterPresets: "finvista-cw-filter-presets",
+  strategy: "finvista-strategy"
 };
 
 export const VN30_UNDERLYINGS = new Set([

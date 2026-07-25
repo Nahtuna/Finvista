@@ -86,14 +86,14 @@ Nền tảng được tái cấu trúc hoàn chỉnh theo chuẩn **Clean Archit
 
 ## 🧩 Các Module Chính
 
-| Module | Công nghệ | Mô tả |
-|--------|-----------|-------|
-| **💳 Credit Risk** | Merton Model · HistGBM · DebtRank | ETL 8 bước, ML dự báo kiệt quệ tài chính, mô phỏng lan truyền hệ thống |
-| **📈 CW Pricing** | SABR · Black-Scholes · GEX Engine | Định giá lý thuyết, giải ngược IV, tính Greeks, backtest Delta-Adaptive |
-| **🌊 Regime Analysis** | HMM · GARCH · XGBoost · DRL | Phát hiện chế độ thị trường, dự báo biến động, tối ưu danh mục DRL |
-| **📰 News Impact** | NLP · ML Classifier | Pipeline 6 bước: cào → align → tính xác suất → huấn luyện ML |
-| **🤝 Trading Engine** | Gemini AI · Paper Trader | AI Committee đồng thuận, Paper Trading mô phỏng HOSE, stress test |
-| **🔧 Infra & Scripts** | FastAPI · Telegram · Scrapers | API gateway, bot Telegram, scrapers SSI/Vietstock, data pipelines |
+| Module                | Công nghệ                         | Mô tả                                                                   |
+| --------------------- | --------------------------------- | ----------------------------------------------------------------------- |
+| **💳 Credit Risk**     | Merton Model · HistGBM · DebtRank | ETL 8 bước, ML dự báo kiệt quệ tài chính, mô phỏng lan truyền hệ thống  |
+| **📈 CW Pricing**      | SABR · Black-Scholes · GEX Engine | Định giá lý thuyết, giải ngược IV, tính Greeks, backtest Delta-Adaptive |
+| **🌊 Regime Analysis** | HMM · GARCH · XGBoost · DRL       | Phát hiện chế độ thị trường, dự báo biến động, tối ưu danh mục DRL      |
+| **📰 News Impact**     | NLP · ML Classifier               | Pipeline 6 bước: cào → align → tính xác suất → huấn luyện ML            |
+| **🤝 Trading Engine**  | Gemini AI · Paper Trader          | AI Committee đồng thuận, Paper Trading mô phỏng HOSE, stress test       |
+| **🔧 Infra & Scripts** | FastAPI · Telegram · Scrapers     | API gateway, bot Telegram, scrapers SSI/Vietstock, data pipelines       |
 
 ---
 
@@ -206,12 +206,12 @@ flowchart TD
     class API,WS,OUT1,OUT2,OUT3 delivery
 ```
 
-| Tầng | Màu | Khối chức năng |
-|------|-----|----------------|
-| **L1 · Data Ingestion** | 🔵 Blue | Market Scrapers · Data Pipelines · Telegram Hub · DB/Cache |
-| **L2 · Core Analytics** | 🟢 Green | Credit Risk · CW Pricing · Regime Analysis · News Impact |
-| **L3 · Decision Engine** | 🔴 Pink | AI Committee · Orchestrator · Paper Trading · Portfolio |
-| **L4 · Delivery & UI** | 🟣 Purple | FastAPI Routes · WebSocket · Telegram Bot · REST API |
+| Tầng                     | Màu      | Khối chức năng                                             |
+| ------------------------ | -------- | ---------------------------------------------------------- |
+| **L1 · Data Ingestion**  | 🔵 Blue   | Market Scrapers · Data Pipelines · Telegram Hub · DB/Cache |
+| **L2 · Core Analytics**  | 🟢 Green  | Credit Risk · CW Pricing · Regime Analysis · News Impact   |
+| **L3 · Decision Engine** | 🔴 Pink   | AI Committee · Orchestrator · Paper Trading · Portfolio    |
+| **L4 · Delivery & UI**   | 🟣 Purple | FastAPI Routes · WebSocket · Telegram Bot · REST API       |
 
 ---
 
@@ -279,13 +279,13 @@ cp .env.example .env
 
 ### Biến Môi Trường Chính
 
-| Biến | Mô tả |
-|------|-------|
-| `DATABASE_URL` | SQLite (mặc định) hoặc PostgreSQL khi deploy |
-| `JWT_SECRET_KEY` | Khóa mã hóa JWT đa người dùng |
-| `TELEGRAM_BOT_TOKEN` | Token bot Telegram |
-| `TELEGRAM_CHAT_ID` | Chat ID nhận cảnh báo |
-| `GEMINI_API_KEY` | API key Gemini AI cho AI Committee |
+| Biến                 | Mô tả                                        |
+| -------------------- | -------------------------------------------- |
+| `DATABASE_URL`       | SQLite (mặc định) hoặc PostgreSQL khi deploy |
+| `JWT_SECRET_KEY`     | Khóa mã hóa JWT đa người dùng                |
+| `TELEGRAM_BOT_TOKEN` | Token bot Telegram                           |
+| `TELEGRAM_CHAT_ID`   | Chat ID nhận cảnh báo                        |
+| `GEMINI_API_KEY`     | API key Gemini AI cho AI Committee           |
 
 ---
 
@@ -313,7 +313,7 @@ python run.py scan --group-by cpcs --all  # Nhóm theo cổ phiếu cơ sở
 ### Phân Tích Lịch Sử IV vs HV
 
 ```bash
-python run.py history --symbol CACB2510 --days 10
+python run.py history --symbol CACB2511 --days 10
 ```
 
 ### Paper Trading
@@ -327,12 +327,12 @@ python run.py trade --reset              # Reset về 100 Triệu VND
 
 ### Credit Risk Pipeline (8 Bước)
 
-| Bước | Lệnh | Mô tả |
-|:----:|:-----|:------|
-| **1–5** | `python run.py credit` | ETL: Thu thập BCTC, làm sạch, tính chỉ số, gán nhãn Altman Z'' |
-| **6** | `python run.py credit --train` | Huấn luyện & so sánh 11+ mô hình → `best_distress_model.pkl` |
-| **7** | `python run.py credit --evaluate` | Batch inference → `market_health_report.csv` |
-| **8** | `python run.py credit --contagion` | DebtRank lan truyền hệ thống → `systemic_health_report.csv` |
+|  Bước   | Lệnh                               | Mô tả                                                          |
+| :-----: | :--------------------------------- | :------------------------------------------------------------- |
+| **1–5** | `python run.py credit`             | ETL: Thu thập BCTC, làm sạch, tính chỉ số, gán nhãn Altman Z'' |
+|  **6**  | `python run.py credit --train`     | Huấn luyện & so sánh 11+ mô hình → `best_distress_model.pkl`   |
+|  **7**  | `python run.py credit --evaluate`  | Batch inference → `market_health_report.csv`                   |
+|  **8**  | `python run.py credit --contagion` | DebtRank lan truyền hệ thống → `systemic_health_report.csv`    |
 
 ---
 
@@ -364,13 +364,13 @@ Finvista/
 │   ├── processed/
 │   └── finvista.db
 │
-├── docs/
-│   ├── 1_Usage/                      📖  quick_start · CW handbook · Telegram guide
-│   └── 2_Internal/
-│       ├── Architecture/
-│       ├── Planning/                 roadmap.md
-│       ├── Research/
-│       └── Archive/
+├── docs/                             📂  Tài liệu dự án
+│   ├── architecture/                 Thiết kế hệ thống & kiến trúc
+│   ├── guides/                       Hướng dẫn sử dụng & API (quick_start, user_guide, v.v.)
+│   ├── research/                     Nghiên cứu & roadmap (roadmap.md, v.v.)
+│   ├── reference/                    Tài liệu tham khảo (FinLens analysis)
+│   ├── reverse_engineering/          Đặc tả & phân tích kỹ thuật FinLens
+│   └── archive/                      Tài liệu cũ/lưu trữ
 │
 ├── scripts/                          🔧  Batch / research scripts
 │   ├── data_pipelines/               backfill_ml_data · market_gex_report
@@ -441,31 +441,31 @@ Finvista/
 
 ### 1. Credit Risk ML — Dự Báo Kiệt Quệ Tài Chính (Out-of-Time Test Set)
 
-| Thuật Toán | Accuracy | Precision | Recall | F1-Score | ROC-AUC |
-|:-----------|:--------:|:---------:|:------:|:--------:|:-------:|
+| Thuật Toán                 |  Accuracy  | Precision  |   Recall   |  F1-Score  |  ROC-AUC   |
+| :------------------------- | :--------: | :--------: | :--------: | :--------: | :--------: |
 | **HistGradientBoosting ✅** | **81.60%** | **68.70%** | **81.94%** | **74.74%** | **0.8930** |
-| Random Forest | 80.72% | 66.84% | 83.26% | 74.15% | 0.8973 |
-| LightGBM | 79.11% | 64.01% | 84.80% | 72.95% | 0.8927 |
-| GradientBoosting | 79.30% | 64.49% | 83.81% | 72.89% | 0.8817 |
-| XGBoost | 79.15% | 64.20% | 84.14% | 72.83% | 0.8914 |
-| CatBoost | 79.55% | 65.27% | 82.16% | 72.75% | 0.8888 |
-| Logistic Regression | 75.93% | 59.84% | 83.70% | 69.79% | 0.8590 |
-| LinearSVC | 75.90% | 59.92% | 82.82% | 69.53% | 0.8545 |
-| KNN | 76.19% | 60.61% | 80.84% | 69.28% | 0.8587 |
-| ExtraTrees | 74.84% | 58.32% | 84.91% | 69.15% | 0.8652 |
-| GaussianNB | 63.83% | 46.12% | 52.97% | 49.31% | 0.6701 |
+| Random Forest              |   80.72%   |   66.84%   |   83.26%   |   74.15%   |   0.8973   |
+| LightGBM                   |   79.11%   |   64.01%   |   84.80%   |   72.95%   |   0.8927   |
+| GradientBoosting           |   79.30%   |   64.49%   |   83.81%   |   72.89%   |   0.8817   |
+| XGBoost                    |   79.15%   |   64.20%   |   84.14%   |   72.83%   |   0.8914   |
+| CatBoost                   |   79.55%   |   65.27%   |   82.16%   |   72.75%   |   0.8888   |
+| Logistic Regression        |   75.93%   |   59.84%   |   83.70%   |   69.79%   |   0.8590   |
+| LinearSVC                  |   75.90%   |   59.92%   |   82.82%   |   69.53%   |   0.8545   |
+| KNN                        |   76.19%   |   60.61%   |   80.84%   |   69.28%   |   0.8587   |
+| ExtraTrees                 |   74.84%   |   58.32%   |   84.91%   |   69.15%   |   0.8652   |
+| GaussianNB                 |   63.83%   |   46.12%   |   52.97%   |   49.31%   |   0.6701   |
 
 > ✅ **`HistGradientBoosting`** được chọn production: F1 **74.74%**, Recall **81.94%** (phát hiện sớm rủi ro). Độ ổn định theo năm: **89.99%** (2023) và **84.05%** (2024).
 
 ### 2. CW Strategy — Delta-Adaptive Exit vs Baseline
 
-| Chỉ Số | Baseline | Delta-Adaptive Exit | Δ |
-|:-------|:--------:|:-------------------:|:---:|
-| **Win Rate** | 83.33% | **85.71%** | 📈 +2.38% |
-| **Số Giao Dịch** | 9 lệnh | **21 lệnh** | 📈 ×2.3 |
-| **Sharpe Ratio** | 1.85 | **2.14** | 📈 +0.29 |
-| **Profit Factor** | 2.56 | **3.41** | 📈 +0.85 |
-| **Max Drawdown** | -11.10% | -27.73% | ⚖️ Trong tầm kiểm soát |
+| Chỉ Số            | Baseline | Delta-Adaptive Exit |           Δ           |
+| :---------------- | :------: | :-----------------: | :-------------------: |
+| **Win Rate**      |  83.33%  |     **85.71%**      |       📈 +2.38%        |
+| **Số Giao Dịch**  |  9 lệnh  |     **21 lệnh**     |        📈 ×2.3         |
+| **Sharpe Ratio**  |   1.85   |      **2.14**       |        📈 +0.29        |
+| **Profit Factor** |   2.56   |      **3.41**       |        📈 +0.85        |
+| **Max Drawdown**  | -11.10%  |       -27.73%       | ⚖️ Trong tầm kiểm soát |
 
 ### 3. Walk-Forward Validation — 3 Giai Đoạn
 
@@ -537,12 +537,12 @@ Finvista/
 
 ### 4. CW Benchmark — 23 Mã Thực Tế
 
-| Chiến Lược | Cấu Hình | Lợi Nhuận TB | Sharpe | MDD | Khuyến Nghị |
-|:-----------|:---------|:------------:|:------:|:---:|:------------|
-| **Volatility Arbitrage** | Standard | **+33.15%** | **1.71** | -11.23% | ❌ Không dùng bộ lọc (giảm -9.34% hiệu năng) |
-| Volatility Arbitrage | Filtered | +23.81% | 1.57 | -11.10% | |
-| Pro Quant (TA Momentum) | Standard | -10.51% | -0.93 | -20.01% | ✅ Bắt buộc dùng bộ lọc |
-| **Pro Quant (TA Momentum)** | **Filtered** | **-7.12%** | **-0.48** | **-16.48%** | ↑ +3.39% · Sharpe +0.45 · MDD -3.53% |
+| Chiến Lược                  | Cấu Hình     | Lợi Nhuận TB |  Sharpe   |     MDD     | Khuyến Nghị                                 |
+| :-------------------------- | :----------- | :----------: | :-------: | :---------: | :------------------------------------------ |
+| **Volatility Arbitrage**    | Standard     | **+33.15%**  | **1.71**  |   -11.23%   | ❌ Không dùng bộ lọc (giảm -9.34% hiệu năng) |
+| Volatility Arbitrage        | Filtered     |   +23.81%    |   1.57    |   -11.10%   |                                             |
+| Pro Quant (TA Momentum)     | Standard     |   -10.51%    |   -0.93   |   -20.01%   | ✅ Bắt buộc dùng bộ lọc                      |
+| **Pro Quant (TA Momentum)** | **Filtered** |  **-7.12%**  | **-0.48** | **-16.48%** | ↑ +3.39% · Sharpe +0.45 · MDD -3.53%        |
 
 ---
 
@@ -611,14 +611,16 @@ GEMINI_API_KEY=your-gemini-key
 ## 📘 Documentation
 
 ### User Documentation
-- **[User Guide](docs/1_Usage/USER_GUIDE.md)** - Comprehensive user manual
-- **[API Documentation](docs/1_Usage/API_DOCUMENTATION.md)** - REST API reference
+- **[User Guide](docs/guides/user_guide.md)** - Comprehensive user manual
+- **[API Documentation](docs/guides/api_documentation.md)** - REST API reference
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+- **[Quick Start](docs/guides/quick_start.md)** - Hướng dẫn bắt đầu nhanh
+- **[Telegram Webhook Setup](docs/guides/telegram_webhook_setup.md)** - Cấu hình webhook Telegram
 
 ### Technical Documentation
-- **Architecture** - System design and data flow
-- **Module Documentation** - Each module's detailed documentation
-- **Research Papers** - Academic background and methodologies
+- **[Architecture Blueprint](docs/architecture/saas_architecture_blueprint.md)** - Sơ đồ kiến trúc SaaS
+- **[Decision Pipeline](docs/architecture/decision_making_pipeline.md)** - Pipeline ra quyết định giao dịch
+- **[FinLens Analysis](docs/reference/finlens_analysis.md)** - Phân tích tham chiếu FinLens
 
 ### Quick Links
 - **Interactive API Docs**: `/docs` endpoint (Swagger UI)
@@ -701,7 +703,7 @@ pytest --cov=src --cov-report=html
 
 ## 🗺️ Lộ Trình
 
-Xem chi tiết tại [`docs/2_Internal/Planning/roadmap.md`](docs/2_Internal/Planning/roadmap.md):
+Xem chi tiết tại [`docs/research/roadmap.md`](docs/research/roadmap.md):
 
 - **Gap Analysis:** Đánh giá độ khớp giữa thiết kế PDF và codebase thực tế
 - **Giai đoạn 5 (Active):** ReactJS + TailwindCSS · Đồ thị tương tác · 2D Scenario P/L Heatmap

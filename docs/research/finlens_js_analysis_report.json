@@ -1,0 +1,291 @@
+{
+  "bundles_analyzed": [
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/4bd1b696-e356ca5ba0218e27.js",
+      "size": 199870,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/3794-d57cd1128658f096.js",
+      "size": 222756,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/main-app-4df7125160b38c2a.js",
+      "size": 484,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/8500-f62a38ff68ab7f42.js",
+      "size": 8734,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/8409-2e89c8fc01c7da19.js",
+      "size": 24739,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/app/global-error-d7b292a2136f967f.js",
+      "size": 9336,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/app/layout-78385467bceb7d34.js",
+      "size": 14355,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/8437-b618de62ad52e613.js",
+      "size": 14073,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/app/(marketing)/page-cebee71d51445d7d.js",
+      "size": 69565,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/1405-7545196b2ba1fdb9.js",
+      "size": 68486,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/4176-37ee6c46a3fe437c.js",
+      "size": 6294,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/6025-269560d16fbe692a.js",
+      "size": 9444,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/8274-9d513c3f466693a9.js",
+      "size": 15150,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/6267-683ed150a7f5bb8d.js",
+      "size": 7501,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/8386-684e4d250291de51.js",
+      "size": 9676,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/3964-ce43098ade14d375.js",
+      "size": 21200,
+      "api_endpoints": [
+        "\"/api/guide/user-guide-pdf\""
+      ],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/app/(marketing)/layout-3408d3527478b85a.js",
+      "size": 21355,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/4921-88a8358a1c1e46d5.js",
+      "size": 7829,
+      "api_endpoints": [
+        "\"http://localhost:3000/api/auth\""
+      ],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/5478-8f82c0aca888093e.js",
+      "size": 10499,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/767-1734f106787f6da0.js",
+      "size": 75354,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/2382-00330250e5cc7fda.js",
+      "size": 42865,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/2842-c9fb1febd9fe14d6.js",
+      "size": 5221,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/1750-2ba566f482ecb3e3.js",
+      "size": 11574,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/9883-6988a1be84a9e255.js",
+      "size": 27072,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/3401-5c5ae331c5170c56.js",
+      "size": 8763,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/5523-aaed616b745ccfca.js",
+      "size": 68612,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/9538-a453e32e2c186b94.js",
+      "size": 14962,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/4026-2acb11ed8addbb2c.js",
+      "size": 13382,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/6301-c41f75d3b327673a.js",
+      "size": 8715,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    },
+    {
+      "bundle_url": "https://finlensquant.vn/_next/static/chunks/2925-be6c4be92039596b.js",
+      "size": 7491,
+      "api_endpoints": [],
+      "websocket_endpoints": [],
+      "base_urls": [],
+      "fetch_patterns": [],
+      "axios_patterns": []
+    }
+  ],
+  "all_api_endpoints": [
+    "\"/api/guide/user-guide-pdf\"",
+    "\"http://localhost:3000/api/auth\""
+  ],
+  "all_websocket_endpoints": [],
+  "all_base_urls": [],
+  "summary": {
+    "total_bundles": 41,
+    "analyzed_bundles": 30,
+    "unique_api_endpoints": 2,
+    "unique_websocket_endpoints": 0,
+    "unique_base_urls": 0
+  }
+}

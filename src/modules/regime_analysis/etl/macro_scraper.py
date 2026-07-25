@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from src.core.utils import logger
 from src.core import config
+from src.infra.sbv_scraper import fetch_svb_interbank_rates
 
 def fetch_macro_indicators():
     """
@@ -23,8 +24,9 @@ def fetch_macro_indicators():
     logger.info("📡 Fetching latest macro indicators from market sources...")
 
     try:
-        # Fallback values
-        interbank_on_rate = 0.0425 # Default 4.25%
+        # Fetch SBV interbank rates
+        sbv_rates = fetch_svb_interbank_rates()
+        interbank_on_rate = sbv_rates.get("on_rate", 0.0425)
         report_date = datetime.now().strftime('%Y-%m-%d')
         
         # 1. Fetch Exchange Rate (USD/VND)
@@ -87,7 +89,7 @@ def fetch_macro_indicators():
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(macro_data, f, indent=4, ensure_ascii=False)
             
-        logger.info(f"✅ Macro indicators updated: Interbank Rate = {interbank_on_rate:.2%} (Source: Fallback)")
+        logger.info(f"✅ Macro indicators updated: Interbank Rate = {interbank_on_rate:.2%} (Source: SBV)")
         return macro_data
 
     except Exception as e:

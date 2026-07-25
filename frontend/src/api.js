@@ -8,7 +8,8 @@ export {
   getWarrantHistory,
   getWarrantSimulation,
   refreshMarketScan,
-  calculateGreeks
+  calculateGreeks,
+  getWarrantMatrix
 } from "./api/warrants.js";
 export {
   getPortfolio,
@@ -34,5 +35,6 @@ export {
 } from "./api/news.js";
 export {
   chatCompletion,
-  generateFinancialCommentary
+  generateFinancialCommentary,
+  getChatContextSummary
 } from "./api/chat.js";

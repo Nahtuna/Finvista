@@ -355,6 +355,25 @@ class CompanyFinancial(Base):
     operating_cash_flow = Column(Float)
     market_cap = Column(Float)
 
+class ScraperState(Base):
+    """
+    Theo dõi trạng thái cào dữ liệu incremental cho từng ticker.
+    Cho phép bộ cào chỉ fetch dữ liệu mới thay vì cào lại toàn bộ.
+    """
+    __tablename__ = "scraper_state"
+
+    ticker = Column(String, primary_key=True, index=True)
+    scraper_type = Column(String, primary_key=True)    # 'ohlcv', 'financials', 'news', 'events', 'merton'
+    last_scraped_at = Column(DateTime, nullable=True)  # Thời điểm cào thành công cuối cùng
+    last_record_date = Column(String, nullable=True)   # Ngày/kỳ cuối cùng đã có (YYYY-MM-DD hoặc YYYY-Q1)
+    data_hash = Column(String, nullable=True)          # MD5 của data lần cào trước (để detect unchanged)
+    records_total = Column(Integer, default=0)         # Tổng số records đã có trong DB
+    records_new_last_run = Column(Integer, default=0)  # Số records mới trong lần cào gần nhất
+    error_count = Column(Integer, default=0)           # Số lần lỗi liên tiếp
+    last_error = Column(String, nullable=True)         # Thông báo lỗi gần nhất
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
 class CorporateMertonCredit(Base):
     """Daily Merton distance-to-default and default probabilities for corporations."""
     __tablename__ = "corporate_merton_credit"

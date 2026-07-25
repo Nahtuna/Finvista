@@ -87,7 +87,7 @@ def main():
         "--simulate",
         type=str,
         default=None,
-        help="Warrant symbol to generate 2D P/L scenario matrix for (e.g. CACB2510)",
+        help="Warrant symbol to generate 2D P/L scenario matrix for (e.g. CACB2511)",
     )
     parser.add_argument("--silent", action="store_true", help="Silence terminal table printout completely")
     parser.add_argument("--derivatives-filter", action="store_true", help="Apply derivatives sentiment filter to tighten gates")
@@ -105,7 +105,7 @@ def main():
     print(f"📈 Risk-Free Rate successfully set to: {dynamic_r * 100:.3f}% (Continuous compounding)")
     print("=" * 75)
 
-    raw_df = fetch_market_cw_data()
+    raw_df = fetch_market_cw_data(bypass_cache=True)
     if raw_df.empty:
         print("❌ Ingestion yielded no results. Exiting.")
         return
@@ -188,7 +188,7 @@ def run_quant_pipeline_programmatic(strategy: str = "balanced", use_derivatives_
 
     pricing_core.RISK_FREE_RATE = dynamic_r
 
-    raw_df = fetch_market_cw_data()
+    raw_df = fetch_market_cw_data(bypass_cache=True)
     if raw_df.empty:
         return pd.DataFrame()
 

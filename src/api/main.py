@@ -5,16 +5,19 @@
 SaaS-ready FastAPI microservice — app factory, CORS, startup hooks, and router wiring.
 
 Author: samvo
-Version: 1.0.0
+Version: 1.1.7
 """
 
+import hashlib
+import json
 import os
 import sys
 
 import pandas as pd
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse, Response
 from slowapi.errors import RateLimitExceeded
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,10 +26,13 @@ if BASE_DIR not in sys.path:
 
 from src.api import state
 from src.api.dependencies import limiter
-from src.api.routes import auth, chat, credit, market, news_impact, portfolio, regime, warrants, analyst, reports
+from src.api.routes import auth, chat, credit, market, news_impact, portfolio, regime, warrants, analyst, reports, admin, fireant, udf
 from src.api.scheduler import start_periodic_scheduler
 from src.api.websocket import websocket_endpoint
 from src.core import config
+
+# ── GZip Compression: giảm ~70% kích thước JSON payload ─────────────────────
+# (phải add TRƯỚC CORSMiddleware để không bị conflict)
 
 app = FastAPI(
     title="Finvista Quantitative REST API Gateway",
@@ -40,43 +46,81 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=512)
+
 app.state.limiter = limiter
 state.load_distress_models()
 
-from fastapi import Request
 
+
+# CORS: allow_credentials=True is incompatible with wildcard origin.
+# The frontend uses JWT in Authorization header (not cookies), so credentials=False is safe.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://finvista-chi.vercel.app",
-        "https://finvista-xppw.onrender.com",
-        "*"
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ── ETag Cache Routes: các endpoint ít thay đổi sẽ trả 304 khi unchanged ────
+_ETAG_ROUTES = {
+    "/api/warrants/opportunities",
+    "/api/credit",
+    "/api/credit-health",
+    "/api/regime/market",
+    "/api/health",
+}
+
 @app.middleware("http")
-async def add_security_headers(request: Request, call_next):
+async def smart_cache_and_security_headers(request: Request, call_next):
     response = await call_next(request)
-    
-    # Remove deprecated and unneeded headers
+
+    # Remove deprecated headers
     for h in ["x-xss-protection", "X-XSS-Protection", "x-frame-options", "X-Frame-Options", "expires", "Expires"]:
         if h in response.headers:
             del response.headers[h]
 
-    # Add modern CSP and security/cache headers
+    # Security headers
     response.headers["Content-Security-Policy"] = "frame-ancestors 'self'"
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    
-    # Ensure charset=utf-8 is specified for JSON responses
-    c_type = response.headers.get("content-type", "")
-    if "application/json" in c_type and "charset" not in c_type:
-        response.headers["content-type"] = f"{c_type}; charset=utf-8"
-        
-    return response
+
+    # Smart cache: ETag cho static-ish endpoints, no-store cho dynamic endpoints
+    path = request.url.path
+    is_etag_route = any(path.startswith(r) for r in _ETAG_ROUTES)
+
+    if is_etag_route and response.status_code == 200:
+        # Đọc body để tính ETag
+        body = b""
+        async for chunk in response.body_iterator:  # type: ignore[attr-defined]
+            body += chunk
+        etag = '"' + hashlib.md5(body).hexdigest() + '"'
+        client_etag = request.headers.get("if-none-match", "")
+        if client_etag == etag:
+            return Response(status_code=304, headers={
+                "ETag": etag,
+                "Cache-Control": "private, max-age=60",
+            })
+        # Trả về response với ETag
+        c_type = response.headers.get("content-type", "application/json")
+        if "charset" not in c_type and "application/json" in c_type:
+            c_type = f"{c_type}; charset=utf-8"
+        return Response(
+            content=body,
+            status_code=response.status_code,
+            headers={
+                **dict(response.headers),
+                "ETag": etag,
+                "Cache-Control": "private, max-age=60",
+                "content-type": c_type,
+            },
+        )
+    else:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        c_type = response.headers.get("content-type", "")
+        if "application/json" in c_type and "charset" not in c_type:
+            response.headers["content-type"] = f"{c_type}; charset=utf-8"
+        return response
 
 app.include_router(auth.router)
 app.include_router(warrants.router)
@@ -88,6 +132,9 @@ app.include_router(regime.router)
 app.include_router(market.router)
 app.include_router(analyst.router)
 app.include_router(reports.router)
+app.include_router(admin.router)
+app.include_router(fireant.router)
+app.include_router(udf.router)
 
 
 @app.exception_handler(RateLimitExceeded)

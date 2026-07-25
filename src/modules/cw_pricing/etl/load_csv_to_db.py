@@ -24,8 +24,8 @@ with contextlib.redirect_stdout(open(os.devnull, 'w')), \
 CW_DIR = os.path.join(PROJECT_ROOT, "data", "raw", "cw_history")
 
 def extract_stock_symbol(cw_symbol):
-    """Extract underlying stock symbol from CW symbol. E.g. CACB2510 -> ACB, CFPT2517 -> FPT"""
-    # CW format: C<STOCK><YYMM> e.g. CACB2510, CFPT2517, CHPG2523
+    """Extract underlying stock symbol from CW symbol. E.g. CACB2511 -> ACB, CFPT2517 -> FPT"""
+    # CW format: C<STOCK><YYMM> e.g. CACB2511, CFPT2517, CHPG2523
     s = cw_symbol[1:]  # Remove leading 'C'
     # Try known stock symbols from longest to shortest
     known_stocks = [

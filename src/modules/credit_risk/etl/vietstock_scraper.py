@@ -70,9 +70,9 @@ class VietstockScraper:
             logger.error(f"Error fetching CW list: {e}")
             return {}
 
-    def scrape_cw_page(self, cw_symbol, underlying_symbol, max_pages=30):
-        """Scrape news and events for a specific CW/Underlying pair with pagination."""
-        logger.info(f"📡 Scraping Vietstock for {underlying_symbol} (via {cw_symbol}) - Deep Crawl ({max_pages} pages)...")
+    def scrape_cw_page(self, cw_symbol, underlying_symbol, max_pages=2):
+        """Scrape news and events for a specific CW/Underlying pair with fast pagination."""
+        logger.info(f"📡 Scraping Vietstock for {underlying_symbol} (via {cw_symbol}) - Fast Crawl ({max_pages} pages)...")
         
         # 1. Scrape News (Underlying Stock)
         self._scrape_paged_content(

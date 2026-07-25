@@ -70,7 +70,7 @@ def get_cw_opportunities(
     underlying: Optional[str] = Query(
         None, description="Filter by underlying stock ticker (e.g. HPG)"
     ),
-    limit: int = Query(10, ge=1, le=1000, description="Max recommendations to return"),
+    limit: int = Query(5000, ge=1, le=50000, description="Max recommendations to return"),
     force_refresh: bool = Query(
         False, description="Force running full market crawl and calculations"
     ),
@@ -85,6 +85,16 @@ def get_cw_opportunities(
         limit=limit,
         force_refresh=force_refresh
     )
+
+
+@router.get("/api/warrants/matrix")
+def get_cw_matrix(
+    underlying: Optional[str] = Query(None, description="Filter by underlying stock ticker"),
+):
+    """
+    Generate a 10x10 Moneyness vs Maturity Matrix for Covered Warrants.
+    """
+    return WarrantService.get_matrix(underlying=underlying)
 
 
 @router.get("/api/warrants/news")
@@ -231,7 +241,7 @@ def get_warrant_simulation(symbol: str):
 @router.get("/api/warrants/{symbol}/history")
 def get_warrant_history(
     symbol: str,
-    days: int = Query(15, ge=5, le=300, description="Number of trading sessions to look back"),
+    days: int = Query(15, ge=5, le=1000, description="Number of trading sessions to look back"),
 ):
     """
     Retrieve historical volatility structures and Greeks via WarrantService.

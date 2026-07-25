@@ -1,10 +1,11 @@
 import React from "react";
 import { RefreshCw } from "lucide-react";
 
-import { VN30_UNDERLYINGS } from "../../app/config.js";
 import { formatMoney, formatNumber } from "../../lib/formatters.js";
 import { Button } from "../ui/button.jsx";
 import { CursorTooltip, useCursorTooltip } from "../ui/cursor-tooltip.jsx";
+import StockTreemap from "./StockTreemap.jsx";
+import { StockTable } from "./StockTable.jsx";
 
 function formatCurrencyLabel(value, isEnglish) {
   return `${formatMoney(value)}${isEnglish ? " VND" : "đ"}`;
@@ -18,18 +19,8 @@ export function CwMarketMovement({
   onOpenDetail,
   onRefresh
 }) {
-  const [basket, setBasket] = React.useState("all");
-
-  const vn30Set = new Set(
-    (marketMeta?.vn30_symbols?.length ? marketMeta.vn30_symbols : [...VN30_UNDERLYINGS])
-      .map((symbol) => String(symbol).toUpperCase())
-  );
-  const vn30Rows = rows.filter((row) =>
-    row.is_vn30_underlying || vn30Set.has((row.underlying_symbol || "").toUpperCase())
-  );
-  const scopedRows = basket === "vn30" ? vn30Rows : rows;
-  const activeRows = scopedRows.filter((row) => Number(row.days_to_maturity) > 0);
-  const safeRows = activeRows.length ? activeRows : scopedRows;
+  const activeRows = rows.filter((row) => Number(row.days_to_maturity) > 0);
+  const safeRows = activeRows.length ? activeRows : rows;
   const buyRows = safeRows.filter((row) => row.recommendation_signal?.toUpperCase().includes("BUY"));
   const skipRows = safeRows.filter((row) => row.recommendation_signal?.toUpperCase().includes("SKIP"));
   const neutralRows = safeRows.filter((row) => {
@@ -51,13 +42,7 @@ export function CwMarketMovement({
   const topFlow = Math.max(...flowGroups.map((item) => item.flow), 1);
   const underlyingMap = safeRows.reduce((map, row) => {
     const key = row.underlying_symbol || "N/A";
-    const current = map.get(key) || {
-      key,
-      flow: 0,
-      count: 0,
-      change: 0,
-      best: row
-    };
+    const current = map.get(key) || { key, flow: 0, count: 0, change: 0, best: row };
     current.flow += flowValue(row);
     current.count += 1;
     current.change += Number(row.price_change_pct) || 0;
@@ -68,46 +53,28 @@ export function CwMarketMovement({
     return map;
   }, new Map());
   const heatTiles = [...underlyingMap.values()]
-    .map((item) => ({
-      ...item,
-      avgChange: item.count ? item.change / item.count : 0
-    }))
+    .map((item) => ({ ...item, avgChange: item.count ? item.change / item.count : 0 }))
     .sort((a, b) => b.flow - a.flow)
     .slice(0, 30);
   const maxHeatFlow = Math.max(...heatTiles.map((item) => item.flow), 1);
 
-
   return (
     <section className="cw-movement-panel underlying-cw-pulse" aria-label={isEnglish ? "CW market movement" : "Biến động thị trường CW"}>
-      <div className="movement-header">
+      <div className="stats-card">
+  <div className="stat-item"><strong>{marketMeta?.underlying_count || 0}</strong><span>Mã cơ sở</span></div>
+  <div className="stat-item"><strong>{marketMeta?.sector_count || 0}</strong><span>Nhóm ngành</span></div>
+  <div className="stat-item"><strong>{marketMeta?.active_cw || 0}</strong><span>CW đang hoạt động</span></div>
+  <div className="stat-item"><strong>{formatMoney(marketMeta?.cw_traded_value || 0)}đ</strong><span>GTGD CW</span></div>
+</div>
+<div className="movement-header">
         <div>
           <span className="eyebrow">{isEnglish ? "Market movement" : "Biến động thị trường"}</span>
           <h2>{isEnglish ? "Covered warrant pulse" : "Nhịp thị trường CW"}</h2>
           <small style={{ display: "block", marginTop: "2px" }}>
-            {basket === "vn30"
-              ? (isEnglish ? "VN30 underlying warrants only" : "Chỉ hiển thị CW có mã cơ sở thuộc VN30")
-              : (isEnglish ? "All active warrants" : "Hiển thị toàn bộ mã CW đang hoạt động")}
+              {isEnglish ? "All active warrants" : "Hiển thị toàn bộ mã CW đang hoạt động"}
           </small>
         </div>
         <div className="header-controls" style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          <div className="segment-control" style={{ display: "flex", background: "var(--bg-card, rgba(0,0,0,0.06))", padding: "3px", borderRadius: "8px", border: "1px solid var(--border-light, rgba(0,0,0,0.08))" }}>
-            <Button
-              variant={basket === "all" ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => setBasket("all")}
-              style={{ padding: "0.25rem 0.75rem", fontSize: "0.78rem", height: "26px", borderRadius: "6px", fontWeight: 600 }}
-            >
-              {isEnglish ? "All" : "Toàn thị trường"}
-            </Button>
-            <Button
-              variant={basket === "vn30" ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => setBasket("vn30")}
-              style={{ padding: "0.25rem 0.75rem", fontSize: "0.78rem", height: "26px", borderRadius: "6px", fontWeight: 600 }}
-            >
-              VN30
-            </Button>
-          </div>
           <Button variant="secondary" onClick={onRefresh} disabled={loading} style={{ height: "32px", padding: "0 0.75rem" }}>
             <RefreshCw size={14} />
             {isEnglish ? "Refresh CW" : "Làm mới CW"}
@@ -116,42 +83,26 @@ export function CwMarketMovement({
       </div>
 
       <div className="movement-grid">
-        <div className="movement-left-column">
-          <article className="movement-card breadth-card">
-            <div className="movement-card-title">
-              <span>{isEnglish ? "Signal breadth" : "Độ rộng tín hiệu"}</span>
-              <strong>{formatMoney(safeRows.length)} CW</strong>
-            </div>
-            <SignalPie
-              isEnglish={isEnglish}
-              items={[
-                { label: isEnglish ? "Buy" : "Mua", value: buyRows.length, color: "#008b7a" },
-                { label: isEnglish ? "Neutral" : "Trung tính", value: neutralRows.length, color: "#c9952f" },
-                { label: isEnglish ? "Skip" : "Bỏ qua", value: skipRows.length, color: "#d94a6f" }
-              ]}
-              total={pieTotal}
-            />
-          </article>
-
-          <article className="movement-card flow-card">
-            <div className="movement-card-title">
-              <span>{isEnglish ? "CW traded value" : "Giá trị giao dịch CW"}</span>
-              <strong>{formatMoney(totalFlow)}đ</strong>
-            </div>
-            <div className="flow-bars">
-              {flowGroups.map((item) => (
-                <FlowRow
-                  key={item.key}
-                  item={item}
-                  topFlow={topFlow}
-                  totalFlow={totalFlow}
-                  isEnglish={isEnglish}
-                />
-              ))}
-            </div>
-          </article>
-        </div>
-
+        <article className="movement-card breadth-flow-card">
+          <div className="movement-card-title">
+            <span>{isEnglish ? "Market breadth & CW value" : "Độ rộng & Giá trị CW"}</span>
+            <strong>{formatMoney(totalFlow)}đ</strong>
+          </div>
+          <SignalPie
+            isEnglish={isEnglish}
+            items={[
+              { label: isEnglish ? "Buy" : "Mua", value: buyRows.length, color: "#008b7a" },
+              { label: isEnglish ? "Neutral" : "Trung tính", value: neutralRows.length, color: "#c9952f" },
+              { label: isEnglish ? "Skip" : "Bỏ qua", value: skipRows.length, color: "#d94a6f" }
+            ]}
+            total={pieTotal}
+          />
+          <div className="flow-bars">
+            {flowGroups.map((item) => (
+              <FlowRow key={item.key} item={item} topFlow={topFlow} totalFlow={totalFlow} isEnglish={isEnglish} />
+            ))}
+          </div>
+        </article>
         <article className="movement-card heatmap-card">
           <div className="movement-card-title">
             <span>{isEnglish ? "VN30 CW heatmap" : "Heatmap CW VN30"}</span>
@@ -159,15 +110,22 @@ export function CwMarketMovement({
           </div>
           <div className="cw-heatmap">
             {heatTiles.map((item) => (
-              <HeatTile
-                key={item.key}
-                item={item}
-                maxHeatFlow={maxHeatFlow}
-                isEnglish={isEnglish}
-                onOpenDetail={onOpenDetail}
-              />
+              <HeatTile key={item.key} item={item} maxHeatFlow={maxHeatFlow} isEnglish={isEnglish} onOpenDetail={onOpenDetail} />
             ))}
           </div>
+        </article>
+        <article className="movement-card full-width">
+          <div className="movement-card-title">
+            <span>{isEnglish ? "Stock Treemap" : "Bản đồ cổ phiếu"}</span>
+            <strong>{heatTiles.length} CP</strong>
+          </div>
+          <StockTreemap stocks={heatTiles} />
+        </article>
+        <article className="movement-card full-width">
+          <div className="movement-card-title">
+            <span>{isEnglish ? "Stock List" : "Danh sách cổ phiếu"}</span>
+          </div>
+          <StockTable stocks={heatTiles} />
         </article>
       </div>
     </section>
@@ -242,7 +200,7 @@ function HeatTile({ item, maxHeatFlow, isEnglish, onOpenDetail }) {
 }
 
 
-function SignalPie({ items, total, isEnglish }) {
+export function SignalPie({ items, total, isEnglish }) {
   const { tooltip, showTooltip, hideTooltip } = useCursorTooltip();
   let offset = 0;
   return (

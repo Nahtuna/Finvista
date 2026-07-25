@@ -130,7 +130,7 @@ def load_backtest_trades() -> list:
             pnl_vnd = qty * (t["exit_price"] - t["entry_price"])
             fee = alloc * 0.002  # ~0.2% round-trip fee estimate
             
-            # Extract underlying from CW symbol (e.g. CACB2510 → ACB)
+            # Extract underlying from CW symbol (e.g. CACB2511 → ACB)
             cw_sym = t["cw"]
             underlying = cw_sym[1:4] if len(cw_sym) >= 5 else cw_sym
             # Fix common patterns: CACB -> ACB, CHPG -> HPG, CVPB -> VPB, etc.

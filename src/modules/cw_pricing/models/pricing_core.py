@@ -577,6 +577,15 @@ def score_cw(df: pd.DataFrame, strategy: str = 'balanced') -> pd.DataFrame:
     """
     Score Covered Warrants based on strategy (Safe, Balanced, Aggressive)
     using robust financial scaling (handling outliers in volume, gearing and upside).
+
+    v2.0 Upgrade: Integrates Underlying Momentum Score (und_mom_score) as a
+    first-class factor. The momentum of the underlying stock (r5/r20/r60 composite,
+    RSI, MA alignment) is the single most important predictor for CW bull call P&L.
+    Weights by strategy:
+      aggressive/BULLISH : momentum 25%  (highest weight, pure momentum mode)
+      balanced/BULLISH   : momentum 20%  (significant weight in bull trend)
+      balanced/NEUTRAL   : momentum 15%  (tiebreaker between similar CWs)
+      safe               : momentum 10%  (minimal — safety first)
     """
     res = df.copy()
     if res.empty:
@@ -625,6 +634,29 @@ def score_cw(df: pd.DataFrame, strategy: str = 'balanced') -> pd.DataFrame:
     
     # Delta Sweet Spot (ATM optimization near 0.5)
     res['delta_score'] = res['T_Delta'].apply(lambda x: 100 - abs(x - 0.5) * 200).clip(0, 100)
+
+    # ── v2.0: UNDERLYING MOMENTUM SCORE ──────────────────────────────────────
+    # If momentum enrichment was run upstream, und_mom_score is already in the df.
+    # Fallback to 50 (neutral) if column is missing (backward-compatible).
+    if 'und_mom_score' in res.columns:
+        res['norm_momentum'] = res['und_mom_score'].fillna(50.0).clip(0, 100)
+    else:
+        res['norm_momentum'] = 50.0  # neutral default — no momentum data available
+
+    # RSI quality filter: reward 50-72 (healthy uptrend), penalise overbought (>80)
+    def _rsi_quality(rsi_val):
+        if 50 <= rsi_val <= 72: return 100
+        if 72 < rsi_val <= 80:  return 70
+        if rsi_val > 80:        return 30   # overbought — risk of reversal
+        if 40 <= rsi_val < 50:  return 50
+        return 10  # oversold or no data
+    if 'und_rsi' in res.columns:
+        res['norm_rsi_quality'] = res['und_rsi'].fillna(50.0).apply(_rsi_quality)
+    else:
+        res['norm_rsi_quality'] = 70.0  # default moderate quality
+
+    # Combined momentum signal (80% composite momentum, 20% RSI quality check)
+    res['norm_momentum'] = (res['norm_momentum'] * 0.80 + res['norm_rsi_quality'] * 0.20).clip(0, 100)
     
     # 1. VALUATION DEPTH (LAV - Liquidity Adjusted Valuation)
     # The true upside must factor in the cost to cross the spread (Ask price)
@@ -665,53 +697,67 @@ def score_cw(df: pd.DataFrame, strategy: str = 'balanced') -> pd.DataFrame:
  
     if strategy == 'safe':
         if sentiment == 'BEARISH':
-            # Ultra-safe profile in a bear market: emphasize ITM probability (35%), expiry (30%), low IV (20%), reduce volume (10%), Delta (5%)
-            res['G_Score'] = (res['norm_prob'] * 0.35 + res['norm_days'] * 0.30 + 
-                              res['norm_iv'] * 0.20 + res['norm_vol'] * 0.10 + res['delta_score'] * 0.05)
+            # Ultra-safe bear market: ITM prob (30%) + Expiry (25%) + low IV (20%) + Volume (10%) + Delta (10%) + Momentum (05%)
+            res['G_Score'] = (res['norm_prob'] * 0.30 + res['norm_days'] * 0.25 +
+                              res['norm_iv'] * 0.20 + res['norm_vol'] * 0.10 +
+                              res['delta_score'] * 0.10 + res['norm_momentum'] * 0.05)
         elif sentiment == 'BULLISH':
-            # Slightly more opportunistic: ITM probability (25%), expiry (20%), low IV (10%), volume (15%), Gearing (20%), Delta (10%)
-            res['G_Score'] = (res['norm_prob'] * 0.25 + res['norm_days'] * 0.20 + 
-                              res['norm_iv'] * 0.10 + res['norm_vol'] * 0.15 + res['norm_gear'] * 0.20 + res['delta_score'] * 0.10)
+            # Slightly opportunistic: ITM prob (22%) + Expiry (18%) + Gearing (18%) + Volume (14%) + Delta (10%) + low IV (08%) + Momentum (10%)
+            res['G_Score'] = (res['norm_prob'] * 0.22 + res['norm_days'] * 0.18 +
+                              res['norm_gear'] * 0.18 + res['norm_vol'] * 0.14 +
+                              res['delta_score'] * 0.10 + res['norm_iv'] * 0.08 +
+                              res['norm_momentum'] * 0.10)
         else:
-            # Probability ITM (30%) + Days to expiry (25%) + Liquidity (20%) + Low IV (15%) + Delta Sweet (10%)
-            res['G_Score'] = (res['norm_prob'] * 0.3 + res['norm_days'] * 0.25 + 
-                              res['norm_vol'] * 0.2 + res['norm_iv'] * 0.15 + res['delta_score'] * 0.1)
+            # Neutral safe: ITM prob (28%) + Expiry (22%) + Volume (18%) + low IV (14%) + Delta (08%) + Momentum (10%)
+            res['G_Score'] = (res['norm_prob'] * 0.28 + res['norm_days'] * 0.22 +
+                              res['norm_vol'] * 0.18 + res['norm_iv'] * 0.14 +
+                              res['delta_score'] * 0.08 + res['norm_momentum'] * 0.10)
     elif strategy == 'aggressive':
         if sentiment == 'BEARISH':
-            # Defensive aggressive: Gearing (20%), Upside (25%), ITM probability (20%), Expiry (15%), Liquidity (10%), Delta (10%)
-            res['G_Score'] = (res['norm_gear'] * 0.20 + norm_upside * 0.25 + 
-                              res['norm_prob'] * 0.20 + res['norm_days'] * 0.15 + res['norm_vol'] * 0.10 + res['delta_score'] * 0.10)
+            # Defensive aggressive: Upside (22%) + Gearing (18%) + ITM prob (18%) + Expiry (14%) + Volume (10%) + Delta (08%) + Momentum (10%)
+            res['G_Score'] = (norm_upside * 0.22 + res['norm_gear'] * 0.18 +
+                              res['norm_prob'] * 0.18 + res['norm_days'] * 0.14 +
+                              res['norm_vol'] * 0.10 + res['delta_score'] * 0.08 +
+                              res['norm_momentum'] * 0.10)
         elif sentiment == 'BULLISH':
-            # Aggressive bull mode: Gearing (40%), Upside (35%), Delta (15%), Liquidity (10%)
-            base_score = (res['norm_gear'] * 0.40 + norm_upside * 0.35 + 
-                          normalize(res['T_Delta']) * 0.15 + res['norm_vol'] * 0.10)
-            
-            # 🛡️ ANTI-SIDEWAYS PROTECTION (ADX Filter)
-            # Penalize stocks that are not trending (ADX < 18 is dead sideways)
+            # Aggressive bull mode: Momentum (25%) + Gearing (30%) + Upside (25%) + Delta (10%) + Volume (10%)
+            # v2.0: Momentum is now the primary qualifier — only buy CW on trending stocks
+            base_score = (res['norm_momentum'] * 0.25 + res['norm_gear'] * 0.30 +
+                          norm_upside * 0.25 + normalize(res['T_Delta']) * 0.10 +
+                          res['norm_vol'] * 0.10)
+
+            # 🛡️ ANTI-SIDEWAYS PROTECTION (ADX / MA alignment filter)
             def apply_trend_penalty(row):
-                adx = row.get('underlying_adx', 25.0) # Assume trending if data missing
-                if adx < 18: return 0.5 # Chop score in half for sideways death
-                if adx < 22: return 0.8 # 20% penalty
+                adx = row.get('underlying_adx', 25.0)  # assume trending if missing
+                ma_align = row.get('und_ma_align_score', 67.0)  # use MA alignment if ADX missing
+                # Zero MA alignment (below all 3 MAs) = sideways/bearish → halve score
+                if ma_align < 34 and adx < 20: return 0.4
+                if adx < 18: return 0.5
+                if adx < 22: return 0.8
                 return 1.0
-                
+
             res['G_Score'] = base_score * res.apply(apply_trend_penalty, axis=1)
         else:
-            # Leverage Gearing (35%) + Fair Value Upside (30%) + Target Delta (20%) + Liquidity (15%)
-            res['G_Score'] = (res['norm_gear'] * 0.35 + norm_upside * 0.3 + 
-                              normalize(res['T_Delta']) * 0.2 + res['norm_vol'] * 0.15)
-    else: # balanced
+            # Neutral aggressive: Momentum (20%) + Gearing (30%) + Upside (28%) + Delta (12%) + Volume (10%)
+            res['G_Score'] = (res['norm_momentum'] * 0.20 + res['norm_gear'] * 0.30 +
+                              norm_upside * 0.28 + normalize(res['T_Delta']) * 0.12 +
+                              res['norm_vol'] * 0.10)
+    else:  # balanced
         if sentiment == 'BEARISH':
-            # Balanced-safe in bear market: Delta Sweet (25%), Probability ITM (25%), Expiry (20%), Liquidity (15%), Upside (15%)
-            res['G_Score'] = (res['delta_score'] * 0.25 + res['norm_prob'] * 0.25 + 
-                              res['norm_days'] * 0.20 + res['norm_vol'] * 0.15 + norm_upside * 0.15)
+            # Balanced-safe in bear: Delta (22%) + ITM prob (22%) + Expiry (18%) + Volume (14%) + Upside (14%) + Momentum (10%)
+            res['G_Score'] = (res['delta_score'] * 0.22 + res['norm_prob'] * 0.22 +
+                              res['norm_days'] * 0.18 + res['norm_vol'] * 0.14 +
+                              norm_upside * 0.14 + res['norm_momentum'] * 0.10)
         elif sentiment == 'BULLISH':
-            # Balanced-aggressive in bull market: Delta Sweet (20%), Gearing (20%), Upside (25%), Liquidity (20%), Probability ITM (15%)
-            res['G_Score'] = (res['delta_score'] * 0.20 + res['norm_gear'] * 0.20 + 
-                              norm_upside * 0.25 + res['norm_vol'] * 0.20 + res['norm_prob'] * 0.15)
+            # Balanced bull: Momentum (20%) + Delta (16%) + Gearing (18%) + Upside (22%) + Volume (16%) + ITM prob (08%)
+            res['G_Score'] = (res['norm_momentum'] * 0.20 + res['delta_score'] * 0.16 +
+                              res['norm_gear'] * 0.18 + norm_upside * 0.22 +
+                              res['norm_vol'] * 0.16 + res['norm_prob'] * 0.08)
         else:
-            # Delta Sweet (30%) + Liquidity (20%) + Probability ITM (20%) + Upside (20%) + Expiry (10%)
-            res['G_Score'] = (res['delta_score'] * 0.3 + res['norm_vol'] * 0.2 + 
-                              res['norm_prob'] * 0.2 + norm_upside * 0.2 + res['norm_days'] * 0.1)
+            # Neutral balanced: Delta (25%) + Momentum (15%) + Volume (18%) + ITM prob (18%) + Upside (18%) + Expiry (06%)
+            res['G_Score'] = (res['delta_score'] * 0.25 + res['norm_momentum'] * 0.15 +
+                              res['norm_vol'] * 0.18 + res['norm_prob'] * 0.18 +
+                              norm_upside * 0.18 + res['norm_days'] * 0.06)
         
     # Health score incorporates Fundamental FA score and Sentiment AI scores
     res['P_Health'] = (res['O_Stock_FA'] * 0.7 + (res.get('N_Sentiment', 0) * 50 + 50) * 0.3).clip(0, 100)

@@ -18,6 +18,8 @@ router = APIRouter(prefix="/api/chat", tags=["AI Chat"])
 class ChatMessage(BaseModel):
     role: str
     content: str
+    image_base64: Optional[str] = None   # base64-encoded image for Vision requests
+    image_media_type: Optional[str] = "image/png"
 
 
 class ChatRequest(BaseModel):
@@ -44,6 +46,86 @@ async def get_optional_current_user(request: Request) -> Optional[dict]:
     except Exception:
         return None
 
+
+
+@router.get("/context-summary")
+async def get_context_summary():
+    """
+    Returns a dynamic AI-generated welcome greeting with live market data.
+    Called once when the chat widget opens, to show fresh regime + top CW.
+    """
+    import datetime
+    now = datetime.datetime.now()
+    lines = []
+
+    # Market regime
+    try:
+        from src.modules.regime_analysis.indicators.hmm_regime import calculate_vnindex_regime
+        regime = calculate_vnindex_regime(days=1250)
+        regime_name = regime.get("regime", "UNKNOWN")
+        bias = regime.get("bias", "NEUTRAL")
+        confidence = regime.get("confidence", 0.0) * 100
+        desc = regime.get("description", "")
+        lines.append(
+            f"Hệ thống Finvista ghi nhận thị trường đang ở trạng thái **{regime_name}** "
+            f"({desc}), với xu hướng ưu tiên là **{bias}** (Độ tin cậy: {confidence:.1f}%)."
+        )
+    except Exception:
+        lines.append("Hệ thống đang cập nhật trạng thái thị trường...")
+
+    # Top CW opportunities
+    try:
+        from src.modules.cw_pricing.service import WarrantService
+        opps_res = WarrantService.get_opportunities(limit=3)
+        opps_list = opps_res.get("recommendations", [])
+        total_count = opps_res.get("total_count", len(opps_list))
+
+        buy_opps = [o for o in opps_list if "BUY" in (o.get("recommendation_signal") or "").upper()]
+        if buy_opps:
+            top = buy_opps[0]
+            sym = top["warrant_symbol"]
+            und = top["underlying_symbol"]
+            gscore = top.get("composite_g_score", 0)
+            delta = top.get("delta", 0)
+            dtm = top.get("days_to_maturity", "?")
+            price = top.get("market_price", 0)
+            signal = top.get("recommendation_signal", "BUY")
+            lines.append(
+                f"\n📊 **Top tín hiệu {signal}: {sym}** (CPCS: {und})\n"
+                f"G-Score: {gscore:.1f} | Δ Delta: {delta:.3f} | "
+                f"Còn {dtm} ngày | Giá: {price:,} VNĐ"
+            )
+        elif opps_list:
+            lines.append(f"\n📊 Đang theo dõi {len(opps_list)} mã chứng quyền — chưa có tín hiệu MUA rõ ràng phiên này.")
+    except Exception:
+        pass
+
+    # Market snapshot
+    try:
+        from src.modules.cw_pricing.service import WarrantService
+        mkt = WarrantService.get_underlying_market()
+        indices = mkt.get("indices", {})
+        snap_parts = []
+        for idx_name in ["VNINDEX", "VN30", "HNXINDEX"]:
+            idx = indices.get(idx_name) or {}
+            if idx.get("close"):
+                chg = idx.get("change_pct", 0) or 0
+                arrow = "▲" if chg >= 0 else "▼"
+                snap_parts.append(f"{idx_name} {idx['close']:,.2f} {arrow}{abs(chg):.2f}%")
+        if snap_parts:
+            lines.append("\n📈 " + "  |  ".join(snap_parts))
+    except Exception:
+        pass
+
+    time_str = now.strftime("%H:%M ngày %d/%m/%Y")
+    greeting = (
+        f"Chào bạn! Tôi là **Finvista Quant AI** — Chuyên gia Phân tích Tài chính & "
+        f"Cố vấn Đầu tư Chứng quyền/Cổ phiếu của bạn.\n\n"
+        + "\n".join(lines)
+        + f"\n\n_Dữ liệu cập nhật lúc {time_str}. Hỏi tôi bất cứ điều gì về thị trường, chứng quyền hoặc cổ phiếu nhé!_"
+    )
+
+    return {"greeting": greeting, "timestamp": now.isoformat()}
 
 
 @router.post("/", response_model=ChatResponse)
@@ -111,24 +193,24 @@ async def chat_completion(request: ChatRequest, req_raw: Request):
         except Exception:
             pass
             
-        # 3.2 User's Portfolio
-        if current_user:
-            try:
-                from src.modules.trading_engine.portfolio_service import PortfolioService
-                port = PortfolioService.get_portfolio(username=current_user["username"])
-                if port and port.get("status") == "success":
-                    assets = port.get("assets", [])
-                    asset_str = ""
-                    for a in assets:
-                        asset_str += f"  + {a['symbol']}: Số lượng {a['qty']}, Giá vốn {a['avg_price']:,} VNĐ, Giá hiện tại {a['market_price']:,} VNĐ, Lãi/Lỗ: {a['pnl_pct']:.2f}%\n"
-                    system_context.append(
-                        f"DANH MỤC ĐẦU TƯ CỦA NGƯỜI DÙNG ({current_user['username']}):\n"
-                        f"- Số dư tiền mặt: {port.get('cash', 0):,} VNĐ\n"
-                        f"- Tổng giá trị tài sản: {port.get('total_value', 0):,} VNĐ\n"
-                        f"- Tài sản đang nắm giữ:\n{asset_str if asset_str else '  (Chưa nắm giữ tài sản nào)'}\n"
-                    )
-            except Exception:
-                pass
+        # 3.2 User's Portfolio (Fallback to demo user if not logged in)
+        active_username = current_user["username"] if current_user else "demo"
+        try:
+            from src.modules.trading_engine.portfolio_service import PortfolioService
+            port = PortfolioService.get_portfolio(username=active_username)
+            if port and port.get("status") == "success":
+                assets = port.get("assets", [])
+                asset_str = ""
+                for a in assets:
+                    asset_str += f"  + {a['symbol']}: Số lượng {a['qty']}, Giá vốn {a['avg_price']:,} VNĐ, Giá hiện tại {a['market_price']:,} VNĐ, Lãi/Lỗ: {a['pnl_pct']:.2f}%\n"
+                system_context.append(
+                    f"DANH MỤC ĐẦU TƯ ĐANG THEO DÕI (User: {active_username}):\n"
+                    f"- Số dư tiền mặt: {port.get('cash', 0):,} VNĐ\n"
+                    f"- Tổng giá trị tài sản (NAV): {port.get('total_value', 0):,} VNĐ\n"
+                    f"- Các vị thế đang nắm giữ:\n{asset_str if asset_str else '  (Chưa nắm giữ tài sản nào)'}\n"
+                )
+        except Exception:
+            pass
                 
         # 3.3 Ticker Specific Data (News & Events)
         ticker_info = ""
@@ -233,17 +315,337 @@ async def chat_completion(request: ChatRequest, req_raw: Request):
         except Exception:
             pass
             
-        # 4. Construct personalized system message
+        # 3.5 Peer Comparison (Industry Benchmark) — inject percentile vs. industry
+        try:
+            from src.core.database import CompanyDistressAnalysis
+            for sym in set(symbols):
+                db_sess = SessionLocal()
+                try:
+                    # Get the most recent distress record for this ticker
+                    dist_latest = (
+                        db_sess.query(CompanyDistressAnalysis)
+                        .filter(CompanyDistressAnalysis.ticker == sym)
+                        .order_by(CompanyDistressAnalysis.year.desc())
+                        .first()
+                    )
+                    if dist_latest:
+                        industry_str = dist_latest.industry or "Không xác định"
+                        roae_pct = dist_latest.roae * 100 if dist_latest.roae else None
+                        roaa_pct = dist_latest.roaa * 100 if dist_latest.roaa else None
+                        debt_ratio = dist_latest.debt_ratio
+
+                        # Percentile positions in industry
+                        roae_pctile = dist_latest.industry_roae_percentile
+                        roaa_pctile = dist_latest.industry_roaa_percentile
+                        debt_pctile = dist_latest.industry_debt_ratio_percentile
+
+                        peer_lines = [f"So sánh ngành của {sym} (Ngành: {industry_str}, Năm {dist_latest.year}):"]
+                        if roae_pct is not None and roae_pctile is not None:
+                            peer_lines.append(
+                                f"  - ROAE: {roae_pct:.2f}% — vượt {roae_pctile*100:.0f}% doanh nghiệp cùng ngành"
+                            )
+                        if roaa_pct is not None and roaa_pctile is not None:
+                            peer_lines.append(
+                                f"  - ROAA: {roaa_pct:.2f}% — vượt {roaa_pctile*100:.0f}% doanh nghiệp cùng ngành"
+                            )
+                        if debt_ratio is not None and debt_pctile is not None:
+                            peer_lines.append(
+                                f"  - Tỷ lệ nợ/tài sản: {debt_ratio:.2f} — cao hơn {debt_pctile*100:.0f}% ngành"
+                                f" ({'Thận trọng' if debt_ratio > 0.7 else 'Bình thường'})"
+                            )
+                        if dist_latest.altman_z_score is not None:
+                            z = dist_latest.altman_z_score
+                            z_label = (
+                                "AN TOÀN" if z > 2.99
+                                else "VÙNG XÁM" if z > 1.81
+                                else "CÓ RỦI RO"
+                            )
+                            peer_lines.append(f"  - Altman Z-Score: {z:.2f} ({z_label})")
+                        if dist_latest.merton_pd is not None:
+                            pd_pct = dist_latest.merton_pd * 100
+                            peer_lines.append(
+                                f"  - Xác suất vỡ nợ Merton: {pd_pct:.3f}%"
+                                f" ({'Rủi ro cao' if pd_pct > 5 else 'Bình thường'})"
+                            )
+                        if len(peer_lines) > 1:
+                            system_context.append("SO SÁNH NGÀNH (PEER COMPARISON):\n" + "\n".join(peer_lines))
+                finally:
+                    db_sess.close()
+        except Exception:
+            pass
+
+        # 3.6 CAGR & Growth Trend — multi-year revenue & profit growth
+        try:
+            from src.core.database import CompanyFinancial
+            for sym in set(symbols):
+                db_sess = SessionLocal()
+                try:
+                    fins_all = (
+                        db_sess.query(CompanyFinancial)
+                        .filter(CompanyFinancial.ticker == sym)
+                        .order_by(CompanyFinancial.year.asc())
+                        .all()
+                    )
+                    if len(fins_all) >= 2:
+                        oldest = fins_all[0]
+                        latest = fins_all[-1]
+                        n_years = latest.year - oldest.year
+                        if n_years > 0:
+                            growth_lines = [f"Xu hướng tăng trưởng {n_years} năm của {sym} ({oldest.year}–{latest.year}):"]
+
+                            # Revenue CAGR
+                            if oldest.net_revenue and latest.net_revenue and oldest.net_revenue > 0:
+                                rev_cagr = (latest.net_revenue / oldest.net_revenue) ** (1 / n_years) - 1
+                                growth_lines.append(
+                                    f"  - CAGR Doanh thu: {rev_cagr*100:.1f}%/năm "
+                                    f"({oldest.net_revenue/1e9:.0f} tỷ → {latest.net_revenue/1e9:.0f} tỷ VND)"
+                                )
+
+                            # PAT CAGR
+                            if (oldest.profit_after_tax and latest.profit_after_tax
+                                    and oldest.profit_after_tax > 0 and latest.profit_after_tax > 0):
+                                pat_cagr = (latest.profit_after_tax / oldest.profit_after_tax) ** (1 / n_years) - 1
+                                growth_lines.append(
+                                    f"  - CAGR Lợi nhuận sau thuế: {pat_cagr*100:.1f}%/năm "
+                                    f"({oldest.profit_after_tax/1e9:.0f} tỷ → {latest.profit_after_tax/1e9:.0f} tỷ VND)"
+                                )
+
+                            # Asset growth
+                            if oldest.total_assets and latest.total_assets and oldest.total_assets > 0:
+                                asset_cagr = (latest.total_assets / oldest.total_assets) ** (1 / n_years) - 1
+                                growth_lines.append(
+                                    f"  - CAGR Tổng tài sản: {asset_cagr*100:.1f}%/năm"
+                                )
+
+                            # Operating cash flow trend (latest only)
+                            if latest.operating_cash_flow:
+                                ocf_sign = "Dương ✅" if latest.operating_cash_flow > 0 else "Âm ⚠️"
+                                growth_lines.append(
+                                    f"  - Dòng tiền HĐKD năm {latest.year}: "
+                                    f"{latest.operating_cash_flow/1e9:.0f} tỷ VND ({ocf_sign})"
+                                )
+
+                            if len(growth_lines) > 1:
+                                system_context.append("PHÂN TÍCH XU HƯỚNG TĂNG TRƯỞNG:\n" + "\n".join(growth_lines))
+                finally:
+                    db_sess.close()
+        except Exception:
+            pass
+
+        # 3.7 Actionable Levels — Entry/SL/TP/R:R/Theta for BUY or WATCH CWs
+        try:
+            from src.modules.cw_pricing.service import WarrantService as WS
+            # Get the CW opportunities already fetched (reuse from 3.4)
+            opps_for_levels = WS.get_opportunities(limit=10)
+            target_cws = [
+                o for o in opps_for_levels.get("recommendations", [])
+                if o.get("recommendation_signal") and
+                any(kw in (o.get("recommendation_signal") or "").upper()
+                    for kw in ["BUY", "WATCH"])
+            ]
+            if target_cws:
+                levels_str = "MỐC GIÁ HÀNH ĐỘNG (Entry/SL/TP/R:R) — Tính từ dữ liệu BSM:\n"
+                for opp in target_cws[:3]:  # max 3 mã
+                    cw_sym = opp["warrant_symbol"]
+                    lvl = WS.get_actionable_levels(cw_sym)
+                    if lvl.get("status") == "ok":
+                        cl = lvl["cw_levels"]
+                        thr = lvl["theta_risk"]
+                        ul = lvl["underlying_levels"]
+                        time_warn = lvl.get("time_warning", "")
+                        levels_str += (
+                            f"\nMã {cw_sym} (CPCS: {lvl['underlying_symbol']}) — {lvl['signal']}\n"
+                            f"  Chứng quyền CW:\n"
+                            f"    Entry       : {cl['entry']:,} VNĐ\n"
+                            f"    Cắt lỗ (SL) : {cl['stop_loss']:,} VNĐ ({cl['stop_loss_pct']:.0f}%)\n"
+                            f"    Mục tiêu 1  : {cl['take_profit_1']:,} VNĐ (+{cl['take_profit_1_pct']:.1f}%) ← CPCS +5%\n"
+                            f"    Mục tiêu 2  : {cl['take_profit_2']:,} VNĐ (+{cl['take_profit_2_pct']:.1f}%) ← CPCS +10%\n"
+                            f"    R:R Ratio   : 1:{cl['risk_reward_ratio']} {cl['rr_quality']}\n"
+                            f"    Theta burn  : -{thr['theta_pct_daily']:.2f}%/ngày "
+                            f"(cầm 5 ngày ≈ -{thr['cost_5_days_pct']:.1f}%)\n"
+                            f"  Cổ phiếu cơ sở {lvl['underlying_symbol']}:\n"
+                            f"    Vùng gom    : {ul['entry_zone_low']:,} – {ul['entry_zone_high']:,} VNĐ\n"
+                            f"    Mục tiêu 1  : {ul['target_5pct']:,} VNĐ (+5%)\n"
+                            f"    Mục tiêu 2  : {ul['target_10pct']:,} VNĐ (+10%)\n"
+                            f"    Cắt lỗ     : {ul['stop_loss']:,} VNĐ (-7%)\n"
+                            f"    Break-even  : {ul['break_even_price']:,.0f} VNĐ\n"
+                            f"  ⏱️ {time_warn}\n"
+                        )
+                system_context.append(levels_str)
+        except Exception:
+            pass
+
+        # 3.8 Live Market Snapshot — VNINDEX, VN30, top gainers/losers
+        try:
+            from src.modules.cw_pricing.service import WarrantService
+            mkt = WarrantService.get_underlying_market()
+            indices = mkt.get("indices", {})
+            underlyings = mkt.get("underlyings", [])
+
+            snap_lines = ["TỔNG QUAN THỊ TRƯỜNG PHIÊN HÔM NAY:"]
+            for idx_name in ["VNINDEX", "VN30", "HNXINDEX"]:
+                idx = indices.get(idx_name) or {}
+                if idx.get("close"):
+                    chg = idx.get("change_pct", 0) or 0
+                    arrow = "▲" if chg >= 0 else "▼"
+                    snap_lines.append(
+                        f"  - {idx_name}: {idx['close']:,.2f} điểm  {arrow}{abs(chg):.2f}%  "
+                        f"Khớp lệnh: {idx.get('total_volume', 0):,} CP"
+                    )
+
+            if underlyings:
+                sorted_u = sorted(underlyings, key=lambda x: x.get("change_pct") or 0, reverse=True)
+                gainers = [u for u in sorted_u if (u.get("change_pct") or 0) > 0][:3]
+                losers  = [u for u in sorted_u if (u.get("change_pct") or 0) < 0][-3:]
+                if gainers:
+                    snap_lines.append("  Tăng mạnh nhất: " + " | ".join(
+                        f"{u['symbol']} +{u.get('change_pct',0):.2f}%" for u in gainers
+                    ))
+                if losers:
+                    snap_lines.append("  Giảm mạnh nhất: " + " | ".join(
+                        f"{u['symbol']} {u.get('change_pct',0):.2f}%" for u in reversed(losers)
+                    ))
+
+            if len(snap_lines) > 1:
+                system_context.append("\n".join(snap_lines))
+        except Exception:
+            pass
+
+        # 3.9 Seasonal Intelligence — monthly win-rate from DB historical prices
+        try:
+            import datetime as _dt
+            from src.core.database import SessionLocal, StockHistoricalPrice
+            current_month = _dt.datetime.now().month
+            month_names_vi = ["", "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4",
+                              "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8",
+                              "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"]
+
+            db_s = SessionLocal()
+            try:
+                rows = (
+                    db_s.query(StockHistoricalPrice.date, StockHistoricalPrice.close)
+                    .filter(StockHistoricalPrice.symbol == "VNINDEX")
+                    .order_by(StockHistoricalPrice.date.asc())
+                    .all()
+                )
+            finally:
+                db_s.close()
+
+            if rows:
+                # Compute monthly return for VNINDEX for each calendar month
+                monthly_returns = {m: [] for m in range(1, 13)}
+                prev_close = None
+                prev_mo = None
+                mo_start = None
+                for r in rows:
+                    try:
+                        dt = _dt.datetime.strptime(r.date, "%Y-%m-%d")
+                        mo = dt.month
+                        c = float(r.close)
+                        if c > 10000:
+                            c /= 1000.0
+                        if prev_mo is not None and mo != prev_mo and mo_start is not None and mo_start > 0:
+                            monthly_returns[prev_mo].append((c - mo_start) / mo_start * 100)
+                        if mo != prev_mo:
+                            mo_start = c
+                        prev_mo = mo
+                    except Exception:
+                        continue
+
+                # Build win-rate for each month
+                cur_mo_data = monthly_returns.get(current_month, [])
+                wins = sum(1 for x in cur_mo_data if x > 0)
+                total = len(cur_mo_data)
+                win_rate = round(wins / total * 100) if total > 0 else None
+                avg_ret = round(sum(cur_mo_data) / total, 2) if total > 0 else None
+
+                # Find best and worst months overall
+                best_mo = max(range(1, 13), key=lambda m: (
+                    sum(1 for x in monthly_returns[m] if x > 0) / len(monthly_returns[m])
+                    if monthly_returns[m] else 0
+                ))
+                worst_mo = min(range(1, 13), key=lambda m: (
+                    sum(1 for x in monthly_returns[m] if x > 0) / len(monthly_returns[m])
+                    if monthly_returns[m] else 1
+                ))
+
+                season_lines = [
+                    f"PHÂN TÍCH MÙA VỤ VNINDEX (dữ liệu lịch sử {len(rows)} phiên):",
+                    f"  - {month_names_vi[current_month]} (tháng hiện tại): "
+                    + (f"Tỷ lệ thắng {win_rate}% / {total} năm, TB {avg_ret:+.2f}%/tháng"
+                       if win_rate is not None else "Chưa đủ dữ liệu"),
+                    f"  - Tháng tốt nhất lịch sử: {month_names_vi[best_mo]}",
+                    f"  - Tháng rủi ro nhất lịch sử: {month_names_vi[worst_mo]}",
+                ]
+                system_context.append("\n".join(season_lines))
+        except Exception:
+            pass
+
+        # 3.10 CW Screener Summary — signal distribution + expiring soon
+        try:
+            from src.modules.cw_pricing.service import WarrantService as _WS
+            all_opps = _WS.get_opportunities(limit=500)
+            all_recs = all_opps.get("recommendations", [])
+            if all_recs:
+                buy_cnt = sum(1 for r in all_recs if "BUY" in (r.get("recommendation_signal") or "").upper())
+                sell_cnt = sum(1 for r in all_recs if "SELL" in (r.get("recommendation_signal") or "").upper())
+                neutral_cnt = len(all_recs) - buy_cnt - sell_cnt
+
+                top3 = sorted(all_recs, key=lambda r: r.get("composite_g_score") or 0, reverse=True)[:3]
+                expiring = sorted(
+                    [r for r in all_recs if (r.get("days_to_maturity") or 999) <= 30],
+                    key=lambda r: r.get("days_to_maturity") or 999
+                )[:3]
+
+                cw_sum_lines = [
+                    f"TỔNG QUAN THỊ TRƯỜNG CHỨNG QUYỀN ({len(all_recs)} mã đang lưu hành):",
+                    f"  Tín hiệu: 🟢 MUA {buy_cnt} | 🔴 BÁN {sell_cnt} | ⚪ TRUNG TÍNH {neutral_cnt}",
+                ]
+                if top3:
+                    cw_sum_lines.append("  Top G-Score cao nhất: " + " | ".join(
+                        f"{r['warrant_symbol']} (G={r.get('composite_g_score',0):.1f}, "
+                        f"Δ={r.get('delta',0):.2f}, DTM={r.get('days_to_maturity','?')}d)"
+                        for r in top3
+                    ))
+                if expiring:
+                    cw_sum_lines.append("  Sắp đáo hạn (≤30 ngày): " + " | ".join(
+                        f"{r['warrant_symbol']} còn {r.get('days_to_maturity','?')} ngày"
+                        for r in expiring
+                    ))
+                system_context.append("\n".join(cw_sum_lines))
+        except Exception:
+            pass
+
         import datetime
-        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_time_dt = datetime.datetime.now()
+        current_time_str = current_time_dt.strftime("%d/%m/%Y %H:%M:%S")
+        current_date_vn = current_time_dt.strftime("%d/%m/%Y")
+        current_month_name = ["", "Tháng Một", "Tháng Hai", "Tháng Ba", "Tháng Tư",
+                              "Tháng Năm", "Tháng Sáu", "Tháng Bảy", "Tháng Tám",
+                              "Tháng Chín", "Tháng Mười", "Tháng Mười Một", "Tháng Mười Hai"][current_time_dt.month]
         system_prompt = (
-            "Bạn là Finvista AI, trợ lý ảo tư vấn tài chính chuyên nghiệp cấp cao (CFA).\n"
-            f"Thời gian hiện tại của hệ thống: {current_time}.\n"
-            "Dưới đây là thông tin thực tế từ hệ thống dữ liệu định lượng của ứng dụng Finvista. "
-            "Hãy sử dụng những thông tin này để trả lời câu hỏi của người dùng một cách cá nhân hóa, "
-            "chính xác và thực tế nhất.\n\n"
+            "Bạn là Finvista Quant AI — Chuyên gia Phân tích Tài chính & Cố vấn Đầu tư Chứng quyền/Cổ phiếu cấp cao của hệ thống Finvista.\n"
+            f"Thời gian hiện tại của hệ thống: Ngày {current_date_vn} ({current_time_str}), {current_month_name}.\n\n"
+            "## CHỈ THỊ & PHONG CÁCH TRẢ LỜI (PROMPT CHUYÊN SÂU):\n"
+            f"1. Bạn ĐÃ ĐƯỢC CẤP QUYỀN TRUY CẬP TRỰC TIẾP vào toàn bộ dữ liệu định lượng, danh mục đầu tư (NAV, vị thế), tín hiệu chứng quyền BSM/Greeks, điểm G-Score, báo cáo BCTC, phân tích mùa vụ, và tổng quan thị trường phiên hôm nay trong hệ thống Finvista.\n"
+            "2. Khi chào hỏi hoặc trả lời, hãy trả lời tự nhiên, thân thiện và đi thẳng vào phân tích tài chính/chứng khoán. Không được nói 'tôi không có thông tin định danh cá nhân của bạn'.\n"
+            "3. Khi người dùng hỏi về danh mục hoặc vị thế, hãy chủ động phân tích các mã chứng quyền/cổ phiếu trong danh mục đang theo dõi (NAV, Lãi/Lỗ, tỷ trọng).\n"
+            "4. Khi context có 'MỐC GIÁ HÀNH ĐỘNG', BẮT BUỘC trình bày đầy đủ các mốc Entry / Cắt lỗ (SL) / Chốt lời (TP) / Tỷ lệ R:R và rủi ro thời gian Theta decay.\n"
+            "5. Kết luận phân tích PHẢI DỨT KHOÁT: MUA (BUY) / CHỜ (WATCH) / ĐỨNG NGOÀI (NEUTRAL). Tránh dùng các từ chung chung mơ hồ.\n"
+            "6. Khi user hỏi về thị trường hôm nay, PHẢI tham chiếu dữ liệu 'TỔNG QUAN THỊ TRƯỜNG PHIÊN HÔM NAY' bên dưới.\n"
+            "7. Khi user hỏi về mùa vụ hoặc tháng nào nên mua, PHẢI tham chiếu 'PHÂN TÍCH MÙA VỤ VNINDEX' từ dữ liệu lịch sử thực.\n"
+            "8. Khi user hỏi tổng quan CW hoặc mã nào tốt, PHẢI tham chiếu 'TỔNG QUAN THỊ TRƯỜNG CHỨNG QUYỀN' với phân phối tín hiệu thực tế.\n\n"
+            "## DỮ LIỆU ĐỊNH LƯỢNG THỜI GIAN THỰC TỪ FINVISTA SYSTEM:\n"
         )
-        system_prompt += "\n".join(system_context)
+        system_prompt += "\n\n".join(system_context)
+        
+        # Extract image from the last user message (if any)
+        last_user_msg = next(
+            (m for m in reversed(request.messages) if m.role == "user"),
+            None
+        )
+        image_b64 = last_user_msg.image_base64 if last_user_msg else None
+        image_mime = (last_user_msg.image_media_type or "image/png") if last_user_msg else "image/png"
         
         # Convert Pydantic models to dicts and prepend system message
         messages_dict = [{"role": "system", "content": system_prompt}] + [
@@ -253,6 +655,8 @@ async def chat_completion(request: ChatRequest, req_raw: Request):
         
         response = ai_client.chat(
             messages=messages_dict,
+            image_base64=image_b64,
+            image_media_type=image_mime,
             model=request.model,
             temperature=request.temperature,
             max_tokens=request.max_tokens

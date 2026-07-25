@@ -175,7 +175,39 @@ class PortfolioService:
                 user = db.query(User).filter(User.username == username).first()
                 existing = db.query(Position).filter(Position.user_id == user.id, Position.symbol == symbol_clean).first()
                 if existing:
-                    raise HTTPException(status_code=422, detail=f"Already holding {symbol_clean}")
+                    buy_qty = qty if qty and qty > 0 else 1000
+                    if buy_qty % HOSE_LOT_SIZE != 0:
+                        raise HTTPException(status_code=422, detail=f"Qty must be multiple of {HOSE_LOT_SIZE}")
+                    
+                    gross_val = buy_qty * price
+                    fee = gross_val * BUY_FEE_RATE
+                    total_cost = gross_val + fee
+
+                    port = db.query(Portfolio).filter(Portfolio.user_id == user.id).first()
+                    if total_cost > port.cash:
+                        raise HTTPException(status_code=422, detail="Cash insufficient to buy more")
+
+                    port.cash -= total_cost
+                    existing.qty += buy_qty
+                    existing.total_cost += total_cost
+                    existing.buy_price = round(existing.total_cost / existing.qty, 2)
+
+                    now_str = datetime.now().isoformat()
+                    new_tx = TransactionHistory(
+                        user_id=user.id,
+                        symbol=symbol_clean,
+                        underlying=underlying,
+                        type="BUY",
+                        qty=buy_qty,
+                        price=price,
+                        value=gross_val,
+                        fee=fee,
+                        date=now_str,
+                        reason=f"{reason} (Mua thêm)"
+                    )
+                    db.add(new_tx)
+                    db.commit()
+                    return {"status": "success", "message": f"🛍️ Đã mua thêm {buy_qty:,} {symbol_clean}"}
 
                 if qty is None:
                     # Use automated execute_buy logic

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Bot, MessageSquare, Send, Trash2, User, X } from "lucide-react";
-import { chatCompletion } from "../../api.js";
+import { chatCompletion, getChatContextSummary } from "../../api.js";
 import { Button } from "../ui/button.jsx";
 import { Input } from "../ui/input.jsx";
 
@@ -659,7 +659,7 @@ function renderMessageContent(content, onFollowUp) {
   );
 }
 
-export function AIChatWidget({ language = "vi" }) {
+export function AIChatWidget({ language = "vi", currentPage = "" }) {
   const isEnglish = language === "en";
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -720,29 +720,25 @@ export function AIChatWidget({ language = "vi" }) {
     ];
 
   useEffect(() => {
-    // Initial welcome message
-    const viWelcome = "Xin chào! Tôi là Cố vấn Tài chính AI của Finvista. Tôi có thể giúp gì cho bạn trong việc phân tích chứng quyền hoặc rủi ro tín dụng hôm nay?";
-    const enWelcome = "Hello! I am your Finvista AI Financial Advisor. How can I help you analyze warrants or corporate credit risk today?";
-    const expectedWelcome = isEnglish ? enWelcome : viWelcome;
-
+    if (!isOpen) return;
+    // Fetch dynamic welcome from backend only when chat first opens with no history
     if (messages.length === 0) {
-      setMessages([
-        {
-          role: "assistant",
-          content: expectedWelcome
-        }
-      ]);
-    } else if (messages.length === 1 && (messages[0].content === viWelcome || messages[0].content === enWelcome)) {
-      if (messages[0].content !== expectedWelcome) {
-        setMessages([
-          {
-            role: "assistant",
-            content: expectedWelcome
-          }
-        ]);
-      }
+      const placeholder = isEnglish
+        ? "Loading live market data..."
+        : "Đang tải dữ liệu thị trường...";
+      setMessages([{ role: "assistant", content: placeholder }]);
+      getChatContextSummary()
+        .then(data => {
+          setMessages([{ role: "assistant", content: data.greeting }]);
+        })
+        .catch(() => {
+          const fallback = isEnglish
+            ? "Hello! I am your Finvista AI Financial Advisor. How can I help you today?"
+            : "Xin chào! Tôi là Cố vấn Tài chính AI của Finvista. Tôi có thể giúp gì cho bạn hôm nay?";
+          setMessages([{ role: "assistant", content: fallback }]);
+        });
     }
-  }, [language, isEnglish, messages]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -759,14 +755,35 @@ export function AIChatWidget({ language = "vi" }) {
     setInputValue("");
     setLoading(true);
 
+    // Page labels for context injection
+    const PAGE_LABELS = {
+      intro: isEnglish ? "Home / Introduction" : "Trang chủ / Giới thiệu",
+      market: isEnglish ? "Market Overview (VNINDEX, Seasonals, Technical Analysis)" : "Tổng quan thị trường (VNINDEX, Mùa vụ, Kỹ thuật)",
+      opportunities: isEnglish ? "CW Opportunity Scanner (G-Score ranked)" : "Bộ lọc cơ hội Chứng quyền (G-Score)",
+      portfolio: isEnglish ? "Portfolio Management (NAV, P&L, positions)" : "Quản lý danh mục (NAV, Lãi/Lỗ, vị thế)",
+      credit: isEnglish ? "Credit Health Analysis (Altman Z, Merton PD)" : "Phân tích sức khỏe tài chính (Altman Z, Merton PD)",
+      dashboard: isEnglish ? "Dashboard (Regime, Market Overview)" : "Bảng điều khiển (Regime thị trường)",
+      watchlist: isEnglish ? "Watchlist" : "Danh sách theo dõi",
+      news: isEnglish ? "News & Sentiment" : "Tin tức & Cảm xúc thị trường",
+      learning: isEnglish ? "Learning Center" : "Trung tâm học tập",
+    };
+    const pageLabel = PAGE_LABELS[currentPage] || currentPage;
+
     try {
-      // Backend expects role to be "user" or "assistant"
       const apiMessages = newMessages.map(m => ({
         role: m.role,
         content: m.content
       }));
+      // Prepend a hidden page-context hint as the first user message (won't show in UI)
+      const messagesWithPageCtx = pageLabel
+        ? [
+            { role: "user", content: `[CONTEXT HỆ THỐNG: User đang xem trang "${pageLabel}". Hãy ưu tiên trả lời phù hợp với ngữ cảnh trang này.]` },
+            { role: "assistant", content: isEnglish ? "Understood, I'll tailor my response to this page context." : "Đã hiểu, tôi sẽ trả lời phù hợp với ngữ cảnh trang này." },
+            ...apiMessages
+          ]
+        : apiMessages;
 
-      const res = await chatCompletion(apiMessages);
+      const res = await chatCompletion(messagesWithPageCtx);
       setMessages([...newMessages, { role: "assistant", content: res.response }]);
     } catch (err) {
       setMessages([...newMessages, {
@@ -781,15 +798,18 @@ export function AIChatWidget({ language = "vi" }) {
   }
 
   function handleClearHistory() {
-    setMessages([
-      {
+    const placeholder = isEnglish ? "Loading live market data..." : "Đang tải dữ liệu thị trường...";
+    setMessages([{ role: "assistant", content: placeholder }]);
+    getChatContextSummary()
+      .then(data => setMessages([{ role: "assistant", content: data.greeting }]))
+      .catch(() => setMessages([{
         role: "assistant",
         content: isEnglish
-          ? "Hello! I am your Finvista AI Financial Advisor. How can I help you analyze warrants or corporate credit risk today?"
-          : "Xin chào! Tôi là Cố vấn Tài chính AI của Finvista. Tôi có thể giúp gì cho bạn trong việc phân tích chứng quyền hoặc rủi ro tín dụng hôm nay?"
-      }
-    ]);
+          ? "Hello! I am your Finvista AI Financial Advisor. How can I help you today?"
+          : "Xin chào! Tôi là Cố vấn Tài chính AI của Finvista. Tôi có thể giúp gì cho bạn hôm nay?"
+      }]));
   }
+
 
   return (
     <div className="ai-chat-widget-container">

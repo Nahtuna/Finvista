@@ -14,3 +14,11 @@ export function getMarketMetadata({ forceRefresh = false } = {}) {
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return request(`/api/market/metadata${suffix}`);
 }
+
+export function triggerDataSync() {
+  return request("/api/admin/scraper/run/ohlcv", { method: "POST" });
+}
+
+export function getDbLastUpdated() {
+  return request("/api/admin/scraper/status?scraper_type=ohlcv_stock&limit=5");
+}

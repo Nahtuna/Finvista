@@ -221,10 +221,10 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.55rem;
-  border: 1px solid rgba(234, 213, 223, 0.8);
+  border: 1px solid var(--border-soft);
   border-radius: 0.45rem;
   padding: 0.55rem 0.65rem;
-  background: rgba(255, 250, 253, 0.88);
+  background: var(--surface-muted);
   color: var(--text-muted);
   font-size: 0.78rem;
   text-align: left;
@@ -237,7 +237,7 @@
 .market-breadth-legend button:hover,
 .market-breadth-legend button.active {
   border-color: var(--border-strong);
-  background: #fff0f7;
+  background: var(--surface-panel);
   transform: translateX(2px);
 }
 
@@ -254,6 +254,7 @@
 .sector-flow-map {
   display: flex;
   min-height: 14rem;
+  flex-grow: 1;
   flex-wrap: wrap;
   gap: 0.38rem;
   padding: 0.65rem;
@@ -734,4 +735,45 @@
 .auto-refresh-label {
   color: var(--text-main);
   font-weight: 500;
+}
+
+
+/* ─── MOVEMENT TAB CONTROL ──────────────────────────────────────────────────── */
+.movement-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.movement-tab-control {
+  display: flex;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.movement-tab-control button {
+  background: none;
+  border: none;
+  padding: 0.3rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.movement-tab-control button.active {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.movement-tab-control button:not(.active):hover {
+  background: var(--border-soft);
+  color: var(--text-main);
 }

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 # Force vnstock = None to prevent hanging on external API endpoints during scans
 vnstock = None
 
-def fetch_market_cw_data() -> pd.DataFrame:
+def fetch_market_cw_data(bypass_cache: bool = False) -> pd.DataFrame:
     """Fetch live symbols, prices, ratios and strikes for all listed Vietnamese Warrants.
     
     Session-aware caching:
@@ -33,7 +33,7 @@ def fetch_market_cw_data() -> pd.DataFrame:
                 print(f"   [SESSION] Session status: {clean_status}")
             except Exception:
                 pass
-        if sess["use_cache"]:
+        if sess["use_cache"] and not bypass_cache:
             cached_df = load_snapshot()
             if cached_df is not None and not cached_df.empty:
                 print("   [CACHE] Loaded data from session cache (outside trading hours).")

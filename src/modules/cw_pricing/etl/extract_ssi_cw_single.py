@@ -3,7 +3,7 @@
 🏆 FINVISTA: COVERED WARRANT HISTORICAL ANALYSIS ENTRYPOINT
 ==========================================================
 Usage:
-  python run_cw_history.py --symbol CACB2510 --days 15
+  python run_cw_history.py --symbol CACB2511 --days 10
 
 Author: samvo
 """
@@ -27,7 +27,7 @@ from src.modules.cw_pricing.backtest.history_analyzer import analyze_historical_
 def main():
     parser = argparse.ArgumentParser(description="Finvista Covered Warrant Historical Volatility & Leverage Tracker")
     parser.add_argument('--symbol', '-s', type=str, required=True,
-                        help="Covered Warrant symbol (e.g. CACB2510)")
+                        help="Covered Warrant symbol (e.g. CACB2511)")
     parser.add_argument('--days', '-d', type=int, default=15,
                         help="Number of trading days to analyze (default: 15)")
     args = parser.parse_args()

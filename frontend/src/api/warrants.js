@@ -3,14 +3,13 @@ import { request } from "./client.js";
 export function getOpportunities({
   strategy,
   underlying,
-  limit,
+  limit = 5000,
   forceRefresh = false,
   vn30Only = false,
   industry = ""
 }) {
   const params = new URLSearchParams({
-    strategy,
-    limit: String(limit || 10)
+    limit: String(limit || 5000)
   });
   if (underlying?.trim()) params.set("underlying", underlying.trim().toUpperCase());
   if (forceRefresh) params.set("force_refresh", "true");
@@ -52,3 +51,10 @@ export function calculateGreeks({
     })
   });
 }
+
+export function getWarrantMatrix(underlying = "") {
+  const params = new URLSearchParams();
+  if (underlying?.trim()) params.set("underlying", underlying.trim().toUpperCase());
+  return request(`/api/warrants/matrix?${params.toString()}`);
+}
+

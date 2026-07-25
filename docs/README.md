@@ -8,6 +8,7 @@ docs/
 ├── guides/               # Hướng dẫn sử dụng & API
 ├── research/             # Nghiên cứu & roadmap
 ├── reference/            # Tài liệu tham khảo (FinLens analysis)
+├── reverse_engineering/  # Đặc tả & phân tích kỹ thuật hệ thống FinLens
 └── archive/              # Tài liệu cũ/lưu trữ
 ```
 
@@ -33,7 +34,8 @@ Hướng dẫn sử dụng cho người dùng và developer:
 - `api_documentation.md` - Tài liệu API
 - `cw_metrics_handbook.md` - Cẩm nang chỉ số chứng quyền
 - `telegram_webhook_setup.md` - Cài đặt Telegram webhook
-- `user_readme.md` - README cho người dùng
+- `contributing.md` - Hướng dẫn đóng góp & phát triển dự án
+- `environment_variables.md` - Hướng dẫn cấu hình biến môi trường
 
 ---
 
@@ -53,6 +55,20 @@ Nghiên cứu, phân tích và roadmap phát triển:
 - `modern_data_requirements.md` - Yêu cầu dữ liệu hiện đại
 - `roadmap_realtime.md` - Roadmap real-time
 - `ref/` - Tài liệu tham chiếu (28 items)
+
+---
+
+## 🛠️ reverse_engineering/
+
+Đặc tả và tài liệu kỹ thuật thu thập được từ quá trình phân tích ứng dụng FinLens:
+
+- `app-spec-context/`
+  - `00_AI_IMPLEMENTATION_GUIDE.md` - Hướng dẫn nạp đặc tả cho AI phát triển clone
+  - `01_architecture.md` - Kiến trúc hệ thống
+  - `02_database_schema.md` - Thiết kế CSDL chi tiết
+  - `03_api_endpoints.md` - Các endpoints và WebSockets API
+  - `04_features_flow.md` - Luồng hoạt động của các tính năng
+  - `05_coding_standards.md` - Tiêu chuẩn code (Python, React/TS, SQL)
 
 ---
 
@@ -78,16 +94,19 @@ Tài liệu cũ, ít dùng hoặc đã thay thế:
 ## 🚀 Quick Start
 
 1. **New to Finvista?** → Xem `guides/quick_start.md`
-2. **Developer?** → Xem `guides/api_documentation.md`
+2. **Developer?** → Xem `guides/contributing.md` và `guides/api_documentation.md`
 3. **Architecture?** → Xem `architecture/saas_architecture_blueprint.md`
 4. **Research?** → Xem `research/roadmap.md`
 5. **Reference?** → Xem `reference/finlens_analysis.md`
+6. **Reverse Engineering?** → Xem `reverse_engineering/app-spec-context/00_AI_IMPLEMENTATION_GUIDE.md`
 
 ---
 
 ## 📝 Notes
 
-- Tất cả file đều được giữ nguyên, chỉ reorganize cấu trúc
+- Tất cả file đều được giữ nguyên, chỉ reorganize cấu trúc và chuẩn hóa tên file viết thường
+- Thư mục đặc tả kỹ thuật `reverse_engineering/` được tích hợp chính thức vào tài liệu
 - File media từ FinLens được gom vào `reference/finlens_media/`
 - File cũ ít dùng được chuyển vào `archive/`
 - Cấu trúc mới giúp dễ tìm kiếm và quản lý hơn
+

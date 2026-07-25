@@ -29,16 +29,33 @@
   --tooltip-shadow: 0 12px 26px rgba(75, 42, 63, 0.16);
 }
 
-body {
-  background: var(--surface-bg);
+.app-shell.color-dark {
+  --surface-bg: #0b0f19;
+  --surface-panel: #131b2e;
+  --surface-muted: #1e293b;
+  --border-soft: #1e293b;
+  --border-strong: #334155;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  background: #0b0f19 !important;
+  color: #f8fafc;
+}
+
+.app-shell.color-light {
+  --surface-bg: #f8fafc;
+  --surface-panel: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border-soft: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  background: #f8fafc !important;
+  color: #0f172a;
 }
 
 .app-shell,
 .app-shell.theme-clear {
-  background:
-    linear-gradient(120deg, rgba(239, 176, 201, 0.32) 0%, transparent 32%),
-    linear-gradient(250deg, rgba(161, 201, 241, 0.28) 0%, transparent 34%),
-    linear-gradient(180deg, #fffafd 0%, var(--surface-bg) 45%, #f7eef3 100%);
+  min-height: 100vh;
 }
 
 .topbar {
@@ -619,6 +636,53 @@ tbody tr:hover .strong-cell {
   color: var(--text-main);
 }
 
+/* Global Theme Enforcement for Input, Select, Option, Table, Headings and Cards */
+.app-shell.color-light input,
+.app-shell.color-light select,
+.app-shell.color-light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.app-shell.color-light option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.app-shell.color-light th {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.app-shell.color-light td {
+  border-color: #e2e8f0 !important;
+}
+
+.app-shell.color-dark input,
+.app-shell.color-dark select,
+.app-shell.color-dark textarea {
+  background-color: #141922 !important;
+  color: #f8fafc !important;
+  border-color: #1e293b !important;
+}
+
+.app-shell.color-dark option {
+  background-color: #141922 !important;
+  color: #f8fafc !important;
+}
+
+.app-shell.color-dark th {
+  background-color: #0b0f19 !important;
+  color: #f8fafc !important;
+  border-color: #1e293b !important;
+}
+
+.app-shell.color-dark td {
+  border-color: #1e293b !important;
+}
+
 .app-shell.color-dark :where(input::placeholder, select::placeholder),
 .login-shell.color-dark :where(input::placeholder, select::placeholder) {
   color: #8f9aab;
@@ -1060,6 +1124,11 @@ tbody tr:hover .strong-cell {
   text-shadow: 0 0 8px rgba(0, 139, 122, 0.15);
 }
 
+.market-tile-row .market-tile:nth-child(2) strong {
+  color: var(--warning, #c9952f);
+  text-shadow: 0 0 8px rgba(201, 149, 47, 0.15);
+}
+
 .market-tile-row .market-tile:last-child strong {
   color: var(--sell, #d94a6f);
   text-shadow: 0 0 8px rgba(217, 74, 111, 0.15);
@@ -1073,6 +1142,11 @@ tbody tr:hover .strong-cell {
 .app-shell.color-dark .market-tile-row .market-tile:first-child strong {
   color: #48d6b5; /* bright cyan-green for buy signals count */
   text-shadow: 0 0 8px rgba(72, 214, 181, 0.25);
+}
+
+.app-shell.color-dark .market-tile-row .market-tile:nth-child(2) strong {
+  color: #f8a835; /* bright orange/yellow for consider signals count */
+  text-shadow: 0 0 8px rgba(248, 168, 53, 0.25);
 }
 
 .app-shell.color-dark .market-tile-row .market-tile:last-child strong {

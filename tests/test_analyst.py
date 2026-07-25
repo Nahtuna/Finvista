@@ -3,7 +3,6 @@ from unittest.mock import patch, MagicMock
 from src.modules.cw_pricing.prompts.analyst_prompt import build_analyst_prompt
 
 def test_build_analyst_prompt():
-    # Mock WarrantService.get_opportunities
     mock_opps = {
         "status": "ok",
         "recommendations": [
@@ -23,38 +22,20 @@ def test_build_analyst_prompt():
             }
         ]
     }
-    
-    # Mock get_ticker_regime
-    mock_regime = {
-        "regime_recommendation": "BULLISH_LOW_VOL",
-        "regime_detector": {
-            "regime": "BULLISH_LOW_VOL"
-        }
-    }
-    
-    # Mock NewsImpactService
-    mock_sentiment = {
-        "sentiment_score": 0.25
-    }
-    mock_ml_signal = {
-        "outperform_probability": 0.65
-    }
-    
-    mock_market_regime = {
-        "regime": "BULLISH_LOW_VOL",
-        "confidence": 0.85
-    }
-    
-    with patch("src.modules.cw_pricing.prompts.analyst_prompt.WarrantService.get_opportunities", return_value=mock_opps), \
-         patch("src.modules.cw_pricing.prompts.analyst_prompt.get_ticker_regime", return_value=mock_regime), \
-         patch("src.api.routes.regime.get_market_regime", return_value=mock_market_regime), \
-         patch("src.modules.cw_pricing.prompts.analyst_prompt.NewsImpactService.get_news_impact", return_value=mock_sentiment), \
-         patch("src.modules.cw_pricing.prompts.analyst_prompt.NewsImpactService.get_ml_signal", return_value=mock_ml_signal):
-         
+
+    mock_market_regime = {"regime": "BULLISH_LOW_VOL", "confidence": 0.85, "bias": "LONG_CW"}
+
+    # WarrantService and NewsImpactService are lazy-imported inside the function,
+    # so patch at their source modules, not at analyst_prompt.
+    with patch("src.modules.cw_pricing.service.WarrantService.get_opportunities", return_value=mock_opps), \
+         patch("src.modules.cw_pricing.service.WarrantService.get_actionable_levels", return_value={"status": "error"}), \
+         patch("src.modules.regime_analysis.indicators.hmm_regime.calculate_vnindex_regime", return_value=mock_market_regime), \
+         patch("src.modules.news_impact.service.NewsImpactService.get_ticker_sentiment_score", return_value={"composite_score": 0.25, "label": "POSITIVE"}):
+
         res = build_analyst_prompt("HPG")
         assert "prompt" in res
         assert "data_injected" in res
-        assert res["data_injected"]["underlying_ticker"] == "HPG"
+        assert res["ticker"] == "HPG"
         assert len(res["cw_candidates"]) == 1
-        assert res["cw_candidates"][0]["symbol"] == "CHPG2301"
+        assert res["cw_candidates"][0]["warrant_symbol"] == "CHPG2301"
         assert "CHPG2301" in res["prompt"]

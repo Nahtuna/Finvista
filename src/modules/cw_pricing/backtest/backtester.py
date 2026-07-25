@@ -599,29 +599,29 @@ if __name__ == "__main__":
     tester = FinvistaBacktester()
     try:
         # 1. Volatility Arbitrage
-        res_quant_std = tester.run_volatility_arbitrage("CACB2510", "ACB", strike=22500.0, ratio=2.0, expiry_date="2026-06-23", use_derivatives_filter=False)
+        res_quant_std = tester.run_volatility_arbitrage("CACB2511", "ACB", strike=22500.0, ratio=2.0, expiry_date="2026-06-23", use_derivatives_filter=False)
         metrics_quant_std = tester.evaluate_performance(res_quant_std)
         
-        res_quant_filtered = tester.run_volatility_arbitrage("CACB2510", "ACB", strike=22500.0, ratio=2.0, expiry_date="2026-06-23", use_derivatives_filter=True)
+        res_quant_filtered = tester.run_volatility_arbitrage("CACB2511", "ACB", strike=22500.0, ratio=2.0, expiry_date="2026-06-23", use_derivatives_filter=True)
         metrics_quant_filtered = tester.evaluate_performance(res_quant_filtered)
         
         # 2. Pro Quant
-        res_ta_std = tester.run_pro_quant_strategy("CACB2510", "ACB", use_derivatives_filter=False)
+        res_ta_std = tester.run_pro_quant_strategy("CACB2511", "ACB", use_derivatives_filter=False)
         metrics_ta_std = tester.evaluate_performance(res_ta_std)
         
-        res_ta_filtered = tester.run_pro_quant_strategy("CACB2510", "ACB", use_derivatives_filter=True)
+        res_ta_filtered = tester.run_pro_quant_strategy("CACB2511", "ACB", use_derivatives_filter=True)
         metrics_ta_filtered = tester.evaluate_performance(res_ta_filtered)
         
         # 3. Ultimate Panic Buy
-        res_ultimate_std = tester.run_ultimate_panic_buy_strategy("CACB2510", "ACB", use_derivatives_filter=False)
+        res_ultimate_std = tester.run_ultimate_panic_buy_strategy("CACB2511", "ACB", use_derivatives_filter=False)
         metrics_ultimate_std = tester.evaluate_performance(res_ultimate_std)
         
-        res_ultimate_filtered = tester.run_ultimate_panic_buy_strategy("CACB2510", "ACB", use_derivatives_filter=True)
+        res_ultimate_filtered = tester.run_ultimate_panic_buy_strategy("CACB2511", "ACB", use_derivatives_filter=True)
         metrics_ultimate_filtered = tester.evaluate_performance(res_ultimate_filtered)
         
         # Print comparison table
         print("\n" + "=" * 90)
-        print(" 📊 BACKTEST COMPARISON: STANDARD vs. DERIVATIVES ADAPTIVE FILTER (CACB2510 / ACB)")
+        print(" 📊 BACKTEST COMPARISON: STANDARD vs. DERIVATIVES ADAPTIVE FILTER (CACB2511 / ACB)")
         print("=" * 90)
         print(f"{'Strategy & Mode':<37} | {'Return':<7} | {'Trades':<6} | {'WinRate':<7} | {'MaxDD':<7} | {'Sharpe':<6}")
         print("-" * 90)

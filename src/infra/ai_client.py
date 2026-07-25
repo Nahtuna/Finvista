@@ -4,16 +4,18 @@
 ================================
 Unified AI client for Gemini integration using gemini-web2api.
 Supports both free web API and official Google AI API.
+Supports Vision multipart (text + image) via OpenRouter / OpenAI API.
 
 Author: samvo
 """
 
+import base64
 import os
 import subprocess
 import socket
 import time
 import sys
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -27,7 +29,7 @@ for var in ["no_proxy", "NO_PROXY"]:
 load_dotenv()
 
 class AIClient:
-    """Unified AI client for Gemini integration."""
+    """Unified AI client for Gemini integration with Vision support."""
     
     def __init__(self):
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
@@ -37,30 +39,35 @@ class AIClient:
             self.use_web_api = False
             self.base_url = "https://openrouter.ai/api/v1"
             self.default_model = "google/gemini-2.5-flash"
+            self.vision_model = "google/gemini-2.5-flash"   # hỗ trợ vision
             self.client = OpenAI(
                 base_url=self.base_url,
                 api_key=self.openrouter_api_key
             )
-            print("AIClient: Connected via OpenRouter API Gateway.")
+            print("AIClient: Connected via OpenRouter API Gateway (Vision enabled).")
         else:
             self.use_web_api = True
+            self.ai_host = "localhost"
             self.base_url = "http://localhost:8081/v1"
             self.default_model = "gemini-3.5-flash"
+            self.vision_model = "gemini-3.5-flash"
             self._ensure_proxy_running()
             self.client = OpenAI(
                 base_url=self.base_url,
                 api_key="sk-web-api"
             )
-            print("AIClient: Connected via local Web-to-API Proxy.")
+            print("AIClient: Connected via local Web-to-API Proxy (localhost).")
     
-    def _is_port_open(self, port: int) -> bool:
+    def _is_port_open(self, port: int, host: Optional[str] = None) -> bool:
         """Check if a local port is already open."""
+        target_host = host or "localhost"
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(('localhost', port)) == 0
+            s.settimeout(1.0)
+            return s.connect_ex((target_host, port)) == 0
 
     def _ensure_proxy_running(self):
         """Automatically starts the gemini_web2api proxy if not running."""
-        if self._is_port_open(8081):
+        if self._is_port_open(8081, "localhost"):
             return # Already running
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         proxy_script = os.path.join(base_dir, "scripts", "maintenance", "gemini_web2api.py")
@@ -70,31 +77,67 @@ class AIClient:
 
         print("Starting Gemini AI Proxy automatically...")
         try:
-            # Launch the proxy in the background
-            # We use subprocess.Popen to let it run independently
             subprocess.Popen(
                 [sys.executable, proxy_script],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
-            # Give it a few seconds to warm up
             time.sleep(2)
-            if self._is_port_open(8081):
+            if self._is_port_open(8081, "localhost"):
                 print("Gemini AI Proxy started successfully.")
             else:
                 print("Warning: Gemini AI Proxy is taking longer than expected to start.")
         except Exception as e:
             print(f"Error: Failed to start AI Proxy: {e}")
     
-    def chat(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    def chat(
+        self,
+        messages: List[Dict[str, Any]],
+        image_base64: Optional[str] = None,
+        image_media_type: str = "image/png",
+        **kwargs
+    ) -> str:
+        """
+        Send a chat request. Optionally attach an image for Vision analysis.
+        
+        Args:
+            messages: Conversation history (role/content dicts)
+            image_base64: Base64-encoded image string (no data URI prefix)
+            image_media_type: MIME type of the image (default: image/png)
+        """
         try:
             max_tokens = kwargs.get("max_tokens") or 2048
+            model = kwargs.get("model") or self.default_model
+            
+            # If image is provided, convert the last user message to multipart Vision format
+            if image_base64:
+                processed_messages = []
+                for i, msg in enumerate(messages):
+                    if msg["role"] == "user" and i == len(messages) - 1:
+                        # Build multipart content block
+                        text_content = msg.get("content", "")
+                        content_parts: List[Dict[str, Any]] = [
+                            {"type": "text", "text": text_content}
+                        ]
+                        content_parts.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{image_media_type};base64,{image_base64}"
+                            }
+                        })
+                        processed_messages.append({"role": "user", "content": content_parts})
+                    else:
+                        processed_messages.append(msg)
+                model = kwargs.get("model") or self.vision_model
+            else:
+                processed_messages = messages
+            
             response = self.client.chat.completions.create(
-                model=self.default_model,
-                messages=messages,
+                model=model,
+                messages=processed_messages,
                 max_tokens=max_tokens,
-                timeout=30.0
+                timeout=60.0
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -120,8 +163,16 @@ class AIClient:
     def generate_trading_signal_commentary(self, cw_code: str, signal: str, **kwargs) -> str:
         return f"Tín hiệu {signal} cho {cw_code}. Cần theo dõi thêm."
 
-    def analyze_chart_vision(self, **kwargs) -> str:
-        return "Vision analysis requires API connection."
+    def analyze_chart_vision(self, image_base64: str, question: str = "Phân tích biểu đồ này.") -> str:
+        """
+        Analyze a chart image using Gemini Vision.
+        
+        Args:
+            image_base64: Base64 encoded image (without data URI prefix)
+            question: Analysis question to ask about the chart
+        """
+        messages = [{"role": "user", "content": question}]
+        return self.chat(messages, image_base64=image_base64)
 
 _ai_client: Optional[AIClient] = None
 
