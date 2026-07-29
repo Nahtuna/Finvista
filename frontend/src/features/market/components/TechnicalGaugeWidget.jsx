@@ -235,23 +235,14 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
 
   // Helper SVG gauge dial renderer with continuous dynamic angle
   function renderGauge(title, data, isMain = false) {
-    const total = (data.buy || 0) + (data.sell || 0) + (data.neutral || 0);
-    let angle = 0;
-    if (total > 0) {
-      // Calculate dynamic score from -1 (Strong Sell) to +1 (Strong Buy)
-      const score = (data.buy - data.sell) / total;
-      // Map score [-1, 1] to angle [-75 deg, +75 deg]
-      angle = Math.max(-75, Math.min(75, Math.round(score * 75)));
-    } else {
-      const angleMap = {
-        "STRONG SELL": -65,
-        "SELL": -35,
-        "NEUTRAL": 0,
-        "BUY": 35,
-        "STRONG BUY": 65
-      };
-      angle = angleMap[data.signal] || 0;
-    }
+    const angleMap = {
+      "STRONG SELL": -60,
+      "SELL": -35,
+      "NEUTRAL": 0,
+      "BUY": 35,
+      "STRONG BUY": 60
+    };
+    const angle = angleMap[data.signal] || 0;
 
     const badgeColor = data.signal.includes("BUY") ? "#10b981" : data.signal.includes("SELL") ? "#ef4444" : "#eab308";
 
@@ -276,12 +267,14 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
           </svg>
 
           {/* Center Hub & Needle */}
-          <div style={{ position: "absolute", bottom: "0px", width: "10px", height: "10px", borderRadius: "50%", background: textColor, zIndex: 3, boxShadow: "0 0 6px rgba(0,0,0,0.5)" }} />
+          <div style={{ position: "absolute", bottom: "0px", left: "50%", marginLeft: "-5px", width: "10px", height: "10px", borderRadius: "50%", background: textColor, zIndex: 3, boxShadow: "0 0 6px rgba(0,0,0,0.5)" }} />
 
           <div
             style={{
               position: "absolute",
               bottom: "4px",
+              left: "50%",
+              marginLeft: "-1.5px",
               width: "3px",
               height: "50px",
               background: textColor,

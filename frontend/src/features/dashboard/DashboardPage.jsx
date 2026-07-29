@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { AlertTriangle, TrendingUp, DollarSign, PieChart, BarChart3, Clock, Bell, ShieldCheck } from "lucide-react";
-import { getPortfolio, getCreditHealth } from "../../api.js";
+import { getCreditHealth } from "../../api.js";
+import { useData } from "../../app/DataContext.jsx";
 import { formatMoney, formatNumber } from "../../lib/formatters.js";
 
 import { useThemeTokens } from "../../app/useThemeTokens.js";
@@ -9,34 +10,33 @@ export function DashboardPage({ language = "vi", preferences = {} }) {
   const { isDark, bg, cardBg, subBg, textColor, mutedText, borderColor } = useThemeTokens(preferences);
 
   const isEnglish = language === "en";
-  const [data, setData] = useState(null);
+  const { portfolioData } = useData();
   const [activeTab, setActiveTab] = useState("tong_quan");
   const [creditHealthMap, setCreditHealthMap] = useState({});
 
   useEffect(() => {
-    getPortfolio().then(res => {
-      setData(res);
-      const positions = res?.active_positions || [];
-      const underlyings = Array.from(new Set(positions.map(p => p.underlying || p.symbol?.substring(1, 4)).filter(Boolean)));
-      const fetchSymbols = underlyings.length > 0 ? underlyings : ["VPB", "HPG", "FPT", "MSN", "VRE", "VNM"];
-      
-      fetchSymbols.forEach(sym => {
-        getCreditHealth(sym).then(ch => {
-          setCreditHealthMap(prev => ({ ...prev, [sym]: ch }));
-        }).catch(() => { });
-      });
-    }).catch(() => { });
-  }, []);
+    if (!portfolioData) return;
+    
+    const positions = portfolioData?.active_positions || [];
+    const underlyings = Array.from(new Set(positions.map(p => p.underlying || p.symbol?.substring(1, 4)).filter(Boolean)));
+    const fetchSymbols = underlyings.length > 0 ? underlyings : ["VPB", "HPG", "FPT", "MSN", "VRE", "VNM"];
+    
+    fetchSymbols.forEach(sym => {
+      getCreditHealth(sym).then(ch => {
+        setCreditHealthMap(prev => ({ ...prev, [sym]: ch }));
+      }).catch(() => { });
+    });
+  }, [portfolioData]);
 
-  const positions = data?.active_positions || [];
+  const positions = portfolioData?.active_positions || [];
   const hasPositions = positions.length > 0;
-  const nav = data?.total_nav ?? (data?.cash || 100000000);
-  const plVnd = hasPositions ? (data?.cumulative_p_l_vnd ?? 0) : 0;
-  const plPct = hasPositions ? (data?.cumulative_p_l_pct ?? 0) : 0;
-  const cash = data?.cash ?? nav;
+  const nav = portfolioData?.total_nav ?? portfolioData?.cash;
+  const plVnd = hasPositions ? (portfolioData?.cumulative_p_l_vnd ?? 0) : 0;
+  const plPct = hasPositions ? (portfolioData?.cumulative_p_l_pct ?? 0) : 0;
+  const cash = portfolioData?.cash ?? nav;
 
   // Real maturity alerts derived from active positions
-  const nearMaturityPositions = positions.filter(p => (p.days_at_buy || 30) <= 14);
+  const nearMaturityPositions = positions.filter(p => (p.days_at_buy) <= 14);
 
   // Profit/Loss contributors sorted from real positions
   const sortedContributors = [...positions].sort((a, b) => (b.p_l_vnd || 0) - (a.p_l_vnd || 0));

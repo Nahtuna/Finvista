@@ -1,8 +1,18 @@
 // Compatibility surface for existing imports while endpoints live by domain.
 export { API_BASE_URL, request, setAuthTokenProvider } from "./api/client.js";
 export { getAdminSecretStatus } from "./api/admin.js";
-export { getCreditHealth, getHealth, getMarketMetadata } from "./api/system.js";
-export { getUnderlyingMarket } from "./api/market.js";
+export {
+  getCreditHealth,
+  getHealth,
+  getMarketMetadata,
+  triggerDataSync,
+  getDbLastUpdated,
+  getAtcQuickStatus,
+  triggerAtcSync,
+  getAtcStatusFull,
+} from "./api/system.js";
+export { getUnderlyingMarket, getMacroData, refreshAllData } from "./api/market.js";
+
 export {
   getOpportunities,
   getWarrantHistory,
@@ -31,7 +41,8 @@ export {
   getNewsImpact,
   getNewsMLSignal,
   getNewsSentiment,
-  runNewsPipeline
+  runNewsPipeline,
+  getFireantArticles
 } from "./api/news.js";
 export {
   chatCompletion,

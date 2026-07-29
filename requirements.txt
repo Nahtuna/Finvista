@@ -46,3 +46,16 @@ mplfinance>=0.12.10b0
 arch>=7.0.0
 networkx>=3.0
 
+# Background task scheduler (ATC auto-sync)
+APScheduler>=3.10.4
+
+# Holiday handling (skip T7, CN, public holidays)
+holidays>=0.45
+
+# Async event loop nesting (for running async in FastAPI context)
+nest-asyncio>=1.5.8
+
+# Redis caching layer
+redis>=5.0.0
+aioredis>=2.0.0
+

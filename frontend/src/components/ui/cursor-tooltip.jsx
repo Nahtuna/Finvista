@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 
 
 export function pointFromEvent(event) {
-  const viewportWidth = window.innerWidth || 1024;
-  const viewportHeight = window.innerHeight || 768;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
   function clamp(point) {
     return {
       x: Math.max(8, Math.min(point.x, viewportWidth - 190)),

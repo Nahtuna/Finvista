@@ -5,8 +5,10 @@ import { getStoredLanguage } from "../i18n/index.js";
 const AuthContext = createContext(null);
 const TOKEN_STORAGE_KEY = "finvista-access-token";
 
-// Đọc từ .env – nếu không set hoặc set "false" thì app chạy không cần login
-const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED === "true";
+// Đọc từ .env – fallback về window.__FINVISTA_AUTH__ nếu SES block import.meta
+const AUTH_ENABLED =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_AUTH_ENABLED === "true") ||
+  (typeof window !== "undefined" && window.__FINVISTA_AUTH__ === true);
 
 function isEnglishLanguage() {
   return getStoredLanguage() === "en";

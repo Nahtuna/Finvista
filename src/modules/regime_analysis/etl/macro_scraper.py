@@ -26,6 +26,9 @@ def fetch_macro_indicators():
     try:
         # Fetch SBV interbank rates
         sbv_rates = fetch_svb_interbank_rates()
+        if sbv_rates is None:
+            logger.warning("⚠️ SBV rates returned None, using fallback")
+            sbv_rates = {"on_rate": 0.0425}
         interbank_on_rate = sbv_rates.get("on_rate", 0.0425)
         report_date = datetime.now().strftime('%Y-%m-%d')
         

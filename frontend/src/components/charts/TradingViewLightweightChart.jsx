@@ -9,7 +9,8 @@ export function TradingViewLightweightChart({
   resolution = "1D",
   targetPrice: externalTargetPrice,
   onCrosshairMove,
-  onDataLoaded
+  onDataLoaded,
+  forceRefresh = 0
 }) {
   const chartContainerRef = useRef(null);
 
@@ -53,11 +54,11 @@ export function TradingViewLightweightChart({
     });
 
     const regimeSeries = chart.addHistogramSeries({
-      priceScaleId: "regime",
+      priceScaleId: "left",
       priceFormat: { type: "volume" },
     });
 
-    chart.priceScale("regime").applyOptions({
+    chart.priceScale("left").applyOptions({
       scaleMargins: { top: 0, bottom: 0 },
       visible: false,
     });
@@ -127,15 +128,20 @@ export function TradingViewLightweightChart({
       } catch (_) { /* chart was disposed between the check and the call */ }
     }
 
-    const cleanSymbol = (symbol || "VNINDEX").replace("HOSE:", "").replace("HNX:", "").toUpperCase();
+    let cleanSymbol = (symbol || "VNINDEX").replace("HOSE:", "").replace("HNX:", "").toUpperCase();
+    if (cleanSymbol === "CW" || cleanSymbol === "CW-INDEX") {
+      cleanSymbol = "CWINDEX";
+    } else if (cleanSymbol === "HNX" || cleanSymbol === "HNX-INDEX") {
+      cleanSymbol = "HNXINDEX";
+    }
 
     const resolutionDaysMap = {
       "1": 30, "5": 60, "15": 90, "30": 180, "60": 365,
       "1D": 1825, "1W": 3650, "1M": 5475,
     };
-    const days = resolutionDaysMap[resolution] || 1825;
+    const days = resolutionDaysMap[resolution];
     const toTime = Math.floor(Date.now() / 1000);
-    const fromTime = toTime - days * 86400;
+    const fromTime = days ? toTime - days * 86400 : toTime - 1825 * 86400;
 
     // Seeded PRNG — deterministic per symbol so each tab looks different
     function seededRnd(seed) {
@@ -153,7 +159,7 @@ export function TradingViewLightweightChart({
         CWINDEX: 108.45, UPINDEX: 124.21,
         SPX: 5420.10, DJI: 38800, NASDAQ: 17200,
       };
-      const targetPrice = tgtPrice || externalTargetPrice || DEFAULTS[cleanSymbol] || (cleanSymbol.length > 4 ? 1200 : 25000);
+      const targetPrice = tgtPrice || externalTargetPrice || DEFAULTS[cleanSymbol];
 
       const rnd = seededRnd(cleanSymbol.split("").reduce((a, c) => a + c.charCodeAt(0), 0) * 7919);
       const volPct = cleanSymbol.includes("HNX") ? 0.014 : cleanSymbol.includes("CW") || cleanSymbol.includes("INDEX") ? 0.018 : 0.012;
@@ -190,14 +196,15 @@ export function TradingViewLightweightChart({
         currTs += 86400;
       }
 
-      // Shift so last bar ends at targetPrice
+      // Scale so last bar ends exactly at targetPrice without creating negative values
       if (bars.length > 0) {
-        const diff = targetPrice - bars[bars.length - 1].close;
+        const lastClose = bars[bars.length - 1].close;
+        const ratio = lastClose !== 0 ? targetPrice / lastClose : 1;
         for (const b of bars) {
-          b.open = Math.round((b.open + diff) * 100) / 100;
-          b.high = Math.round((b.high + diff) * 100) / 100;
-          b.low = Math.round((b.low + diff) * 100) / 100;
-          b.close = Math.round((b.close + diff) * 100) / 100;
+          b.open = Math.round(b.open * ratio * 100) / 100;
+          b.high = Math.round(b.high * ratio * 100) / 100;
+          b.low = Math.round(b.low * ratio * 100) / 100;
+          b.close = Math.round(b.close * ratio * 100) / 100;
         }
       }
       return bars;
@@ -205,13 +212,13 @@ export function TradingViewLightweightChart({
 
     const isIntraday = ["1", "5", "15", "30", "60"].includes(resolution);
     const backendBase = import.meta.env.VITE_API_BASE_URL || "";
-    const url = `${backendBase}/api/udf/history?symbol=${cleanSymbol}&resolution=${resolution}&from=${fromTime}&to=${toTime}`;
+    const url = `${backendBase}/api/udf/history?symbol=${cleanSymbol}&resolution=${resolution}&from=${fromTime}&to=${toTime}&_t=${Date.now()}`;
 
     // Render initial bars immediately to avoid blank space lag
     const initialFallbackBars = generateFallbackBars();
     safeSetData(initialFallbackBars);
 
-    fetch(url, { signal: abortCtrl.signal })
+    fetch(url, { signal: abortCtrl.signal, cache: "no-store" })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -219,7 +226,7 @@ export function TradingViewLightweightChart({
       .then((data) => {
         if (isDisposed) return;
         if (data.s !== "ok" || !data.t || data.t.length === 0) {
-          renderFallback();
+          safeSetData(generateFallbackBars());
           return;
         }
 
@@ -257,12 +264,12 @@ export function TradingViewLightweightChart({
             onDataLoaded({ ...latest, change, changePct, volume: volumeMap[latest.time] || 0 });
           }
         } else {
-          renderFallback();
+          safeSetData(generateFallbackBars());
         }
       })
       .catch((err) => {
         if (err.name === "AbortError") return;
-        renderFallback();
+        safeSetData(generateFallbackBars());
       });
 
     // Crosshair events

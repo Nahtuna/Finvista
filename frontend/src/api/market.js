@@ -6,5 +6,13 @@ export function getUnderlyingMarket({ forceRefresh = false, newsLimit = 20, lang
     language
   });
   if (forceRefresh) params.set("force_refresh", "true");
-  return request(`/api/market/underlyings?${params.toString()}`);
+  return request(`/api/market/underlyings?${params.toString()}`, { forceRefresh });
+}
+
+export function getMacroData() {
+  return request("/api/market/macro");
+}
+
+export function refreshAllData() {
+  return request("/api/market/refresh-all", { method: "POST" });
 }

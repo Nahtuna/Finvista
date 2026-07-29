@@ -36,12 +36,7 @@ function ChannelToggle({ label, active, onChange }) {
 export function AlertsPage({ language = "vi", preferences = {} }) {
   const { isDark, bg, cardBg, subBg, textColor, mutedText, borderColor } = useThemeTokens(preferences);
 
-  const [alerts, setAlerts] = useState([
-    { id: 1, symbol: "CVPB2404", condType: "price_gte", condValue: "1250", current: "1,210 đ", status: "Active", channel: ["browser"], time: "10:30:21" },
-    { id: 2, symbol: "VN-Index", condType: "index_lte", condValue: "1240", current: "1,245.32", status: "Triggered", channel: ["browser", "telegram"], time: "09:45:12" },
-    { id: 3, symbol: "IV Index", condType: "iv_gte", condValue: "70", current: "68.5%", status: "Active", channel: ["email"], time: "09:15:03" },
-    { id: 4, symbol: "CHPG2405", condType: "delta_gte", condValue: "0.6", current: "0.56", status: "Active", channel: ["browser"], time: "08:30:00" },
-  ]);
+  const [alerts, setAlerts] = useState([]);
 
   const [symbol, setSymbol] = useState("");
   const [condType, setCondType] = useState("price_gte");

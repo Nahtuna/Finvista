@@ -143,15 +143,22 @@ async def trigger_market_scan(
     strategy: str = Query("balanced", regex="^(balanced|safe|aggressive)$"),
 ):
     """
-    Manually trigger a complete real-time market data crawl and quantitative analysis scan.
+    Manually trigger a complete real-time market data crawl, ML credit distress prediction,
+    systemic contagion simulation, and quantitative analysis scan.
     Rate limited to 1 execution per minute per client IP. Broadcasts completion state to WebSockets.
     """
     try:
+        from src.modules.credit_risk.models.credit_step7_evaluate_market import evaluate_market_health
+        from src.modules.credit_risk.models.credit_step8_contagion_model import evaluate_systemic_risk
         from src.modules.cw_pricing.backtest.run_analysis import run_quant_pipeline_programmatic
-        print("⚡ Manual trigger: Real-time quantitative scanner initiated...")
         
-        # We still run this directly here to manage the state and websocket broadcast
-        # but the core logic is in run_quant_pipeline_programmatic
+        print("⚡ Manual trigger: Real-time ML & Quantitative scanner initiated...")
+        
+        # Run ML evaluations first
+        await asyncio.to_thread(evaluate_market_health)
+        await asyncio.to_thread(evaluate_systemic_risk)
+        
+        # Run final CW valuation pipeline
         df = await asyncio.to_thread(run_quant_pipeline_programmatic, strategy=strategy)
         
         state.pipeline_cache["data"] = df
@@ -160,7 +167,7 @@ async def trigger_market_scan(
         await manager.broadcast({
             "event": "market_scan_completed",
             "message": (
-                f"Real-time quantitative scan successfully completed! "
+                f"Real-time ML models and quantitative scan successfully completed! "
                 f"Refreshed {len(df)} Covered Warrants."
             ),
             "timestamp": state.pipeline_cache["last_scanned"],
@@ -169,7 +176,7 @@ async def trigger_market_scan(
         return {
             "status": "success",
             "message": (
-                f"Successfully completed real-time quant scanner! Refreshed {len(df)} warrants."
+                f"Successfully completed real-time ML & quant scanner! Refreshed {len(df)} warrants."
             ),
             "last_updated": state.pipeline_cache["last_scanned"],
         }
@@ -181,12 +188,17 @@ async def trigger_market_scan(
 
 
 async def run_async_scan_task(strategy: str):
-    """Worker function to run heavy quant calculations in a worker thread and broadcast over WS."""
+    """Worker function to run heavy ML & quant calculations in a worker thread and broadcast over WS."""
     try:
+        from src.modules.credit_risk.models.credit_step7_evaluate_market import evaluate_market_health
+        from src.modules.credit_risk.models.credit_step8_contagion_model import evaluate_systemic_risk
         from src.modules.cw_pricing.backtest.run_analysis import run_quant_pipeline_programmatic
-        print(f"⚙️ [Async Background Task] Starting full quant scan under strategy: {strategy}")
+        
+        print(f"⚙️ [Async Background Task] Starting full ML & quant scan under strategy: {strategy}")
+        await asyncio.to_thread(evaluate_market_health)
+        await asyncio.to_thread(evaluate_systemic_risk)
         await asyncio.to_thread(run_quant_pipeline_programmatic, strategy=strategy)
-        print("✅ [Async Background Task] Successfully completed scan and synchronized to database.")
+        print("✅ [Async Background Task] Successfully completed all ML models and quant calculations.")
 
         await manager.broadcast({
             "event": "market_scan_completed",

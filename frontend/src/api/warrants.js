@@ -9,13 +9,14 @@ export function getOpportunities({
   industry = ""
 }) {
   const params = new URLSearchParams({
-    limit: String(limit || 5000)
+    limit: String(limit)
   });
+  if (strategy) params.set("strategy", strategy);
   if (underlying?.trim()) params.set("underlying", underlying.trim().toUpperCase());
   if (forceRefresh) params.set("force_refresh", "true");
   if (vn30Only) params.set("vn30_only", "true");
   if (industry?.trim()) params.set("industry", industry.trim());
-  return request(`/api/warrants/opportunities?${params.toString()}`);
+  return request(`/api/warrants/opportunities?${params.toString()}`, { forceRefresh });
 }
 
 export function getWarrantSimulation(symbol) {

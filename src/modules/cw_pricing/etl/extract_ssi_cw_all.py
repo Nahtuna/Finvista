@@ -128,7 +128,9 @@ def main():
                         import time
                         time.sleep(0.5)
 
-                        quote = vnstock.Quote(symbol=symbol)
+                        # Use new vnstock.api.quote API
+                        from vnstock.api.quote import Quote
+                        quote = Quote(symbol=symbol)
                         hist = quote.history(start=start_date_str, end=end_date_str)
                         
                         if hist.empty or 'close' not in hist.columns:

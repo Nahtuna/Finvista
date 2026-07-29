@@ -34,16 +34,26 @@ HEADERS = {
 }
 
 def normalize_date(raw: str) -> str:
-    """Standardize date strings from Vietstock format (dd/mm/yyyy hh:mm) to YYYY-MM-DD HH:MM."""
+    """Standardize date strings to YYYY-MM-DD HH:MM."""
     if not raw:
         return ""
     raw = raw.strip()
+    # Try ISO format like 2026-07-29T11:47:11+07:00
+    try:
+        if 'T' in raw:
+            dt = datetime.fromisoformat(raw)
+            return dt.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        pass
     # Try dd/mm/yyyy hh:mm
     try:
-        match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})(?:\s+(\d{1,2}:\d{2}))?", raw)
+        match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})(?:\s+(\d{1,2}:\d{2}(?::\d{2})?))?", raw)
         if match:
             d, m, y, t = match.groups()
-            t = t if t else "00:00"
+            if t:
+                t = t[:5]
+            else:
+                t = "00:00"
             return f"{y}-{m.zfill(2)}-{d.zfill(2)} {t}"
     except Exception:
         pass
@@ -209,17 +219,93 @@ class VietstockScraper:
                 logger.error(f"❌ Error scraping event page {page} for {code}: {e}")
                 break
 
+    def _extract_news_content(self, link):
+        """Fetch and extract content (summary) and precise publish time from news link."""
+        summary = ""
+        publish_time = None
+        try:
+            resp = requests.get(link, headers=HEADERS, timeout=15)
+            if resp.status_code != 200:
+                return "", None
+            
+            soup = BeautifulSoup(resp.content, "html.parser")
+            
+            # 1. Try to find explicit summary/lead paragraphs (like p.pHead in Vietstock, p.sapo, etc.)
+            lead_el = soup.select_one("p.pHead, p.sapo, div.sapo, .lead")
+            if lead_el:
+                summary = lead_el.get_text(strip=True)
+
+            # 2. Try to find summary from meta tags if not found on page
+            if not summary:
+                meta_desc = (
+                    soup.find("meta", attrs={"property": "og:description"}) or 
+                    soup.find("meta", attrs={"name": "description"}) or 
+                    soup.find("meta", attrs={"name": "DESCRIPTION"})
+                )
+                if meta_desc:
+                    val = meta_desc.get("content")
+                    if isinstance(val, str):
+                        summary = val.strip()
+
+            # 3. Try to get precise publish date from meta tags
+            pub_meta = (
+                soup.find("meta", attrs={"property": "article:published_time"}) or 
+                soup.find("meta", attrs={"name": "pubdate"}) or 
+                soup.find("meta", attrs={"name": "publish-date"}) or
+                soup.find("meta", attrs={"property": "og:pubdate"})
+            )
+            if pub_meta:
+                val = pub_meta.get("content")
+                if isinstance(val, str):
+                    publish_time = val.strip()
+            
+            # If summary still not found, fallback to body selectors
+            if not summary:
+                content_selectors = [
+                    "div.blog_postcontent",
+                    "div.news-content",
+                    "div.content-detail",
+                    "div.article-content",
+                    "div.detail-content",
+                    "div.fck_detail",
+                    "div.content",
+                    "article",
+                ]
+                for selector in content_selectors:
+                    element = soup.select_one(selector)
+                    if element:
+                        text = element.get_text(separator="\n", strip=True)
+                        lines = [line.strip() for line in text.split("\n") if line.strip()]
+                        summary = "\n".join(lines[:20])
+                        if len(summary) > 500:
+                            break
+            
+            return summary, publish_time
+        except Exception as e:
+            logger.warning(f"⚠️ Could not extract content from {link}: {e}")
+            return "", None
+
     def _save_news(self, symbol, title, link, date, category):
         # Check if news exists
         existing = self.db.query(CorporateNews).filter(CorporateNews.link == link).first()
         if not existing:
+            # Fetch content from link to extract summary
+            summary, publish_time = self._extract_news_content(link)
+            
+            saved_date = date
+            if publish_time:
+                normalized_pub_time = normalize_date(publish_time)
+                if normalized_pub_time:
+                    saved_date = normalized_pub_time
+            
             news = CorporateNews(
                 symbol=symbol,
                 title=title,
                 link=link,
-                date=date,
+                date=saved_date,
                 category=category,
-                source="Vietstock"
+                source="Vietstock",
+                summary=summary
             )
             self.db.add(news)
             try:

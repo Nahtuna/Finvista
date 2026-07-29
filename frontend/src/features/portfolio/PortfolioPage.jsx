@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Briefcase, Plus, Trash2, RefreshCw, TrendingUp, TrendingDown, BarChart2, Clock, AlertTriangle } from "lucide-react";
-import { getPortfolio, placeOrder, resetPortfolio } from "../../api.js";
+import { placeOrder, resetPortfolio } from "../../api.js";
 import { runBacktestApi, runCsvBacktestApi, runLongtermBacktestApi } from "../../api/portfolio.js";
+import { useData } from "../../app/DataContext.jsx";
 import { useToast } from "../../components/ui/toast.jsx";
 import { formatMoney } from "../../lib/formatters.js";
 import { useThemeTokens } from "../../app/useThemeTokens.js";
@@ -20,12 +21,13 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
   const { isDark, bg, cardBg, subBg, textColor, mutedText, borderColor } = useThemeTokens(preferences);
 
   const { addToast } = useToast();
+  const { portfolioData, refreshDataType } = useData();
   const [activeTab, setActiveTab] = useState(initialTab || "danh_sach");
 
   useEffect(() => {
     if (initialTab) setActiveTab(initialTab);
   }, [initialTab]);
-  const [data, setData] = useState(null);
+  
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [formSymbol, setFormSymbol] = useState("");
@@ -33,12 +35,16 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
   const [formQty, setFormQty] = useState(1000);
   const [formPrice, setFormPrice] = useState(1200);
 
+  // Use data from DataContext
+  const data = portfolioData;
+
   function loadPortfolio() {
     setLoading(true);
-    getPortfolio().then(res => setData(res)).catch(() => {}).finally(() => setLoading(false));
+    refreshDataType("portfolio");
+    setLoading(false);
   }
 
-  useEffect(() => { loadPortfolio(); }, []);
+  useEffect(() => { loadPortfolio(); }, [refreshDataType]);
 
   async function handleOrder(symbol, side, qty, price) {
     try {
@@ -571,12 +577,12 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Initial Capital</span><span style={{ fontWeight: "800" }}>{formatMoney(btCapital)} đ</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Net Equity</span><span style={{ fontWeight: "800", color: "#10b981" }}>{formatMoney(btResult.transactionAnalysis?.netEquity || btCapital + btResult.totalReturnVnd)} đ</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Total Profit</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.totalReturnPct}%</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Total Fees</span><span style={{ fontWeight: "800", color: "#f59e0b" }}>{formatMoney(btResult.transactionAnalysis?.totalFees || 1500000)} đ</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Total Fees</span><span style={{ fontWeight: "800", color: "#f59e0b" }}>{formatMoney(btResult.transactionAnalysis?.totalFees)} đ</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Total Trades</span><span style={{ fontWeight: "800" }}>{btResult.totalTrades}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Largest Win</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.transactionAnalysis?.largestWin || 48.7}%</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Largest Loss</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.transactionAnalysis?.largestLoss || -30.4}%</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Avg Win</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.transactionAnalysis?.avgWin || 34.2}%</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Avg Loss</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.transactionAnalysis?.avgLoss || -17.5}%</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Largest Win</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.transactionAnalysis?.largestWin}%</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Largest Loss</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.transactionAnalysis?.largestLoss}%</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Avg Win</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.transactionAnalysis?.avgWin}%</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Avg Loss</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.transactionAnalysis?.avgLoss}%</span></div>
                     </div>
                   </div>
 
@@ -585,13 +591,13 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
                     <h4 style={{ margin: "0 0 1rem 0", color: "#10b981", fontSize: "0.88rem", fontWeight: "900" }}>Performance Metrics</h4>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", fontSize: "0.78rem" }}>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Cumulative Return</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.totalReturnPct}%</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>CAGR</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.cagr || 25.57}%</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>CAGR</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.cagr}%</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Win Rate</span><span style={{ fontWeight: "800", color: "#10b981" }}>{btResult.winRate}%</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Profit Factor (PF)</span><span style={{ fontWeight: "800", color: "#60a5fa" }}>{btResult.profitFactor}</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Sharpe Ratio</span><span style={{ fontWeight: "800", color: "#60a5fa" }}>{btResult.sharpeRatio}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Sortino Ratio</span><span style={{ fontWeight: "800", color: "#a855f7" }}>{btResult.sortinoRatio || 2.94}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Calmar Ratio</span><span style={{ fontWeight: "800", color: "#a855f7" }}>{btResult.calmarRatio || 2.06}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Payoff Ratio</span><span style={{ fontWeight: "800" }}>{btResult.payoffRatio || 1.96}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Sortino Ratio</span><span style={{ fontWeight: "800", color: "#a855f7" }}>{btResult.sortinoRatio}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Calmar Ratio</span><span style={{ fontWeight: "800", color: "#a855f7" }}>{btResult.calmarRatio}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Payoff Ratio</span><span style={{ fontWeight: "800" }}>{btResult.payoffRatio}</span></div>
                       <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Max Drawdown</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.maxDrawdown}%</span></div>
                     </div>
                   </div>
@@ -600,12 +606,12 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
                   <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
                     <h4 style={{ margin: "0 0 1rem 0", color: "#a855f7", fontSize: "0.88rem", fontWeight: "900" }}>Advanced Metrics</h4>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", fontSize: "0.78rem" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Recovery Factor</span><span style={{ fontWeight: "800" }}>{btResult.advancedMetrics?.recoveryFactor || 7.84}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Kelly Criterion</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.advancedMetrics?.kellyCriterion || 19.48}%</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Omega Ratio</span><span style={{ fontWeight: "800" }}>{btResult.advancedMetrics?.omegaRatio || 1.72}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Ulcer Index</span><span style={{ fontWeight: "800" }}>{btResult.advancedMetrics?.ulcerIndex || 0.04}</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>VaR (95%)</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.advancedMetrics?.var95 || -1.60}%</span></div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>CVaR (95%)</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.advancedMetrics?.cvar95 || -1.78}%</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Recovery Factor</span><span style={{ fontWeight: "800" }}>{btResult.advancedMetrics?.recoveryFactor}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Kelly Criterion</span><span style={{ fontWeight: "800", color: "#10b981" }}>+{btResult.advancedMetrics?.kellyCriterion}%</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Omega Ratio</span><span style={{ fontWeight: "800" }}>{btResult.advancedMetrics?.omegaRatio}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>Ulcer Index</span><span style={{ fontWeight: "800" }}>{btResult.advancedMetrics?.ulcerIndex}</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>VaR (95%)</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.advancedMetrics?.var95}%</span></div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: mutedText }}>CVaR (95%)</span><span style={{ fontWeight: "800", color: "#ef4444" }}>{btResult.advancedMetrics?.cvar95}%</span></div>
                     </div>
                   </div>
                 </div>
@@ -619,11 +625,11 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
                     <h4 style={{ margin: "0 0 1rem 0", color: textColor, fontSize: "0.9rem", fontWeight: "900" }}>IS Testing Status (Quantitative Gate Check)</h4>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
                       {[
-                        { name: "Sharpe Ratio", target: "≥ 1.3", val: btResult.sharpeRatio || 1.41, pass: true },
-                        { name: "CAGR", target: "≥ 15%", val: `${btResult.cagr || 20.5}%`, pass: true },
-                        { name: "Max Drawdown", target: "≥ -35%", val: `${btResult.maxDrawdown}%`, pass: true },
-                        { name: "Profit factor", target: "≥ 1.2", val: btResult.profitFactor || 1.71, pass: true },
-                        { name: "Calmar Ratio", target: "≥ 1.1", val: btResult.calmarRatio || 1.66, pass: true },
+                        { name: "Sharpe Ratio", target: "≥ 1.3", val: btResult.sharpeRatio, pass: true },
+                        { name: "CAGR", target: "≥ 15%", val: btResult.cagr ? `${btResult.cagr}%` : "--", pass: true },
+                        { name: "Max Drawdown", target: "≥ -35%", val: btResult.maxDrawdown ? `${btResult.maxDrawdown}%` : "--", pass: true },
+                        { name: "Profit factor", target: "≥ 1.2", val: btResult.profitFactor, pass: true },
+                        { name: "Calmar Ratio", target: "≥ 1.1", val: btResult.calmarRatio, pass: true },
                       ].map((item, idx) => (
                         <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.8rem", background: subBg, borderRadius: "0.375rem" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>

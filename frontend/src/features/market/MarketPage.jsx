@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ArrowUpRight, ArrowDownRight, TrendingUp, BarChart3, PieChart, Newspaper, Tag, Search, RefreshCw, ExternalLink, Loader2 } from "lucide-react";
-import { getUnderlyingMarket, getOpportunities, getMarketRegime } from "../../api.js";
+import { useData } from "../../app/DataContext.jsx";
 import { TradingViewLightweightChart } from "../../components/charts/TradingViewLightweightChart.jsx";
 import { formatNumber, formatMoney } from "../../lib/formatters.js";
 import { useThemeTokens } from "../../app/useThemeTokens.js";
@@ -9,36 +9,37 @@ import { VNDerivativesWidget } from "./components/VNDerivativesWidget.jsx";
 import { SeasonalAnalysisWidget } from "./components/SeasonalAnalysisWidget.jsx";
 import { TechnicalGaugeWidget } from "./components/TechnicalGaugeWidget.jsx";
 import { CoveredWarrantScreener } from "./components/CoveredWarrantScreener.jsx";
+import { refreshMarketScan } from "../../api/warrants.js";
 
 export function MarketPage({ setPage, setSelectedSymbol, language, preferences = {} }) {
   const { isDark, bg, cardBg, subBg, textColor, mutedText, borderColor } = useThemeTokens(preferences);
 
   const isEnglish = language === "en";
+  const { marketData, opportunitiesData, regimeData, refreshDataType } = useData();
   const [activeTab, setActiveTab] = useState("tong_quan");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState("all");
-  const [marketData, setMarketData] = useState(null);
-  const [oppData, setOppData] = useState(null);
-  const [regimeData, setRegimeData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(0);
 
-  function loadMarket(force = false) {
+  async function loadMarket(force = false) {
     setLoading(true);
-    Promise.allSettled([
-      getUnderlyingMarket({ forceRefresh: force }),
-      getOpportunities({ limit: 100, forceRefresh: force }),
-      getMarketRegime()
-    ]).then(([mktRes, oppRes, regRes]) => {
-      if (mktRes.status === "fulfilled") setMarketData(mktRes.value);
-      if (oppRes.status === "fulfilled") setOppData(oppRes.value);
-      if (regRes.status === "fulfilled") setRegimeData(regRes.value);
+    try {
+      if (force) {
+        await refreshMarketScan("balanced");
+      }
+      await refreshDataType("market", force);
+      await refreshDataType("opportunities", force);
+    } catch (e) {
+      console.error("Error refreshing market:", e);
+    } finally {
       setLoading(false);
-    });
+    }
   }
 
   useEffect(() => {
     loadMarket(false);
-  }, []);
+  }, [forceRefresh]);
 
   const stocks = useMemo(() => {
     // Backend API returns underlyings array containing real stock objects
@@ -46,7 +47,7 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
     return raw;
   }, [marketData]);
 
-  const warrants = oppData?.recommendations || [];
+  const warrants = opportunitiesData?.opportunities || [];
 
   const filteredStocks = useMemo(() => {
     return stocks.filter(s => {
@@ -95,7 +96,7 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", color: textColor, background: bg }}>
       
       {/* MACRO BAR - VN INDEX, USD/VND, GOLD, BRENT OIL */}
-      <MacroBar preferences={preferences} />
+      <MacroBar marketData={marketData} preferences={preferences} />
 
       {/* HEADER SECTION */}
       <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -107,14 +108,31 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
         </div>
 
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button onClick={() => loadMarket(true)} style={{ background: subBg, color: textColor, border: `1px solid ${borderColor}`, padding: "0.4rem 0.8rem", borderRadius: "0.375rem", fontSize: "0.85rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem", fontWeight: "700" }}>
+          <button 
+            onClick={() => loadMarket(true)} 
+            disabled={loading}
+            style={{ 
+              background: "#059669", 
+              color: "#fff", 
+              border: "none", 
+              padding: "0.4rem 0.8rem", 
+              borderRadius: "0.375rem", 
+              fontSize: "0.85rem", 
+              cursor: loading ? "not-allowed" : "pointer", 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "0.35rem", 
+              fontWeight: "700",
+              opacity: loading ? 0.6 : 1
+            }}
+          >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Làm mới DB
           </button>
         </div>
       </div>
 
       {/* DERIVATIVES VN30F WIDGET */}
-      <VNDerivativesWidget preferences={preferences} />
+      <VNDerivativesWidget marketData={marketData} preferences={preferences} />
 
       {/* CREED MARKET REGIME ENGINE (HMM 4-STATE) */}
       <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -125,7 +143,7 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
               CREED MARKET REGIME ENGINE (HMM 4-STATE + EMA MULTI-TF)
             </h3>
             <span style={{ fontSize: "0.72rem", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid #10b981", padding: "0.15rem 0.6rem", borderRadius: "0.25rem", fontWeight: "800" }}>
-              LIVE SYNC: 23/07/2026
+              LIVE SYNC: {regimeData?.updated_at || "23/07/2026"}
             </span>
           </div>
           <span style={{ fontSize: "0.78rem", color: "#60a5fa", fontWeight: "700" }}>
@@ -166,40 +184,40 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.15rem" }}>
                     <span style={{ color: "#10b981", fontWeight: "700" }}>State 0: BULLISH_VOL_EXPANSION (Pha Tăng Mở Rộng)</span>
-                    <strong style={{ color: "#10b981" }}>{regimeData?.regime === "BULLISH_VOL_EXPANSION" ? Math.round((regimeData.confidence || 0.98) * 100) : 98.0}%</strong>
+                    <strong style={{ color: "#10b981" }}>{regimeData?.regime === "BULLISH_VOL_EXPANSION" ? Math.round((regimeData.confidence || 0) * 100) : 0}%</strong>
                   </div>
                   <div style={{ width: "100%", height: "6px", background: subBg, border: `1px solid ${borderColor}`, borderRadius: "3px", overflow: "hidden" }}>
-                    <div style={{ width: `${regimeData?.regime === "BULLISH_VOL_EXPANSION" ? Math.round((regimeData.confidence || 0.98) * 100) : 98}%`, height: "100%", background: "#10b981" }} />
+                    <div style={{ width: `${regimeData?.regime === "BULLISH_VOL_EXPANSION" ? Math.round((regimeData.confidence || 0) * 100) : 0}%`, height: "100%", background: "#10b981" }} />
                   </div>
                 </div>
 
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.15rem" }}>
                     <span style={{ color: "#f59e0b", fontWeight: "700" }}>State 1: BULLISH_VOL_CONTRACTION (Pha Tích Lũy Tăng)</span>
-                    <strong style={{ color: "#f59e0b" }}>1.5%</strong>
+                    <strong style={{ color: "#f59e0b" }}>{regimeData?.regime === "BULLISH_VOL_CONTRACTION" ? Math.round((regimeData.confidence || 0) * 100) : 0}%</strong>
                   </div>
                   <div style={{ width: "100%", height: "6px", background: subBg, border: `1px solid ${borderColor}`, borderRadius: "3px", overflow: "hidden" }}>
-                    <div style={{ width: "1.5%", height: "100%", background: "#f59e0b" }} />
+                    <div style={{ width: `${regimeData?.regime === "BULLISH_VOL_CONTRACTION" ? Math.round((regimeData.confidence || 0) * 100) : 0}%`, height: "100%", background: "#f59e0b" }} />
                   </div>
                 </div>
 
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.15rem" }}>
                     <span style={{ color: mutedText, fontWeight: "700" }}>State 2: SIDEWAYS_TURBULENT (Pha Đi Ngang Nhiễu)</span>
-                    <strong style={{ color: mutedText }}>0.4%</strong>
+                    <strong style={{ color: mutedText }}>{regimeData?.regime === "SIDEWAYS_TURBULENT" ? Math.round((regimeData.confidence || 0) * 100) : 0}%</strong>
                   </div>
                   <div style={{ width: "100%", height: "6px", background: subBg, border: `1px solid ${borderColor}`, borderRadius: "3px", overflow: "hidden" }}>
-                    <div style={{ width: "0.4%", height: "100%", background: mutedText }} />
+                    <div style={{ width: `${regimeData?.regime === "SIDEWAYS_TURBULENT" ? Math.round((regimeData.confidence || 0) * 100) : 0}%`, height: "100%", background: mutedText }} />
                   </div>
                 </div>
 
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.15rem" }}>
                     <span style={{ color: "#ef4444", fontWeight: "700" }}>State 3: BEARISH_HIGH_VOL (Pha Giảm Rủi Ro)</span>
-                    <strong style={{ color: "#ef4444" }}>0.1%</strong>
+                    <strong style={{ color: "#ef4444" }}>{regimeData?.regime === "BEARISH_HIGH_VOL" ? Math.round((regimeData.confidence || 0) * 100) : 0}%</strong>
                   </div>
                   <div style={{ width: "100%", height: "6px", background: subBg, border: `1px solid ${borderColor}`, borderRadius: "3px", overflow: "hidden" }}>
-                    <div style={{ width: "0.1%", height: "100%", background: "#ef4444" }} />
+                    <div style={{ width: `${regimeData?.regime === "BEARISH_HIGH_VOL" ? Math.round((regimeData.confidence || 0) * 100) : 0}%`, height: "100%", background: "#ef4444" }} />
                   </div>
                 </div>
               </div>
@@ -262,10 +280,10 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
               <div style={{ fontSize: "0.85rem", color: mutedText, fontWeight: "700" }}>VN-Index</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginTop: "0.35rem" }}>
                 <strong style={{ fontSize: "1.5rem", fontWeight: "900", color: textColor }}>
-                  {formatNumber(marketData?.indices?.VNINDEX?.close || 1678.98, 2)}
+                  {formatNumber(marketData?.indices?.VNINDEX?.close, 2)}
                 </strong>
                 <span style={{ color: (marketData?.indices?.VNINDEX?.change || 0) >= 0 ? "#10b981" : "#ef4444", fontSize: "0.85rem", fontWeight: "700" }}>
-                  {(marketData?.indices?.VNINDEX?.change || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.VNINDEX?.change || 10.48, 2)} ({(marketData?.indices?.VNINDEX?.pct || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.VNINDEX?.pct || 0.63, 2)}%)
+                  {(marketData?.indices?.VNINDEX?.change || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.VNINDEX?.change, 2)} ({(marketData?.indices?.VNINDEX?.pct || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.VNINDEX?.pct, 2)}%)
                 </span>
               </div>
             </div>
@@ -274,10 +292,10 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
               <div style={{ fontSize: "0.85rem", color: mutedText, fontWeight: "700" }}>HNX-Index</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginTop: "0.35rem" }}>
                 <strong style={{ fontSize: "1.5rem", fontWeight: "900", color: textColor }}>
-                  {formatNumber(marketData?.indices?.HNXINDEX?.close || 273.84, 2)}
+                  {formatNumber(marketData?.indices?.HNXINDEX?.close, 2)}
                 </strong>
                 <span style={{ color: (marketData?.indices?.HNXINDEX?.change || 0) >= 0 ? "#10b981" : "#ef4444", fontSize: "0.85rem", fontWeight: "700" }}>
-                  {(marketData?.indices?.HNXINDEX?.change || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.HNXINDEX?.change || -1.65, 2)} ({(marketData?.indices?.HNXINDEX?.pct || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.HNXINDEX?.pct || -0.60, 2)}%)
+                  {(marketData?.indices?.HNXINDEX?.change || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.HNXINDEX?.change, 2)} ({(marketData?.indices?.HNXINDEX?.pct || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.HNXINDEX?.pct, 2)}%)
                 </span>
               </div>
             </div>
@@ -286,10 +304,10 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
               <div style={{ fontSize: "0.85rem", color: mutedText, fontWeight: "700" }}>UPCOM-Index</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginTop: "0.35rem" }}>
                 <strong style={{ fontSize: "1.5rem", fontWeight: "900", color: textColor }}>
-                  {formatNumber(marketData?.indices?.UPCOM?.close || 125.07, 2)}
+                  {formatNumber(marketData?.indices?.UPCOM?.close, 2)}
                 </strong>
                 <span style={{ color: (marketData?.indices?.UPCOM?.change || 0) >= 0 ? "#10b981" : "#ef4444", fontSize: "0.85rem", fontWeight: "700" }}>
-                  {(marketData?.indices?.UPCOM?.change || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.UPCOM?.change || 0.30, 2)} ({(marketData?.indices?.UPCOM?.pct || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.UPCOM?.pct || 0.24, 2)}%)
+                  {(marketData?.indices?.UPCOM?.change || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.UPCOM?.change, 2)} ({(marketData?.indices?.UPCOM?.pct || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.UPCOM?.pct, 2)}%)
                 </span>
               </div>
             </div>
@@ -298,10 +316,10 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
               <div style={{ fontSize: "0.85rem", color: mutedText, fontWeight: "700" }}>VN30</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", marginTop: "0.35rem" }}>
                 <strong style={{ fontSize: "1.5rem", fontWeight: "900", color: textColor }}>
-                  {formatNumber(marketData?.indices?.VN30?.close || 1828.16, 2)}
+                  {formatNumber(marketData?.indices?.VN30?.close, 2)}
                 </strong>
                 <span style={{ color: (marketData?.indices?.VN30?.change || 0) >= 0 ? "#10b981" : "#ef4444", fontSize: "0.85rem", fontWeight: "700" }}>
-                  {(marketData?.indices?.VN30?.change || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.VN30?.change || 1.26, 2)} ({(marketData?.indices?.VN30?.pct || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.VN30?.pct || 0.07, 2)}%)
+                  {(marketData?.indices?.VN30?.change || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.VN30?.change, 2)} ({(marketData?.indices?.VN30?.pct || 0) >= 0 ? "+" : ""}{formatNumber(marketData?.indices?.VN30?.pct, 2)}%)
                 </span>
               </div>
             </div>
@@ -360,32 +378,53 @@ export function MarketPage({ setPage, setSelectedSymbol, language, preferences =
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", textAlign: "left" }}>
                   <thead style={{ position: "sticky", top: 0, background: subBg, zIndex: 5 }}>
                     <tr style={{ borderBottom: `1px solid ${borderColor}`, color: mutedText }}>
-                      <th style={{ padding: "0.6rem" }}>Mã cổ phiếu</th>
-                      <th style={{ padding: "0.6rem" }}>Tên công ty</th>
-                      <th style={{ padding: "0.6rem" }}>Ngành</th>
-                      <th style={{ padding: "0.6rem" }}>Giá hiện tại</th>
-                      <th style={{ padding: "0.6rem" }}>Biến động</th>
-                      <th style={{ padding: "0.6rem" }}>Khối lượng GD</th>
-                      <th style={{ padding: "0.6rem" }}>Số lượng CW lưu hành</th>
+                      <th style={{ padding: "0.6rem", textAlign: "left" }}>Mã cổ phiếu</th>
+                      <th style={{ padding: "0.6rem", textAlign: "left" }}>Tên công ty</th>
+                      <th style={{ padding: "0.6rem", textAlign: "left" }}>Ngành</th>
+                      <th style={{ padding: "0.6rem", textAlign: "right" }}>Giá hiện tại</th>
+                      <th style={{ padding: "0.6rem", textAlign: "right" }}>Biến động</th>
+                      <th style={{ padding: "0.6rem", textAlign: "center" }}>Chi tiết</th>
+                      <th style={{ padding: "0.6rem", textAlign: "right" }}>Khối lượng GD</th>
+                      <th style={{ padding: "0.6rem", textAlign: "right" }}>Số lượng CW lưu hành</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredStocks.map((stk) => {
-                      const priceVal = stk.price || stk.close_price || 24500;
-                      const changeVal = stk.change_pct !== undefined ? stk.change_pct : (stk.pct_change || 0);
-                      const volVal = stk.stock_volume || stk.total_volume || 1540000;
+                      const priceVal = stk.price || stk.close_price;
+                      const changeVal = stk.change_pct !== undefined ? stk.change_pct : (stk.pct_change);
+                      const volVal = stk.stock_volume || stk.total_volume;
 
                       return (
                         <tr key={stk.symbol} style={{ borderBottom: `1px solid ${borderColor}` }}>
-                          <td style={{ padding: "0.75rem 0.6rem", fontWeight: "800", color: "#3b82f6", cursor: "pointer" }} onClick={() => openWarrantDetail(stk.symbol)}>{stk.symbol}</td>
-                          <td style={{ padding: "0.75rem 0.6rem", color: textColor }}>{stk.company_name || stk.symbol}</td>
-                          <td style={{ padding: "0.75rem 0.6rem", color: mutedText }}>{stk.industry || "Ngân hàng"}</td>
-                          <td style={{ padding: "0.75rem 0.6rem", fontWeight: "700", color: textColor }}>{formatMoney(priceVal)} đ</td>
-                          <td style={{ padding: "0.75rem 0.6rem", color: changeVal >= 0 ? "#10b981" : "#ef4444", fontWeight: "700" }}>
+                          <td style={{ padding: "0.75rem 0.6rem", fontWeight: "800", color: "#3b82f6", cursor: "pointer", textAlign: "left" }} onClick={() => openWarrantDetail(stk.symbol)}>{stk.symbol}</td>
+                          <td style={{ padding: "0.75rem 0.6rem", color: textColor, textAlign: "left" }}>{stk.company_name || stk.symbol}</td>
+                          <td style={{ padding: "0.75rem 0.6rem", color: mutedText, textAlign: "left" }}>{stk.industry || "Ngân hàng"}</td>
+                          <td style={{ padding: "0.75rem 0.6rem", fontWeight: "700", color: textColor, textAlign: "right" }}>{formatMoney(priceVal)} đ</td>
+                          <td style={{ padding: "0.75rem 0.6rem", color: changeVal >= 0 ? "#10b981" : "#ef4444", fontWeight: "700", textAlign: "right" }}>
                             {changeVal >= 0 ? "+" : ""}{formatNumber(changeVal, 2)}%
                           </td>
-                          <td style={{ padding: "0.75rem 0.6rem", color: textColor }}>{Math.round(volVal).toLocaleString()}</td>
-                          <td style={{ padding: "0.75rem 0.6rem", fontWeight: "700", color: "#f59e0b" }}>{stk.cw_count || 0} mã CW</td>
+                          <td style={{ padding: "0.75rem 0.6rem", textAlign: "center" }}>
+                            <button
+                              onClick={() => openWarrantDetail(stk.symbol)}
+                              style={{
+                                background: "rgba(59,130,246,0.1)",
+                                color: "#3b82f6",
+                                border: "1px solid rgba(59,130,246,0.3)",
+                                padding: "0.3rem 0.6rem",
+                                borderRadius: "0.3rem",
+                                fontSize: "0.72rem",
+                                fontWeight: "700",
+                                cursor: "pointer",
+                                transition: "all 0.15s"
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.2)"}
+                              onMouseLeave={e => e.currentTarget.style.background = "rgba(59,130,246,0.1)"}
+                            >
+                              Chi tiết
+                            </button>
+                          </td>
+                          <td style={{ padding: "0.75rem 0.6rem", color: textColor, textAlign: "right" }}>{Math.round(volVal).toLocaleString()}</td>
+                          <td style={{ padding: "0.75rem 0.6rem", fontWeight: "700", color: "#f59e0b", textAlign: "right" }}>{stk.cw_count || 0} mã CW</td>
                         </tr>
                       );
                     })}

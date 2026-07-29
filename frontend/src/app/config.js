@@ -1,23 +1,30 @@
+// NAV_ITEMS — 11 core nav items theo ARCHITECTURE spec
+// Settings is accessed ONLY via Profile Avatar menu (to avoid clutter)
 export const NAV_ITEMS = {
   vi: [
-    { id: "intro", label: "Tổng quan" },
-    { id: "market", label: "Thị trường & Vĩ mô" },
-    { id: "cw", label: "Scanner & Phân tích" },
-    { id: "portfolio", label: "Danh mục & Watchlist" },
-    { id: "news", label: "Tin tức & Phân tích" },
-    { id: "alerts", label: "Tiện ích & Cảnh báo" },
-    { id: "settings", label: "Cài đặt" }
+    { id: "intro",     label: "Tổng quan",          icon: "LayoutDashboard" },
+    { id: "market",    label: "Thị trường",          icon: "BarChart2" },
+    { id: "cw",        label: "Scanner & Phân tích", icon: "ScanLine" },
+    { id: "portfolio", label: "Danh mục",            icon: "Briefcase" },
+    { id: "watchlist", label: "Watchlist",           icon: "Bookmark" },
+    { id: "learning",  label: "Learning",            icon: "BookOpen" },
+    { id: "news",      label: "Tin tức",             icon: "Newspaper" },
+    { id: "alerts",    label: "Cảnh báo",            icon: "Bell" },
+    { id: "products",  label: "Sản phẩm",            icon: "Zap" },
   ],
   en: [
-    { id: "intro", label: "Overview" },
-    { id: "market", label: "Market & Macro" },
-    { id: "cw", label: "Scanner & Analytics" },
-    { id: "portfolio", label: "Portfolio & Watchlist" },
-    { id: "news", label: "News & Analysis" },
-    { id: "alerts", label: "Utilities & Alerts" },
-    { id: "settings", label: "Settings" }
+    { id: "intro",     label: "Overview",            icon: "LayoutDashboard" },
+    { id: "market",    label: "Market",              icon: "BarChart2" },
+    { id: "cw",        label: "Scanner & Analytics", icon: "ScanLine" },
+    { id: "portfolio", label: "Portfolio",           icon: "Briefcase" },
+    { id: "watchlist", label: "Watchlist",           icon: "Bookmark" },
+    { id: "learning",  label: "Learning",            icon: "BookOpen" },
+    { id: "news",      label: "News",                icon: "Newspaper" },
+    { id: "alerts",    label: "Alerts",              icon: "Bell" },
+    { id: "products",  label: "Products",            icon: "Zap" },
   ]
 };
+
 
 export const DEFAULT_PREFERENCES = {
   theme: "soft",

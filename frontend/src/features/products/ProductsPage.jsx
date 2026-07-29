@@ -1,13 +1,15 @@
 import React from "react";
 import { Check, ShieldCheck, Zap, Star } from "lucide-react";
+import { useThemeTokens } from "../../app/useThemeTokens.js";
 
-export function ProductsPage({ language = "vi" }) {
+export function ProductsPage({ language = "vi", preferences = {} }) {
   const isEnglish = language === "en";
+  const { isDark, bg, cardBg, subBg, textColor, mutedText, borderColor } = useThemeTokens(preferences);
 
   const tiers = [
     {
       name: "Bản dùng thử (Free)",
-      price: "0đ",
+      price: "0đ / tháng",
       desc: "Bộ công cụ cơ bản đánh giá định giá chứng quyền",
       features: [
         "Định giá chứng quyền (trễ 15 phút)",
@@ -50,14 +52,14 @@ export function ProductsPage({ language = "vi" }) {
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", color: "#fff", background: "#0b0f19" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", color: textColor, background: bg }}>
       
       {/* HEADER BAR (PDF Page 13) */}
-      <div style={{ background: "#131b2e", border: "1px solid #1e293b", borderRadius: "0.75rem", padding: "1.25rem" }}>
-        <h2 style={{ fontSize: "1.5rem", fontWeight: "900", margin: 0, letterSpacing: "0.5px" }}>
+      <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: "900", margin: 0, letterSpacing: "0.5px", color: textColor }}>
           10. SẢN PHẨM & DỊCH VỤ FINVISTA
         </h2>
-        <p style={{ fontSize: "0.82rem", color: "#94a3b8", margin: "0.25rem 0 0 0" }}>
+        <p style={{ fontSize: "0.82rem", color: mutedText, margin: "0.25rem 0 0 0" }}>
           Nâng cấp tài khoản để mở khóa toàn bộ dữ liệu định lượng real-time, Greeks và API backtest.
         </p>
       </div>
@@ -68,8 +70,8 @@ export function ProductsPage({ language = "vi" }) {
           <div
             key={tier.name}
             style={{
-              background: "#131b2e",
-              border: tier.popular ? "2px solid #ef4444" : "1px solid #1e293b",
+              background: cardBg,
+              border: tier.popular ? "2px solid #ef4444" : `1px solid ${borderColor}`,
               borderRadius: "0.75rem",
               padding: "1.5rem",
               display: "flex",
@@ -97,16 +99,16 @@ export function ProductsPage({ language = "vi" }) {
             )}
 
             <div>
-              <h3 style={{ fontSize: "1.15rem", fontWeight: "800", margin: 0 }}>{tier.name}</h3>
-              <p style={{ fontSize: "0.78rem", color: "#94a3b8", margin: "0.35rem 0 1rem 0" }}>{tier.desc}</p>
+              <h3 style={{ fontSize: "1.15rem", fontWeight: "800", margin: 0, color: textColor }}>{tier.name}</h3>
+              <p style={{ fontSize: "0.78rem", color: mutedText, margin: "0.35rem 0 1rem 0" }}>{tier.desc}</p>
               <strong style={{ fontSize: "1.6rem", fontWeight: "900", color: "#10b981" }}>{tier.price}</strong>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", fontSize: "0.8rem", borderTop: "1px solid #1e293b", paddingTop: "1rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", fontSize: "0.8rem", borderTop: `1px solid ${borderColor}`, paddingTop: "1rem" }}>
               {tier.features.map(f => (
                 <div key={f} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <span style={{ color: "#10b981", fontWeight: "800" }}>✓</span>
-                  <span>{f}</span>
+                  <span style={{ color: textColor }}>{f}</span>
                 </div>
               ))}
             </div>
@@ -114,9 +116,9 @@ export function ProductsPage({ language = "vi" }) {
             <button
               style={{
                 width: "100%",
-                background: tier.popular ? "#ef4444" : "#1e293b",
-                color: "#fff",
-                border: "none",
+                background: tier.popular ? "#ef4444" : subBg,
+                color: textColor,
+                border: tier.popular ? "none" : `1px solid ${borderColor}`,
                 padding: "0.6rem",
                 borderRadius: "0.375rem",
                 fontSize: "0.85rem",

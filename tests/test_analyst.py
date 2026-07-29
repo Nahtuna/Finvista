@@ -1,6 +1,11 @@
-import pytest
+import sys
 from unittest.mock import patch, MagicMock
+
+# Mock yfinance to prevent ImportError on system python environments lacking websockets.asyncio
+sys.modules['yfinance'] = MagicMock()
+
 from src.modules.cw_pricing.prompts.analyst_prompt import build_analyst_prompt
+import src.modules.regime_analysis.indicators.hmm_regime
 
 def test_build_analyst_prompt():
     mock_opps = {

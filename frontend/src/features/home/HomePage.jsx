@@ -1,27 +1,48 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { Activity, BarChart3, ShieldCheck, TrendingUp, Code2, MessageSquare, BookOpen, Layers, Wallet, Settings, Bell, Info, Clock, PieChart, TrendingDown, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
+import { Activity, BarChart3, ShieldCheck, TrendingUp, Code2, MessageSquare, BookOpen, Layers, Wallet, Settings, Bell, Info, Clock, PieChart, TrendingDown, ChevronRight, ExternalLink, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider.jsx";
-import { getOpportunities, getPortfolio, getUnderlyingMarket, getMarketRegime } from "../../api.js";
-import { formatNumber, formatSignal, formatMoney } from "../../lib/formatters.js";
+import { getAtcQuickStatus, triggerAtcSync, refreshAllData } from "../../api.js";
+import { getFireantArticles } from "../../api/news.js";
+import { useData } from "../../app/DataContext.jsx";
+import { formatNumber, formatSignal, formatMoney, formatRelativeTime } from "../../lib/formatters.js";
 import { TradingViewLightweightChart } from "../../components/charts/TradingViewLightweightChart.jsx";
 import { useThemeTokens } from "../../app/useThemeTokens.js";
 
 export function HomePage({ setPage, setSelectedSymbol, language, preferences, strategy = "balanced", setStrategy }) {
   const isEnglish = language === "en";
   const auth = useAuth();
-  const [marketBrief, setMarketBrief] = useState(null);
-  const [portfolioData, setPortfolioData] = useState(null);
-  const [marketData, setMarketData] = useState(null);
-  const [regimeData, setRegimeData] = useState(null);
+  const { marketData, portfolioData, opportunitiesData, regimeData, newsData, loading: dataLoading, refreshAllData: contextRefreshAll, refreshDataType } = useData();
   const [selectedNewsModal, setSelectedNewsModal] = useState(null);
-  
+  const [newsArticles, setNewsArticles] = useState([]);
   // Interactive state variables persisted across refresh
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem("finvista-chart-tab") || "VN-INDEX");
   const [selectedTimeframe, setSelectedTimeframe] = useState("3M");
   const [selectedResolution, setSelectedResolution] = useState(() => localStorage.getItem("finvista-chart-resolution") || "1D");
   const [topCwTab, setTopCwTab] = useState("tang_manh");
   const [cashFlowTab, setCashFlowTab] = useState("tong_quan");
+
+  const [isRealtime, setIsRealtime] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(0);
+  const [fullDataRefreshing, setFullDataRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!dataLoading) {
+      setLoading(false);
+    }
+  }, [dataLoading]);
+
+  const fetchRealtimeData = useCallback(async (force = false, background = false) => {
+    if (!background) setRefreshing(true);
+    try {
+      await contextRefreshAll(force);
+    } catch (e) {
+      console.error("Error refreshing realtime data:", e);
+    } finally {
+      if (!background) setRefreshing(false);
+    }
+  }, [contextRefreshAll]);
 
   useEffect(() => {
     localStorage.setItem("finvista-chart-tab", activeTab);
@@ -31,46 +52,93 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
     localStorage.setItem("finvista-chart-resolution", selectedResolution);
   }, [selectedResolution]);
 
-  const [isRealtime, setIsRealtime] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  // ============ ATC DATA FRESHNESS BADGE ============
+  const [atcStatus, setAtcStatus] = useState(null);
+  const [atcStatusLoading, setAtcStatusLoading] = useState(true);
+  const [atcSyncing, setAtcSyncing] = useState(false);
 
-  const fetchRealtimeData = useCallback((showSpinner = false, forceLive = false) => {
-    if (showSpinner) setRefreshing(true);
-    const shouldRefresh = showSpinner || forceLive;
-    Promise.allSettled([
-      getOpportunities({ strategy: strategy || "balanced", limit: 100, forceRefresh: shouldRefresh }),
-      getPortfolio(),
-      getUnderlyingMarket({ forceRefresh: shouldRefresh }),
-      getMarketRegime()
-    ]).then(([oppRes, portRes, mktRes, regRes]) => {
-      if (oppRes.status === "fulfilled") setMarketBrief(oppRes.value);
-      if (portRes.status === "fulfilled") setPortfolioData(portRes.value);
-      if (mktRes.status === "fulfilled") setMarketData(mktRes.value);
-      if (regRes.status === "fulfilled") setRegimeData(regRes.value);
-    }).finally(() => {
-      setLoading(false);
-      if (showSpinner) setRefreshing(false);
-    });
-  }, [strategy]);
+  const fetchAtcQuickStatus = useCallback(async () => {
+    try {
+      const res = await getAtcQuickStatus();
+      setAtcStatus(res || null);
+    } catch (e) {
+      setAtcStatus((prev) => prev);
+    } finally {
+      setAtcStatusLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchRealtimeData(false, false);
+    fetchAtcQuickStatus();
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") fetchAtcQuickStatus();
+    }, 60_000);
+    return () => clearInterval(t);
+  }, [fetchAtcQuickStatus]);
 
-    if (!isRealtime) return;
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        fetchRealtimeData(false, true);
+  // ============ FETCH NEWS ARTICLES ============
+  const fetchNewsArticles = useCallback(async () => {
+    try {
+      console.log("Fetching news articles...");
+      const res = await getFireantArticles(null, 10);
+      console.log("News articles response:", res);
+      console.log("Response type:", typeof res);
+      console.log("Is array?", Array.isArray(res));
+      console.log("Length:", res?.length);
+      if (res && Array.isArray(res) && res.length > 0) {
+        setNewsArticles(res);
+        console.log("Set news articles:", res.length);
+      } else {
+        console.log("Invalid response format or empty array");
+        setNewsArticles([]);
       }
-    }, 5000);
+    } catch (e) {
+      console.error("Error fetching news articles:", e);
+      setNewsArticles([]);
+    }
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [fetchRealtimeData, isRealtime]);
+  useEffect(() => {
+    fetchNewsArticles();
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") fetchNewsArticles();
+    }, 300_000); // Refresh every 5 minutes
+    return () => clearInterval(t);
+  }, [fetchNewsArticles]);
 
-  function openWarrantDetail(symbol) {
+  const handleTriggerAtcSync = async (opts = {}) => {
+    if (atcSyncing) return;
+    setAtcSyncing(true);
+    try {
+      await triggerAtcSync({ syncType: "ALL", blocking: false, force: true, ...opts });
+      setTimeout(() => fetchAtcQuickStatus(), 30_000);
+    } catch (e) {
+      console.error("ATC sync error:", e);
+    } finally {
+      setAtcSyncing(false);
+    }
+  };
+
+  const handleFullDataRefresh = useCallback(async () => {
+    setFullDataRefreshing(true);
+    try {
+      await contextRefreshAll(true);
+      setTimeout(() => {
+        refreshDataType("market", true);
+        setForceRefresh(prev => prev + 1);
+        setFullDataRefreshing(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Full data refresh failed:", error);
+      setFullDataRefreshing(false);
+    }
+  }, [contextRefreshAll, refreshDataType]);
+
+  const openWarrantDetail = (symbol) => {
     if (!symbol) return;
     setSelectedSymbol(symbol.trim().toUpperCase());
-    setPage("detail");
-  }
+    setPage("warrant-detail");
+  };
 
   const today = new Date();
   const dateOptions = { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' };
@@ -83,74 +151,37 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
   // Real portfolio metrics derived dynamically from active positions
   const activePositions = portfolioData?.active_positions || [];
   const hasPositions = activePositions.length > 0;
-  const nav = portfolioData?.total_nav ?? (portfolioData?.cash || 100000000);
-  const cash = portfolioData?.cash ?? nav;
+  const nav = portfolioData?.total_nav ?? portfolioData?.cash ?? 0;
+  const cash = portfolioData?.cash ?? nav ?? 0;
   
-  // Real P/L calculations (returns 0 when portfolio is cleared/empty)
+  // Real P/L calculations (returns 0 when portfolio is cleared/empty or not authenticated)
   const todayPL = hasPositions ? (portfolioData?.today_p_l_vnd ?? portfolioData?.unrealized_p_l_vnd ?? 0) : 0;
   const todayPLPct = hasPositions ? (portfolioData?.today_p_l_pct ?? portfolioData?.unrealized_p_l_pct ?? 0) : 0;
   const plUnrealized = hasPositions ? (portfolioData?.unrealized_p_l_vnd ?? portfolioData?.cumulative_p_l_vnd ?? 0) : 0;
   const plUnrealizedPct = hasPositions ? (portfolioData?.unrealized_p_l_pct ?? portfolioData?.cumulative_p_l_pct ?? 0) : 0;
 
-  // Real recommendations from API
-  const recommendations = marketBrief?.recommendations || [];
-  const defaultOppList = [
-    { symbol: "CACB2511", underlying_symbol: "ACB", recommendation_signal: "BUY", delta: 0.50, implied_volatility_pct: 32.8, composite_g_score: 67.8 },
-    { symbol: "CFPT2403", underlying_symbol: "FPT", recommendation_signal: "MUA TÍCH LŨY", delta: 0.47, implied_volatility_pct: 33.2, composite_g_score: 64.9 },
-    { symbol: "CHPG2405", underlying_symbol: "HPG", recommendation_signal: "MUA TÍCH LŨY", delta: 0.39, implied_volatility_pct: 29.0, composite_g_score: 63.8 },
-    { symbol: "CVPB2404", underlying_symbol: "VPB", recommendation_signal: "THEO DÕI", delta: 0.34, implied_volatility_pct: 36.9, composite_g_score: 61.5 },
-  ];
+  // If not authenticated, show login prompt or skip portfolio section
+  const showPortfolioSection = portfolioData !== null;
+
+  // Real recommendations from DataContext
+  const recommendations = opportunitiesData?.opportunities || [];
 
   const displayRows = useMemo(() => {
-    if (!recommendations || recommendations.length === 0) return defaultOppList;
-    const combined = [...recommendations];
-    for (const defItem of defaultOppList) {
-      if (combined.length >= 4) break;
-      if (!combined.some(r => (r.symbol || r.warrant_symbol) === defItem.symbol)) {
-        combined.push(defItem);
-      }
-    }
-    return combined.slice(0, 4);
+    if (!recommendations || recommendations.length === 0) return [];
+    return recommendations.slice(0, 4);
   }, [recommendations]);
 
-  // Dynamic sorting for Top CW widget with distinct fallbacks per tab
+  // Dynamic sorting for Top CW widget - no fallback, returns empty if no data
   const sortedTopCw = useMemo(() => {
-    if (recommendations && recommendations.length >= 5) {
-      const list = [...recommendations];
-      if (topCwTab === "tang_manh") {
-        return list.sort((a, b) => (b.price_change_pct || b.composite_g_score || 0) - (a.price_change_pct || a.composite_g_score || 0)).slice(0, 5);
-      } else if (topCwTab === "thanh_khoan") {
-        return list.sort((a, b) => (b.volume || b.turnover_billion || 0) - (a.volume || a.turnover_billion || 0)).slice(0, 5);
-      } else {
-        return list.sort((a, b) => (a.price_change_pct || a.composite_g_score || 0) - (b.price_change_pct || b.composite_g_score || 0)).slice(0, 5);
-      }
-    }
-
-    // Fallback data sets distinct per tab
+    if (!recommendations || recommendations.length === 0) return [];
+    
+    const list = [...recommendations];
     if (topCwTab === "tang_manh") {
-      return [
-        { symbol: "CACB2511", issuer: "KIS", price: 1860, price_change_pct: 2.76 },
-        { symbol: "CFPT2401", issuer: "SSI", price: 2450, price_change_pct: 3.80 },
-        { symbol: "CHPG2605", issuer: "HSC", price: 1340, price_change_pct: 2.29 },
-        { symbol: "CMWG2402", issuer: "VPS", price: 1850, price_change_pct: 1.95 },
-        { symbol: "CSTB2403", issuer: "KIS", price: 1420, price_change_pct: 1.50 }
-      ];
+      return list.sort((a, b) => (b.price_change_pct || b.composite_g_score || 0) - (a.price_change_pct || a.composite_g_score || 0)).slice(0, 5);
     } else if (topCwTab === "thanh_khoan") {
-      return [
-        { symbol: "CHPG2539", issuer: "SSI", price: 660, price_change_pct: 0.50, volumeLabel: "1.8M CW" },
-        { symbol: "CVPB2404", issuer: "KIS", price: 1210, price_change_pct: 1.20, volumeLabel: "1.5M CW" },
-        { symbol: "CFPT2405", issuer: "HSC", price: 2100, price_change_pct: 0.85, volumeLabel: "1.2M CW" },
-        { symbol: "CMWG2408", issuer: "ACBS", price: 1750, price_change_pct: -0.40, volumeLabel: "980K CW" },
-        { symbol: "CSTB2401", issuer: "VPS", price: 1150, price_change_pct: 0.20, volumeLabel: "850K CW" }
-      ];
+      return list.sort((a, b) => (b.volume || b.turnover_billion || 0) - (a.volume || a.turnover_billion || 0)).slice(0, 5);
     } else {
-      return [
-        { symbol: "CACB2611", issuer: "KIS", price: 1140, price_change_pct: -10.94 },
-        { symbol: "CACB2604", issuer: "HSC", price: 1030, price_change_pct: -1.90 },
-        { symbol: "CVHM2401", issuer: "ACBS", price: 950, price_change_pct: -2.10 },
-        { symbol: "CVRE2402", issuer: "VPS", price: 1650, price_change_pct: -5.71 },
-        { symbol: "CNDN2401", issuer: "SSI", price: 820, price_change_pct: -3.45 }
-      ];
+      return list.sort((a, b) => (a.price_change_pct || a.composite_g_score || 0) - (b.price_change_pct || b.composite_g_score || 0)).slice(0, 5);
     }
   }, [recommendations, topCwTab]);
 
@@ -159,8 +190,7 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
     "VN-INDEX": "HOSE:VNINDEX",
     "VN30": "HOSE:VN30",
     "HNX-INDEX": "HNX:HNXINDEX",
-    "CW-INDEX": "CWINDEX",
-    "Thế giới": "INDEX:SPX"
+    "CW-INDEX": "CWINDEX"
   };
 
   // Dynamic Cashflow scale based on cashFlowTab
@@ -189,10 +219,13 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
     ? idxCW 
     : idxSPX;
 
-  const currentIdx = chartMetrics ? {
+  // Combine backend API + TradingView callback data
+  // Prioritize backend API, but use TradingView data if it has newer timestamp
+  const currentIdx = chartMetrics && chartMetrics.time ? {
     close: chartMetrics.close,
     change: chartMetrics.change,
-    pct: chartMetrics.changePct
+    pct: chartMetrics.changePct,
+    time: chartMetrics.time
   } : rawIdx;
 
   const { isDark, cardBg, subBg, textColor, mutedText, borderColor: cardBorder } = useThemeTokens(preferences);
@@ -271,6 +304,26 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
           </button>
 
           <button 
+            onClick={handleFullDataRefresh}
+            disabled={fullDataRefreshing || refreshing}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              padding: "0.45rem 0.85rem",
+              fontSize: "0.78rem",
+              background: fullDataRefreshing ? "#ef4444" : "#2563eb",
+              color: "#fff",
+              border: "none",
+              borderRadius: "0.5rem",
+              cursor: "pointer",
+              fontWeight: "700"
+            }}
+          >
+            {fullDataRefreshing ? "Đang refresh..." : "🔄 Refresh All Data"}
+          </button>
+
+          <button 
             onClick={() => setPage("settings")}
             style={{
               display: "flex",
@@ -292,47 +345,76 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
         </div>
       </div>
 
-      {/* 2. TOP 5 KPI CARDS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1rem" }}>
-        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.75rem", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-          <span style={{ fontSize: "0.78rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Total Assets" : "Tổng tài sản"}</span>
-          <strong style={{ fontSize: "1.35rem", fontWeight: "800", color: textColor }}>{formatMoney(nav)} VND</strong>
-          <span style={{ fontSize: "0.78rem", color: "#10b981", fontWeight: "700" }}>▲ Realtime DB Synced</span>
+      {/* 2. COMPACT KPI CARDS */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem" }}>
+        {showPortfolioSection ? (
+          <>
+        {/* Total Assets + Data Status */}
+        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.6rem", padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "0.7rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Total Assets" : "Tổng tài sản"}</span>
+            {(() => {
+              const status = atcStatus;
+              if (atcStatusLoading || !status) {
+                return <RefreshCw size={10} className={atcStatusLoading ? "animate-spin" : ""} style={{ color: mutedText }} />;
+              }
+              const isUpToDate = !!status.is_up_to_date;
+              const color = status.badge_color || (isUpToDate ? "#10b981" : "#ef4444");
+              const Icon = isUpToDate ? CheckCircle2 : AlertTriangle;
+              return (
+                <button
+                  type="button"
+                  onClick={!isUpToDate ? () => handleTriggerAtcSync() : undefined}
+                  style={{ background: "transparent", border: "none", padding: 0, cursor: isUpToDate ? "default" : "pointer" }}
+                >
+                  <Icon size={10} style={{ color }} />
+                </button>
+              );
+            })()}
+          </div>
+          <strong style={{ fontSize: "1.1rem", fontWeight: "800", color: textColor }}>{formatMoney(nav)} VND</strong>
         </div>
 
-        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.75rem", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-          <span style={{ fontSize: "0.78rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Today's P/L" : "Lãi/Lỗ hôm nay"}</span>
-          <strong style={{ fontSize: "1.35rem", fontWeight: "800", color: todayPL >= 0 ? "#10b981" : "#ef4444" }}>
-            {todayPL >= 0 ? "+" : ""}{formatMoney(todayPL)} VND
-          </strong>
-          <span style={{ fontSize: "0.78rem", color: todayPLPct >= 0 ? "#10b981" : "#ef4444", fontWeight: "700" }}>
-            {todayPLPct >= 0 ? "▲" : "▼"} {formatNumber(todayPLPct, 2)}%
-          </span>
+        {/* Today's P/L */}
+        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.6rem", padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <span style={{ fontSize: "0.7rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Today's P/L" : "Lãi/Lỗ hôm nay"}</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.25rem" }}>
+            <strong style={{ fontSize: "1.1rem", fontWeight: "800", color: todayPL >= 0 ? "#10b981" : "#ef4444" }}>
+              {todayPL >= 0 ? "+" : ""}{formatMoney(todayPL)}
+            </strong>
+            <span style={{ fontSize: "0.72rem", color: todayPLPct >= 0 ? "#10b981" : "#ef4444", fontWeight: "700" }}>
+              {todayPLPct >= 0 ? "▲" : "▼"} {formatNumber(todayPLPct, 1)}%
+            </span>
+          </div>
         </div>
 
-        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.75rem", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-          <span style={{ fontSize: "0.78rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Unrealized P/L" : "Lãi/Lỗ chưa thực hiện"}</span>
-          <strong style={{ fontSize: "1.35rem", fontWeight: "800", color: plUnrealized >= 0 ? "#10b981" : "#ef4444" }}>
-            {plUnrealized >= 0 ? "+" : ""}{formatMoney(plUnrealized)} VND
-          </strong>
-          <span style={{ fontSize: "0.78rem", color: plUnrealizedPct >= 0 ? "#10b981" : "#ef4444", fontWeight: "700" }}>
-            {plUnrealizedPct >= 0 ? "▲" : "▼"} {formatNumber(plUnrealizedPct, 2)}%
-          </span>
+        {/* Unrealized P/L */}
+        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.6rem", padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <span style={{ fontSize: "0.7rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Unrealized P/L" : "Lãi/Lỗ chưa thực hiện"}</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.25rem" }}>
+            <strong style={{ fontSize: "1.1rem", fontWeight: "800", color: plUnrealized >= 0 ? "#10b981" : "#ef4444" }}>
+              {plUnrealized >= 0 ? "+" : ""}{formatMoney(plUnrealized)}
+            </strong>
+            <span style={{ fontSize: "0.72rem", color: plUnrealizedPct >= 0 ? "#10b981" : "#ef4444", fontWeight: "700" }}>
+              {plUnrealizedPct >= 0 ? "▲" : "▼"} {formatNumber(plUnrealizedPct, 1)}%
+            </span>
+          </div>
         </div>
 
-        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.75rem", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-          <span style={{ fontSize: "0.78rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Available Purchasing Power" : "Sức mua khả dụng"}</span>
-          <strong style={{ fontSize: "1.35rem", fontWeight: "800", color: textColor }}>{formatMoney(cash)} VND</strong>
-          <span style={{ fontSize: "0.78rem", color: "#60a5fa", fontWeight: "700" }}>💼 Available cash</span>
+        {/* Cash */}
+        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.6rem", padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <span style={{ fontSize: "0.7rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Cash" : "Tiền mặt"}</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.25rem" }}>
+            <strong style={{ fontSize: "1.1rem", fontWeight: "800", color: textColor }}>{formatMoney(cash)}</strong>
+            <span style={{ fontSize: "0.65rem", color: mutedText }}>VND</span>
+          </div>
         </div>
-
-        <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.75rem", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-          <span style={{ fontSize: "0.78rem", color: mutedText, fontWeight: "600" }}>{isEnglish ? "Portfolio Return (1M)" : "Tỷ suất danh mục (1M)"}</span>
-          <strong style={{ fontSize: "1.35rem", fontWeight: "800", color: plUnrealizedPct >= 0 ? "#10b981" : "#ef4444" }}>
-            {formatNumber(plUnrealizedPct, 2)}%
-          </strong>
-          <span style={{ fontSize: "0.78rem", color: "#10b981", fontWeight: "700" }}>▲ Active Portfolio</span>
-        </div>
+          </>
+        ) : (
+          <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.6rem", padding: "1rem", gridColumn: "span 4", textAlign: "center" }}>
+            <span style={{ fontSize: "0.8rem", color: mutedText }}>{isEnglish ? "Login to view portfolio" : "Đăng nhập để xem danh mục đầu tư"}</span>
+          </div>
+        )}
       </div>
 
       {/* 3. MAIN SECTION GRID */}
@@ -347,7 +429,7 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                 <h3 style={{ fontSize: "1.05rem", fontWeight: "800", margin: 0, color: textColor, whiteSpace: "nowrap" }}>Chỉ số & Biến động</h3>
                 <div style={{ display: "flex", gap: "0.25rem", background: subBg, padding: "0.2rem", borderRadius: "0.5rem", flexWrap: "wrap" }}>
-                  {["VN-INDEX", "VN30", "HNX", "CW", "Thế giới"].map(tab => (
+                  {["VN-INDEX", "VN30", "HNX", "CW"].map(tab => (
                     <button
                       key={tab}
                       onClick={() => {
@@ -441,28 +523,48 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
                 )}
                 {activeTab === "CW-INDEX" && (
                   <>
-                    <span style={{ background: subBg, padding: "0.3rem 0.6rem", borderRadius: "0.25rem", border: `1px solid ${cardBorder}` }}>Chỉ số Chứng quyền: <strong style={{ color: textColor }}>100 Mã CW Realtime</strong></span>
+                    <span style={{ background: subBg, padding: "0.3rem 0.6rem", borderRadius: "0.25rem", border: `1px solid ${cardBorder}` }}>Chỉ số Chứng quyền: <strong style={{ color: textColor }}>{idxCW.count || 30} Mã CW Realtime</strong></span>
                     <span style={{ background: "rgba(16,185,129,0.12)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "0.3rem 0.6rem", borderRadius: "0.25rem", fontWeight: "700" }}>▲ THANH KHOẢN SÔI ĐỘNG</span>
                   </>
                 )}
-                {activeTab === "Thế giới" && (
-                  <>
-                    <span style={{ background: subBg, padding: "0.3rem 0.6rem", borderRadius: "0.25rem", border: `1px solid ${cardBorder}` }}>Chỉ số: <strong style={{ color: textColor }}>S&P 500 US</strong></span>
-                    <span style={{ background: "rgba(16,185,129,0.12)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "0.3rem 0.6rem", borderRadius: "0.25rem", fontWeight: "700" }}>▲ TỔNG QUAN THẾ GIỚI</span>
-                  </>
-                )}
+
+                <button 
+                  onClick={() => {
+                    setForceRefresh(prev => prev + 1);
+                    fetchRealtimeData(true, true);
+                  }}
+                  disabled={refreshing}
+                  style={{ 
+                    background: "#059669", 
+                    color: "#fff", 
+                    border: "none", 
+                    padding: "0.3rem 0.7rem", 
+                    borderRadius: "0.375rem", 
+                    fontSize: "0.75rem", 
+                    fontWeight: "800", 
+                    cursor: refreshing ? "not-allowed" : "pointer",
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: "0.3rem",
+                    opacity: refreshing ? 0.6 : 1
+                  }}
+                >
+                  <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+                  {isEnglish ? "Refresh" : "Làm mới"}
+                </button>
               </div>
             </div>
 
             {/* TradingView Lightweight Chart (Bản mượt nội bộ không phụ thuộc iframe TradingView) */}
             <div style={{ height: "420px", borderRadius: "0.5rem", overflow: "hidden" }}>
               <TradingViewLightweightChart 
-                key={activeTab + themeMode + selectedResolution} 
+                key={activeTab + themeMode + selectedResolution + "_" + forceRefresh} 
                 symbol={activeTab === "VN-INDEX" ? "VNINDEX" : activeTab === "VN30" ? "VN30" : activeTab === "HNX-INDEX" ? "HNX" : activeTab} 
                 theme={themeMode} 
                 height={420}
                 resolution={selectedResolution}
                 timeframe={selectedTimeframe}
+                forceRefresh={forceRefresh}
               />
             </div>
           </div>
@@ -617,25 +719,20 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
 
           </div>
 
-          {/* CƠ HỘI HÔM NAY CHO BẠN (WITH STOCK TICKER LOGOS) */}
-          <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.75rem", padding: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-              <h4 style={{ fontSize: "0.95rem", fontWeight: "800", margin: 0, color: textColor }}>Cơ hội hôm nay cho bạn (Tín hiệu DB Realtime)</h4>
-              <button onClick={() => setPage("cw")} style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.78rem", cursor: "pointer", fontWeight: "600" }}>Xem tất cả ›</button>
+          {/* CƠ HỘI HÔM NAY CHO BẠN (COMPACT) */}
+          <div style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: "0.6rem", padding: "0.85rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+              <h4 style={{ fontSize: "0.85rem", fontWeight: "800", margin: 0, color: textColor }}>{isEnglish ? "Today's Opportunities" : "Cơ hội hôm nay"}</h4>
+              <button onClick={() => setPage("cw")} style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.7rem", cursor: "pointer", fontWeight: "600" }}>{isEnglish ? "View all ›" : "Xem tất cả ›"}</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.85rem", alignItems: "stretch" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.5rem" }}>
               {(() => {
                 const stockColors = {
                   ACB: "#1e40af", FPT: "#ea580c", HPG: "#15803d", VPB: "#047857", MBB: "#1d4ed8", VNM: "#0369a1", STB: "#b91c1c", TCB: "#c2410c", SSI: "#2563eb"
                 };
 
-                const activeList = displayRows.length > 0 ? displayRows : [
-                  { symbol: "CACB2511", underlying_symbol: "ACB", recommendation_signal: "BUY", delta: 0.5, implied_volatility_pct: 31.2, composite_g_score: 69.3 },
-                  { symbol: "CFPT2403", underlying_symbol: "FPT", recommendation_signal: "WATCH", delta: 0.47, implied_volatility_pct: 33.2, composite_g_score: 62.9 },
-                  { symbol: "CHPG2405", underlying_symbol: "HPG", recommendation_signal: "MUA TÍCH LŨY", delta: 0.39, implied_volatility_pct: 29.0, composite_g_score: 62.8 },
-                  { symbol: "CVPB2404", underlying_symbol: "VPB", recommendation_signal: "WATCH", delta: 0.34, implied_volatility_pct: 36.9, composite_g_score: 61.0 },
-                ];
+                const activeList = displayRows;
 
                 return activeList.slice(0, 4).map((item, i) => {
                   const rawSignal = item.recommendation_signal || item.decision_signal || "BUY";
@@ -644,10 +741,12 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
                   else if (displaySignal.includes("WATCH") || displaySignal === "THEO DÕI") displaySignal = "THEO DÕI";
                   else if (displaySignal.includes("RISK") || displaySignal.includes("RỦI RO")) displaySignal = "RỦI RO";
 
-                  const gScore = item.composite_g_score || item.score || 65;
-                  const undSym = item.underlying_symbol || item.underlying || "ACB";
+                  const gScore = item.composite_g_score || item.score;
+                  const undSym = item.underlying_symbol || item.underlying;
                   const logoBg = stockColors[undSym] || "#2563eb";
-                  const cwSym = item.warrant_symbol || item.symbol || `C${undSym}2401`;
+                  const cwSym = item.warrant_symbol || item.symbol;
+
+                  const signalColor = displaySignal === "MUA TL" ? "#10b981" : displaySignal === "THEO DÕI" ? "#f59e0b" : "#ef4444";
 
                   return (
                     <div 
@@ -656,8 +755,8 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
                       style={{ 
                         background: isDark ? "#0b0f19" : "#f8fafc", 
                         border: `1px solid ${cardBorder}`, 
-                        borderRadius: "0.5rem", 
-                        padding: "0.85rem",
+                        borderRadius: "0.4rem", 
+                        padding: "0.6rem",
                         cursor: "pointer",
                         display: "flex",
                         flexDirection: "column",
@@ -697,8 +796,8 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
                       </div>
 
                       <div style={{ fontSize: "0.75rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.25rem", margin: "0.4rem 0" }}>
-                        <div>Delta: <strong style={{ color: textColor }}>{formatNumber(item.delta || 0.45, 2)}</strong></div>
-                        <div>IV: <strong style={{ color: textColor }}>{formatNumber(item.implied_volatility_pct || 32, 1)}%</strong></div>
+                        <div>Delta: <strong style={{ color: textColor }}>{formatNumber(item.delta, 2)}</strong></div>
+                        <div>IV: <strong style={{ color: textColor }}>{formatNumber(item.implied_volatility_pct, 1)}%</strong></div>
                       </div>
 
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px dashed ${cardBorder}`, paddingTop: "0.35rem" }}>
@@ -709,6 +808,13 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
                   );
                 });
               })()}
+              
+              {displayRows.length === 0 && (
+                <div style={{ padding: "1.5rem", textAlign: "center", color: mutedText, fontSize: "0.85rem" }}>
+                  <p style={{ margin: 0 }}>Không có cơ hội CW</p>
+                  <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.75rem" }}>Vui lòng kiểm tra API opportunities</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -754,8 +860,8 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {sortedTopCw.map((cw, idx) => {
-                const price = cw.market_price || cw.close_price || cw.price || 1200;
-                const changePct = cw.price_change_pct != null ? cw.price_change_pct : (cw.composite_g_score ? (cw.composite_g_score * 0.6) : 2.5);
+                const price = cw.market_price || cw.close_price || cw.price;
+                const changePct = cw.price_change_pct != null ? cw.price_change_pct : (cw.composite_g_score ? (cw.composite_g_score * 0.6) : 0);
                 const isDown = topCwTab === "giam_manh" || changePct < 0;
                 const color = isDown ? "#ef4444" : "#10b981";
                 const bgTag = isDown ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)";
@@ -794,6 +900,13 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
               })}
             </div>
 
+            {sortedTopCw.length === 0 && (
+              <div style={{ padding: "1.5rem", textAlign: "center", color: mutedText, fontSize: "0.85rem" }}>
+                <p style={{ margin: 0 }}>Không có dữ liệu CW</p>
+                <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.75rem" }}>Vui lòng kiểm tra API opportunities</p>
+              </div>
+            )}
+
             <button onClick={() => setPage("cw")} style={{ width: "100%", background: subBg, border: `1px solid ${cardBorder}`, color: "#3b82f6", padding: "0.45rem", borderRadius: "0.4rem", fontSize: "0.78rem", cursor: "pointer", fontWeight: "700", display: "flex", justifyContent: "center", alignItems: "center", gap: "0.3rem" }}>
               Xem tất cả thị trường CW <ChevronRight size={14} />
             </button>
@@ -809,34 +922,9 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-              <div style={{ background: subBg, border: `1px solid ${cardBorder}`, borderRadius: "0.5rem", padding: "0.6rem 0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <strong style={{ color: "#3b82f6", fontSize: "0.82rem" }}>CVPB2404</strong>
-                  <div style={{ fontSize: "0.68rem", color: mutedText, marginTop: "0.1rem" }}>1,210 đ • 10:30:21</div>
-                </div>
-                <span style={{ background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", padding: "0.2rem 0.5rem", borderRadius: "0.3rem", fontSize: "0.72rem", fontWeight: "800" }}>
-                  Giá &gt; 1,250 đ
-                </span>
-              </div>
-
-              <div style={{ background: subBg, border: `1px solid ${cardBorder}`, borderRadius: "0.5rem", padding: "0.6rem 0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <strong style={{ color: textColor, fontSize: "0.82rem" }}>VN-Index</strong>
-                  <div style={{ fontSize: "0.68rem", color: mutedText, marginTop: "0.1rem" }}>{formatNumber(currentIdx?.close || 1730.56, 2)} • 10:45:12</div>
-                </div>
-                <span style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", padding: "0.2rem 0.5rem", borderRadius: "0.3rem", fontSize: "0.72rem", fontWeight: "800" }}>
-                  Chỉ số &lt; 1,700
-                </span>
-              </div>
-
-              <div style={{ background: subBg, border: `1px solid ${cardBorder}`, borderRadius: "0.5rem", padding: "0.6rem 0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <strong style={{ color: "#3b82f6", fontSize: "0.82rem" }}>CHPG2405</strong>
-                  <div style={{ fontSize: "0.68rem", color: mutedText, marginTop: "0.1rem" }}>0.56 • 08:30:00</div>
-                </div>
-                <span style={{ background: "rgba(59,130,246,0.15)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.3)", padding: "0.2rem 0.5rem", borderRadius: "0.3rem", fontSize: "0.72rem", fontWeight: "800" }}>
-                  Delta &ge; 0.6
-                </span>
+              <div style={{ padding: "1.5rem", textAlign: "center", color: mutedText, fontSize: "0.85rem" }}>
+                <p style={{ margin: 0 }}>Không có cảnh báo nào</p>
+                <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.75rem" }}>Vui lòng thiết lập cảnh báo trong trang Quản lý</p>
               </div>
             </div>
           </div>
@@ -851,71 +939,72 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-              {[
-                {
-                  id: 1,
-                  title: "VN-Index tăng hơn 12 điểm nhờ nhóm ngân hàng dẫn dắt",
-                  source: "Vietstock",
-                  time: "10 phút trước",
-                  category: "Thị trường",
-                  summary: "Dòng tiền lớn lan tỏa mạnh mẽ vào nhóm các mã ngân hàng ACB, MBB, VCB giúp chỉ số VN-Index vượt ngưỡng kháng cự tâm lý 1,280 điểm. Khối lượng giao dịch tăng đột biến 25% so với trung bình 20 phiên.",
-                  url: "https://vietstock.vn",
-                  iconBg: "#1e40af"
-                },
-                {
-                  id: 2,
-                  title: "HPG: Lợi nhuận quý 2/2024 tăng 15% so với cùng kỳ",
-                  source: "CafeF",
-                  time: "35 phút trước",
-                  category: "Doanh nghiệp",
-                  summary: "Tập đoàn Hòa Phát (HPG) vừa công bố kết quả kinh doanh quý 2 với doanh thu & lợi nhuận duy trì đà phục hồi tích cực nhờ sản lượng tiêu thụ thép xây dựng và HRC cải thiện rõ rệt.",
-                  url: "https://cafef.vn",
-                  iconBg: "#15803d"
-                },
-                {
-                  id: 3,
-                  title: "Khối ngoại đẩy mạnh mua ròng chứng quyền VN30 phiên hôm nay",
-                  source: "Finvista Research",
-                  time: "1 giờ trước",
-                  category: "Dòng tiền",
-                  summary: "Khối ngoại ghi nhận giá trị mua ròng hơn 400 tỷ đồng tập trung ở các mã chứng quyền ngân hàng và công nghệ như CACB2511, CFPT2403, CHPG2405.",
-                  url: "https://vneconomy.vn",
-                  iconBg: "#ea580c"
-                }
-              ].map(n => (
-                <div 
-                  key={n.id} 
-                  onClick={() => setSelectedNewsModal(n)}
-                  style={{ 
-                    background: subBg, 
-                    border: `1px solid ${cardBorder}`, 
-                    borderRadius: "0.5rem", 
-                    padding: "0.65rem 0.75rem", 
-                    display: "flex", 
-                    gap: "0.75rem",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    transition: "transform 0.15s ease, border-color 0.15s ease"
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#3b82f6"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder; }}
-                >
-                  {/* Thumbnail Avatar */}
-                  <div style={{ width: "36px", height: "36px", borderRadius: "0.4rem", background: n.iconBg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", fontSize: "0.85rem", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }}>
-                    {n.category === "Thị trường" ? "📈" : n.category === "Doanh nghiệp" ? "🏢" : "💰"}
-                  </div>
+              {(() => {
+                const rawList = newsArticles && newsArticles.length > 0 ? newsArticles : [];
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
-                    <strong style={{ color: textColor, fontSize: "0.8rem", lineHeight: "1.3", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-                      {n.title}
-                    </strong>
-                    <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.68rem", color: mutedText }}>
-                      <span>{n.source}</span>
-                      <span>• {n.time}</span>
+                const displayNews = rawList.slice(0, 3).map((item, idx) => {
+                  const displayTime = formatRelativeTime(item.date || item.published_at || item.time);
+
+                  let category = item.category || "Tin tức";
+                  if (category === "DoanhNghiep" || category === "Doanh nghiệp") category = "Doanh nghiệp";
+                  else if (category === "DongTien" || category === "Dòng tiền") category = "Dòng tiền";
+                  else if (category === "ThiThruong" || category === "Thị trường") category = "Thị trường";
+                  else if (category === "ViMo" || category === "Vĩ mô") category = "Vĩ mô";
+
+                  return {
+                    id: item.id || idx,
+                    title: item.title || "Tin tức tài chính mới nhận",
+                    source: item.source || "Vietstock",
+                    time: displayTime,
+                    category: category,
+                    summary: item.summary || item.content || "",
+                    url: item.url || item.link || "#",
+                    iconBg: item.iconBg || (idx % 3 === 0 ? "#1e40af" : idx % 3 === 1 ? "#15803d" : "#ea580c")
+                  };
+                });
+
+                return displayNews.map(n => (
+                  <div 
+                    key={n.id} 
+                    onClick={() => setSelectedNewsModal(n)}
+                    style={{ 
+                      background: subBg, 
+                      border: `1px solid ${cardBorder}`, 
+                      borderRadius: "0.5rem", 
+                      padding: "0.65rem 0.75rem", 
+                      display: "flex", 
+                      gap: "0.75rem",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      transition: "transform 0.15s ease, border-color 0.15s ease"
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "#3b82f6"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = cardBorder; }}
+                  >
+                    {/* Thumbnail Avatar */}
+                    <div style={{ width: "36px", height: "36px", borderRadius: "0.4rem", background: n.iconBg, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", fontSize: "0.85rem", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.15)" }}>
+                      {n.category === "Thị trường" ? "📈" : n.category === "Doanh nghiệp" ? "🏢" : "💰"}
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", flex: 1, minWidth: 0 }}>
+                      <strong style={{ color: textColor, fontSize: "0.8rem", lineHeight: "1.3", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                        {n.title}
+                      </strong>
+                      <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.68rem", color: mutedText }}>
+                        <span>{n.source}</span>
+                        <span>• {n.time}</span>
+                      </div>
                     </div>
                   </div>
+                ));
+              })()}
+              
+              {newsArticles.length === 0 && (
+                <div style={{ padding: "1.5rem", textAlign: "center", color: mutedText, fontSize: "0.85rem" }}>
+                  <p style={{ margin: 0 }}>Không có dữ liệu tin tức</p>
+                  <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.75rem" }}>Vui lòng kiểm tra kết nối API hoặc database</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -949,14 +1038,23 @@ export function HomePage({ setPage, setSelectedSymbol, language, preferences, st
               <button onClick={() => setSelectedNewsModal(null)} style={{ background: subBg, border: `1px solid ${cardBorder}`, color: textColor, padding: "0.45rem 0.85rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer" }}>
                 Đóng
               </button>
-              <a 
-                href={selectedNewsModal.url || "#"} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ background: "#2563eb", color: "#fff", border: "none", padding: "0.45rem 1rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "800", textDecoration: "none", display: "flex", alignItems: "center", gap: "0.35rem" }}
-              >
-                Đọc nguồn gốc <ExternalLink size={14} />
-              </a>
+              {selectedNewsModal.url && selectedNewsModal.url !== "#" ? (
+                <a 
+                  href={selectedNewsModal.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ background: "#2563eb", color: "#fff", border: "none", padding: "0.45rem 1rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "800", textDecoration: "none", display: "flex", alignItems: "center", gap: "0.35rem" }}
+                >
+                  Đọc nguồn gốc <ExternalLink size={14} />
+                </a>
+              ) : (
+                <button 
+                  onClick={() => setSelectedNewsModal(null)}
+                  style={{ background: "#2563eb", color: "#fff", border: "none", padding: "0.45rem 1rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "800", cursor: "pointer" }}
+                >
+                  Nguồn gốc
+                </button>
+              )}
             </div>
           </div>
         </div>

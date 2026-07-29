@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -31,9 +32,10 @@ if BASE_DIR not in sys.path:
 
 
 # ─── Concurrency config ───────────────────────────────────────────────────────
-DEFAULT_SEMAPHORE  = 8   # Số request đồng thời tối đa (tránh bị ban)
-RETRY_MAX          = 3   # Số lần retry khi gặp lỗi
-RETRY_BACKOFF_BASE = 2.0 # Exponential backoff base (seconds)
+DEFAULT_SEMAPHORE  = 2   # Số request đồng thời tối đa (tránh bị ban) - giảm để tránh rate limit
+RETRY_MAX          = 5   # Số lần retry khi gặp lỗi - tăng để handle rate limit
+RETRY_BACKOFF_BASE = 8.0 # Exponential backoff base (seconds) - tăng thêm để chờ lâu hơn khi rate limit
+BATCH_DELAY        = 3.0  # Delay giữa các batch (seconds) để tránh rate limit - tăng để tránh rate limit
 
 
 class ScraperEngine:
@@ -157,27 +159,34 @@ class ScraperEngine:
             # Upsert records (safe khi chạy song song)
             inserted = 0
             for rec in records:
-                stmt = sqlite_insert(TableModel).values(
-                    symbol=ticker,
-                    date=rec["date"],
-                    open=rec.get("open"),
-                    high=rec.get("high"),
-                    low=rec.get("low"),
-                    close=rec.get("close"),
-                    volume=rec.get("volume"),
-                    ref_price=rec.get("ref_price"),
-                )
-                stmt = stmt.on_conflict_do_update(
-                    index_elements=["symbol", "date"] if hasattr(TableModel, "symbol") else ["id"],
-                    set_={
-                        "close": stmt.excluded.close,
-                        "volume": stmt.excluded.volume,
-                        "high": stmt.excluded.high,
-                        "low": stmt.excluded.low,
-                    }
-                )
-                db.execute(stmt)
-                inserted += 1
+                # Check if record exists
+                if hasattr(TableModel, "symbol"):
+                    existing = db.query(TableModel).filter(
+                        TableModel.symbol == ticker,
+                        TableModel.date == rec["date"]
+                    ).first()
+                    if existing:
+                        # Update existing
+                        existing.close = rec.get("close")
+                        existing.volume = rec.get("volume")
+                        existing.high = rec.get("high")
+                        existing.low = rec.get("low")
+                        existing.open = rec.get("open")
+                        existing.ref_price = rec.get("ref_price")
+                    else:
+                        # Insert new
+                        new_rec = TableModel(
+                            symbol=ticker,
+                            date=rec["date"],
+                            open=rec.get("open"),
+                            high=rec.get("high"),
+                            low=rec.get("low"),
+                            close=rec.get("close"),
+                            volume=rec.get("volume"),
+                            ref_price=rec.get("ref_price"),
+                        )
+                        db.add(new_rec)
+                    inserted += 1
             db.commit()
 
             # Cập nhật state
@@ -202,35 +211,66 @@ class ScraperEngine:
     def _fetch_ohlcv_vnstock(
         self, ticker: str, start_date: str, end_date: str, is_cw: bool
     ) -> List[Dict]:
-        """Fetch OHLCV từ vnstock (sync). Trả về list of dicts."""
-        try:
-            from vnstock import Vnstock
-            stock = Vnstock().stock(symbol=ticker, source="VCI")
-            df = stock.quote.history(
-                start=start_date,
-                end=end_date,
-                interval="1D"
-            )
-            if df is None or df.empty:
-                return []
-            records = []
-            for _, row in df.iterrows():
-                try:
-                    records.append({
-                        "date": str(row.get("time", row.get("date", "")))[:10],
-                        "open": float(row.get("open", 0) or 0),
-                        "high": float(row.get("high", 0) or 0),
-                        "low": float(row.get("low", 0) or 0),
-                        "close": float(row.get("close", 0) or 0),
-                        "volume": float(row.get("volume", 0) or 0),
-                        "ref_price": float(row.get("reference", row.get("ref", 0)) or 0),
-                    })
-                except Exception:
-                    continue
-            return records
-        except Exception as e:
-            print(f"   [ScraperEngine] OHLCV fetch error for {ticker}: {e}")
-            return []
+        """Fetch OHLCV từ vnstock (sync) với retry logic để handle rate limit. Trả về list of dicts."""
+        for attempt in range(RETRY_MAX):
+            try:
+                # Use new vnstock.api.quote API (non-deprecated)
+                from vnstock.api.quote import Quote
+                q = Quote(symbol=ticker, source="VCI")
+                df = q.history(
+                    start=start_date,
+                    end=end_date,
+                    interval="1D"
+                )
+                if df is None or df.empty:
+                    print(f"   [ScraperEngine] No data returned for {ticker} (empty dataframe)")
+                    return []
+                records = []
+                for _, row in df.iterrows():
+                    try:
+                        records.append({
+                            "date": str(row.get("time", row.get("date", "")))[:10],
+                            "open": float(row.get("open", 0) or 0),
+                            "high": float(row.get("high", 0) or 0),
+                            "low": float(row.get("low", 0) or 0),
+                            "close": float(row.get("close", 0) or 0),
+                            "volume": float(row.get("volume", 0) or 0),
+                            "ref_price": float(row.get("reference", row.get("ref", 0)) or 0),
+                        })
+                    except Exception as e:
+                        print(f"   [ScraperEngine] Error parsing row for {ticker}: {e}")
+                        continue
+                if not records:
+                    print(f"   [ScraperEngine] No valid records parsed for {ticker}")
+                return records
+            except SystemExit as e:
+                # vnstock gọi sys.exit() khi rate limit - catch và retry
+                if attempt < RETRY_MAX - 1:
+                    wait_time = RETRY_BACKOFF_BASE * (2 ** attempt)
+                    print(f"   [ScraperEngine] Rate limit hit for {ticker} (attempt {attempt + 1}/{RETRY_MAX}). "
+                          f"Waiting {wait_time:.1f}s before retry...")
+                    time.sleep(wait_time)
+                else:
+                    print(f"   [ScraperEngine] Rate limit retry exhausted for {ticker}. Giving up.")
+                    return []
+            except Exception as e:
+                error_msg = str(e).lower()
+                print(f"   [ScraperEngine] Error fetching {ticker}: {e}")
+                # Detect rate limit errors from vnstock
+                if "rate limit" in error_msg or "quota" in error_msg:
+                    if attempt < RETRY_MAX - 1:
+                        wait_time = RETRY_BACKOFF_BASE * (2 ** attempt)
+                        print(f"   [ScraperEngine] Rate limit detected for {ticker} (attempt {attempt + 1}/{RETRY_MAX}). "
+                              f"Waiting {wait_time:.1f}s before retry...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"   [ScraperEngine] Rate limit retry exhausted for {ticker}. Giving up.")
+                        return []
+                else:
+                    # Other errors - don't retry
+                    print(f"   [ScraperEngine] OHLCV fetch error for {ticker}: {e}")
+                    return []
+        return []
 
     # ──────────────────────────────────────────────────────────────────────────
     # BATCH RUNNER
@@ -241,10 +281,12 @@ class ScraperEngine:
         tickers: Optional[List[str]] = None,
         is_cw: bool = False,
         max_error_skip: int = 5,
+        batch_size: int = 20,
     ) -> Dict[str, Any]:
         """
         Chạy incremental OHLCV cho danh sách ticker (async parallel).
         Tự động bỏ qua ticker có error_count > max_error_skip.
+        Process in batches to avoid rate limit.
         """
         if tickers is None:
             tickers = self._get_all_tickers(is_cw)
@@ -255,11 +297,9 @@ class ScraperEngine:
 
         print(f"⚡ [ScraperEngine] OHLCV Incremental: {len(filtered)} tickers "
               f"({skipped} skipped due to repeated errors)")
+        print(f"⚡ [ScraperEngine] Processing in batches of {batch_size} to avoid rate limit...")
 
         start_time = datetime.now()
-        tasks = [self.scrape_ohlcv_one(ticker, is_cw) for ticker in filtered]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
         summary = {
             "total": len(filtered),
             "success": 0,
@@ -268,16 +308,36 @@ class ScraperEngine:
             "unchanged": 0,
             "error": 0,
             "records_new_total": 0,
-            "duration_seconds": (datetime.now() - start_time).total_seconds(),
+            "duration_seconds": 0,
             "skipped_error_tickers": skipped,
         }
-        for r in results:
+
+        # Process in batches
+        all_results = []
+        for i in range(0, len(filtered), batch_size):
+            batch = filtered[i:i + batch_size]
+            print(f"⚡ [ScraperEngine] Processing batch {i//batch_size + 1}/{(len(filtered) + batch_size - 1)//batch_size} "
+                  f"({len(batch)} tickers)...")
+            
+            tasks = [self.scrape_ohlcv_one(ticker, is_cw) for ticker in batch]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            all_results.extend(results)
+            
+            # Delay between batches to avoid rate limit
+            if i + batch_size < len(filtered):
+                print(f"⚡ [ScraperEngine] Waiting {BATCH_DELAY}s before next batch...")
+                await asyncio.sleep(BATCH_DELAY)
+
+        # Process results
+        for r in all_results:
             if isinstance(r, Exception):
                 summary["error"] += 1
             else:
                 status = r.get("status", "error")
                 summary[status] = summary.get(status, 0) + 1
                 summary["records_new_total"] += r.get("records_new", 0)
+
+        summary["duration_seconds"] = (datetime.now() - start_time).total_seconds()
 
         print(f"✅ [ScraperEngine] Done in {summary['duration_seconds']:.1f}s — "
               f"Success: {summary['success']}, New records: {summary['records_new_total']}, "

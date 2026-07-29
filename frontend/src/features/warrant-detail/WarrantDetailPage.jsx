@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Search, RefreshCw, Zap, TrendingUp, AlertTriangle, ShieldCheck } from "lucide-react";
-import { getWarrantHistory, getWarrantSimulation, getCreditHealth, getOpportunities, getUnderlyingMarket } from "../../api.js";
+import { getWarrantHistory, getWarrantSimulation, getCreditHealth } from "../../api.js";
+import { useData } from "../../app/DataContext.jsx";
 import { TradingViewLightweightChart } from "../../components/charts/TradingViewLightweightChart.jsx";
+import { TradingViewAdvancedChart } from "../../components/charts/TradingViewAdvancedChart.jsx";
 import { formatNumber, formatMoney } from "../../lib/formatters.js";
 import { useThemeTokens } from "../../app/useThemeTokens.js";
 
@@ -14,36 +16,23 @@ export function WarrantDetailPage({
   const { isDark, bg, cardBg, subBg, textColor, mutedText, borderColor } = useThemeTokens(preferences);
 
   const isEnglish = language === "en";
-  const [symbol, setSymbol] = useState(selectedSymbol || "CACB2511");
+  const { opportunitiesData, marketData } = useData();
+  const [symbol, setSymbol] = useState(selectedSymbol);
   const [activeTab, setActiveTab] = useState("tong_quan");
   const [detailData, setDetailData] = useState(null);
   const [creditHealth, setCreditHealth] = useState(null);
-  const [realOpportunities, setRealOpportunities] = useState([]);
-  const [liveUnderlyingMap, setLiveUnderlyingMap] = useState({});
   const [loading, setLoading] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(0);
 
-  useEffect(() => {
-    // Fetch live market data from backend DB with smart caching
-    Promise.allSettled([
-      getOpportunities({ limit: 5000 }),
-      getUnderlyingMarket()
-    ]).then(([oppRes, mktRes]) => {
-      if (oppRes.status === "fulfilled" && oppRes.value?.recommendations) {
-        setRealOpportunities(oppRes.value.recommendations);
-      }
-      if (mktRes.status === "fulfilled" && mktRes.value?.tickers) {
-        setLiveUnderlyingMap(mktRes.value.tickers);
-      }
-    }).catch(() => {});
-  }, []);
+  // Use data from DataContext
+  const realOpportunities = opportunitiesData?.recommendations || [];
+  const liveUnderlyingMap = marketData?.tickers || {};
 
   useEffect(() => {
     const target = selectedSymbol?.trim().toUpperCase();
     if (target) {
       setSymbol(target);
       loadDetail(target);
-    } else {
-      loadDetail("CACB2511");
     }
   }, [selectedSymbol]);
 
@@ -86,47 +75,46 @@ export function WarrantDetailPage({
 
   // Find matching real CW item from backend database opportunities
   const realCwItem = realOpportunities.find(item => 
-    (item.symbol || item.A_MaCW || "").toUpperCase() === sym
+    (item.warrant_symbol || item.symbol || item.A_MaCW || "").toUpperCase() === sym
   );
 
-  const underlyingSym = parsedUnderlying || detailData?.warrant?.underlying_symbol || "ACB";
+  const underlyingSym = parsedUnderlying || detailData?.underlying_symbol;
   
   // Realtime live underlying stock price from backend API
   const underlyingPrice = realCwItem?.underlying_price || 
     liveUnderlyingMap[underlyingSym]?.close || 
-    detailData?.warrant?.underlying_price || 
-    22500;
+    detailData?.underlying_current_price;
 
   // Realtime live CW price from backend API
-  const curPrice = realCwItem?.close_price || 
-    realCwItem?.market_price || 
-    detailData?.warrant?.close_price || 
-    Math.round(underlyingPrice * 0.05);
+  const curPrice = realCwItem?.market_price || 
+    detailData?.current_price;
 
-  const changePct = realCwItem?.price_change_pct ?? detailData?.warrant?.price_change_pct ?? 0.0;
+  const changePct = realCwItem?.price_change_pct;
   
   // Realtime strike price & ratio from backend API
-  const ratio = realCwItem?.conversion_ratio || detailData?.warrant?.conversion_ratio || (underlyingPrice > 50000 ? "5:1" : "2:1");
-  const ratioMult = parseFloat(ratio.split(":")[0]) || 2.0;
-  const strike = realCwItem?.strike_price || detailData?.warrant?.strike_price || Math.round((underlyingPrice * 0.95) / 100) * 100;
+  const ratio = realCwItem?.ratio || "1:1";
+  const ratioMult = ratio ? parseFloat(ratio.split(":")[0]) : null;
+  const strike = realCwItem?.strike_price || detailData?.strike_price;
   
-  const breakeven = realCwItem?.breakeven_price || detailData?.warrant?.breakeven_price || Math.round(strike + (curPrice * ratioMult));
-  const dtm = realCwItem?.days_to_maturity || detailData?.warrant?.days_to_maturity || detailData?.warrant?.dtm || 60;
-  const issuer = realCwItem?.issuer || detailData?.warrant?.issuer || "SSI";
-  const moneyness = realCwItem?.moneyness_status || detailData?.warrant?.moneyness_status || (underlyingPrice >= strike ? "ITM" : "OTM");
-  const sxVal = underlyingPrice - strike;
+  const breakeven = realCwItem?.break_even_price;
+  const dtm = realCwItem?.days_to_maturity || detailData?.days_to_maturity;
+  const issuer = realCwItem?.issuer;
+  const moneyness = realCwItem?.moneyness_status;
+  const sxVal = strike && underlyingPrice ? underlyingPrice - strike : null;
 
-  const delta = realCwItem?.delta ?? detailData?.warrant?.delta ?? (moneyness === "ITM" ? 0.62 : 0.42);
-  const gamma = realCwItem?.gamma ?? detailData?.warrant?.gamma ?? 0.04;
-  const theta = realCwItem?.theta ?? detailData?.warrant?.theta ?? -12.5;
-  const vega = realCwItem?.vega ?? detailData?.warrant?.vega ?? 18.2;
-  const iv = realCwItem?.implied_volatility_pct ?? detailData?.warrant?.implied_volatility_pct ?? 32.0;
-  const hv = realCwItem?.historical_volatility_pct ?? detailData?.warrant?.historical_volatility_pct ?? 28.0;
-  const bsPrice = detailData?.warrant?.theoretical_price || detailData?.warrant?.bs_price || Math.round(curPrice * 1.05);
-  const diffPct = curPrice > 0 ? Math.round(((curPrice - bsPrice) / bsPrice) * 1000) / 10 : 0;
+  const delta = realCwItem?.delta ?? detailData?.delta;
+  const gamma = realCwItem?.gamma ?? null; 
+  const theta = realCwItem?.theta_daily_burn ?? detailData?.theta_daily_burn;
+  const vega = realCwItem?.vega ?? null;
+  const rho = realCwItem?.rho ?? null;
+  const iv = realCwItem?.implied_volatility_pct ?? detailData?.implied_volatility_pct;
+  const hv = realCwItem?.historical_volatility_pct ?? detailData?.historical_volatility_pct;
+  const bsPrice = detailData?.scenarios?.[0]?.matrix?.[3]?.theoretical_price || detailData?.current_price;
+  const rawDiff = curPrice > 0 && bsPrice > 0 ? ((curPrice - bsPrice) / bsPrice) * 100 : 0;
+  const diffPct = Number.isNaN(rawDiff) ? 0 : Math.round(rawDiff * 10) / 10;
   const valuationStatus = diffPct < -3 ? `Định giá thấp (${diffPct}%)` : diffPct > 3 ? `Định giá cao (+${diffPct}%)` : "Định giá phù hợp";
 
-  const signalRaw = (realCwItem?.recommendation_signal || realCwItem?.decision_signal || detailData?.warrant?.recommendation_signal || "WATCH").toUpperCase();
+  const signalRaw = (realCwItem?.recommendation_signal || realCwItem?.decision_signal || "WATCH").toUpperCase();
   let signalLabel = "THEO DÕI";
   let signalBg = "rgba(245,158,11,0.18)";
   let signalColor = "#f59e0b";
@@ -153,9 +141,6 @@ export function WarrantDetailPage({
               <span style={{ background: signalBg, color: signalColor, border: `1px solid ${signalColor}40`, padding: "0.15rem 0.6rem", borderRadius: "0.25rem", fontSize: "0.75rem", fontWeight: "800" }}>
                 {signalLabel}
               </span>
-              <span style={{ background: moneyness === "ITM" ? "rgba(16,185,129,0.18)" : "rgba(245,158,11,0.18)", color: moneyness === "ITM" ? "#10b981" : "#f59e0b", padding: "0.15rem 0.5rem", borderRadius: "0.25rem", fontSize: "0.72rem", fontWeight: "900" }}>
-                ● TRẠNG THÁI: {moneyness}
-              </span>
               <span style={{ fontSize: "0.85rem", color: mutedText }}>Mã cơ sở: <strong style={{ color: textColor }}>{underlyingSym}</strong> (Giá CS: {formatNumber(underlyingPrice, 0)} đ) • TCPH: <strong style={{ color: "#60a5fa" }}>{issuer}</strong></span>
             </div>
           </div>
@@ -171,6 +156,16 @@ export function WarrantDetailPage({
             <button onClick={() => loadDetail(symbol)} style={{ background: "#2563eb", color: "#fff", border: "none", padding: "0.4rem 0.85rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "800", cursor: "pointer" }}>
               Tra cứu
             </button>
+            <button 
+              onClick={() => {
+                setForceRefresh(prev => prev + 1);
+                loadDetail(symbol);
+              }}
+              style={{ background: "#059669", color: "#fff", border: "none", padding: "0.4rem 0.85rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "800", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}
+            >
+              <RefreshCw size={14} />
+              Làm mới
+            </button>
           </div>
         </div>
 
@@ -178,9 +173,7 @@ export function WarrantDetailPage({
         <div style={{ display: "flex", gap: "0.3rem", background: subBg, padding: "0.2rem", borderRadius: "0.4rem", width: "fit-content" }}>
           {[
             { id: "tong_quan", label: "Tổng quan" },
-            { id: "dinh_gia", label: "Định giá BSM" },
-            { id: "greeks", label: "Greeks Sensitivity" },
-            { id: "credit", label: "Sức khỏe Credit CS" },
+            { id: "credit", label: "Sức khỏe Cổ phiếu Cơ sở" },
             { id: "do_thi", label: "Biểu đồ kĩ thuật" }
           ].map(t => (
             <button
@@ -206,8 +199,8 @@ export function WarrantDetailPage({
       {/* TAB CONTENT SWITCHING */}
       {activeTab === "tong_quan" && (
         <>
-          {/* KPI METRIC CARDS */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "0.85rem" }}>
+          {/* KPI METRIC CARDS - CORE INFO ONLY */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
             <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "0.9rem" }}>
               <span style={{ fontSize: "0.75rem", color: mutedText }}>Giá hiện tại</span>
               <strong style={{ fontSize: "1.3rem", fontWeight: "900", display: "block", marginTop: "0.2rem", color: textColor }}>{formatNumber(curPrice, 0)} đ</strong>
@@ -219,31 +212,19 @@ export function WarrantDetailPage({
             <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "0.9rem" }}>
               <span style={{ fontSize: "0.75rem", color: mutedText }}>Giá thực hiện</span>
               <strong style={{ fontSize: "1.3rem", fontWeight: "900", display: "block", marginTop: "0.2rem", color: textColor }}>{formatNumber(strike, 0)} đ</strong>
-              <span style={{ color: mutedText, fontSize: "0.72rem" }}>Tỷ lệ {ratio}</span>
+              <span style={{ color: mutedText, fontSize: "0.72rem" }}>Tỷ lệ chuyển đổi: {ratio}</span>
             </div>
 
             <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "0.9rem" }}>
               <span style={{ fontSize: "0.75rem", color: mutedText }}>Giá Hòa vốn</span>
               <strong style={{ fontSize: "1.3rem", fontWeight: "900", color: "#f59e0b", display: "block", marginTop: "0.2rem" }}>{formatNumber(breakeven, 0)} đ</strong>
-              <span style={{ color: mutedText, fontSize: "0.72rem" }}>S - X: {formatNumber(sxVal, 0)} đ</span>
+              <span style={{ color: mutedText, fontSize: "0.72rem" }}>Chênh lệch S - X: {formatNumber(sxVal, 0)} đ</span>
             </div>
 
             <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "0.9rem" }}>
               <span style={{ fontSize: "0.75rem", color: mutedText }}>Thời hạn & DTM</span>
               <strong style={{ fontSize: "1.3rem", fontWeight: "900", color: "#60a5fa", display: "block", marginTop: "0.2rem" }}>{dtm} ngày</strong>
-              <span style={{ color: mutedText, fontSize: "0.72rem" }}>TCPH: {issuer}</span>
-            </div>
-
-            <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "0.9rem" }}>
-              <span style={{ fontSize: "0.75rem", color: mutedText }}>Delta (Độ nhạy)</span>
-              <strong style={{ fontSize: "1.3rem", fontWeight: "900", color: "#10b981", display: "block", marginTop: "0.2rem" }}>{delta}</strong>
-              <span style={{ color: "#10b981", fontSize: "0.72rem", fontWeight: "700" }}>Nhạy bén cao</span>
-            </div>
-
-            <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "0.9rem" }}>
-              <span style={{ fontSize: "0.75rem", color: mutedText }}>Implied Volatility</span>
-              <strong style={{ fontSize: "1.3rem", fontWeight: "900", color: "#f59e0b", display: "block", marginTop: "0.2rem" }}>{iv}%</strong>
-              <span style={{ color: mutedText, fontSize: "0.72rem" }}>HV {hv}%</span>
+              <span style={{ color: mutedText, fontSize: "0.72rem" }}>TCPH phát hành: {issuer}</span>
             </div>
           </div>
 
@@ -251,31 +232,43 @@ export function WarrantDetailPage({
           <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1fr", gap: "1.25rem" }}>
             <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
               <h4 style={{ fontSize: "0.95rem", fontWeight: "800", margin: "0 0 0.85rem 0", color: textColor }}>BIỂU ĐỒ GIÁ {sym} THỜI GIAN THỰC</h4>
-              <div style={{ height: "300px", borderRadius: "0.5rem", overflow: "hidden" }}>
-                <TradingViewLightweightChart key={sym + preferences.colorMode} symbol={sym} theme={isDark ? "dark" : "light"} height={300} targetPrice={curPrice} />
+              <div style={{ height: "320px", borderRadius: "0.5rem", overflow: "hidden" }}>
+                <TradingViewLightweightChart key={sym + preferences.colorMode} symbol={sym} theme={isDark ? "dark" : "light"} height={320} targetPrice={curPrice} />
               </div>
             </div>
 
             <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
-              <h4 style={{ fontSize: "0.95rem", fontWeight: "800", margin: "0 0 0.85rem 0", color: textColor }}>CHI TIẾT CHỈ SỐ GREEKS</h4>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", fontSize: "0.82rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.4rem" }}>
+              <h4 style={{ fontSize: "0.95rem", fontWeight: "800", margin: "0 0 0.85rem 0", color: textColor }}>ĐỊNH GIÁ & BỘ 5 CHỈ SỐ GREEKS</h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem", fontSize: "0.82rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.35rem" }}>
+                  <span>Implied Volatility (IV)</span>
+                  <strong style={{ color: "#f59e0b" }}>{iv ? iv.toFixed(2) + '%' : '--'}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.35rem" }}>
+                  <span>Historical Volatility (HV)</span>
+                  <strong style={{ color: mutedText }}>{hv ? hv.toFixed(2) + '%' : '--'}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.35rem" }}>
                   <span>Delta (Độ nhạy giá)</span>
-                  <strong style={{ color: "#60a5fa" }}>{delta}</strong>
+                  <strong style={{ color: "#60a5fa" }}>{delta ? delta.toFixed(4) : '--'}</strong>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.4rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.35rem" }}>
                   <span>Gamma (Gia tốc Delta)</span>
-                  <strong style={{ color: textColor }}>{gamma}</strong>
+                  <strong style={{ color: "#8b5cf6" }}>{gamma ? gamma.toFixed(6) : '--'}</strong>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.4rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.35rem" }}>
                   <span>Theta (Hao mòn thời gian)</span>
-                  <strong style={{ color: "#ef4444" }}>{theta} đ/ngày</strong>
+                  <strong style={{ color: "#ef4444" }}>{theta ? theta.toFixed(2) + ' đ/ngày' : '--'}</strong>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.4rem" }}>
-                  <span>Vega (Độ nhạy biến động)</span>
-                  <strong style={{ color: textColor }}>{vega}</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.35rem" }}>
+                  <span>Vega (Nhạy biến động Vol)</span>
+                  <strong style={{ color: "#eab308" }}>{vega ? vega.toFixed(4) : '--'}</strong>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.4rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.35rem" }}>
+                  <span>Rho (Nhạy lãi suất)</span>
+                  <strong style={{ color: "#ec4899" }}>{rho ? rho.toFixed(4) : '--'}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.35rem" }}>
                   <span>Giá lý thuyết Black-Scholes</span>
                   <strong style={{ color: "#10b981" }}>{formatNumber(bsPrice, 0)} đ</strong>
                 </div>
@@ -342,24 +335,116 @@ export function WarrantDetailPage({
       {/* 4.4 CREDIT HEALTH TAB */}
       {activeTab === "credit" && (
         <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
-          <h3 style={{ fontSize: "1.1rem", fontWeight: "800", color: textColor, margin: "0 0 1rem 0" }}>🏥 Sức khỏe Tín dụng Cổ phiếu Cơ sở {underlyingSym} (Altman Z-Score)</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem" }}>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: "800", color: textColor, margin: "0 0 1rem 0" }}>🏥 Sức khỏe Tín dụng Cổ phiếu Cơ sở {underlyingSym}</h3>
+          
+          {/* MAIN CREDIT SCORES / BANKING METRICS */}
+          {creditHealth?.is_bank ? (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "1rem" }}>
+                <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                  <span style={{ fontSize: "0.78rem", color: mutedText }}>Tỷ lệ Nợ xấu (NPL)</span>
+                  <strong style={{ fontSize: "1.6rem", display: "block", color: creditHealth?.financial_ratios?.npl > 0.03 ? "#ef4444" : "#10b981", marginTop: "0.2rem" }}>
+                    {creditHealth?.financial_ratios?.npl !== undefined ? (creditHealth.financial_ratios.npl * 100).toFixed(2) + "%" : "--"}
+                  </strong>
+                  <span style={{ color: creditHealth?.financial_ratios?.npl > 0.03 ? "#ef4444" : "#10b981", fontSize: "0.75rem", fontWeight: "800" }}>
+                    {creditHealth?.financial_ratios?.npl > 0.03 ? "● VƯỢT TRẦN (>3%)" : "● AN TOÀN (<3%)"}
+                  </span>
+                </div>
+                <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                  <span style={{ fontSize: "0.78rem", color: mutedText }}>Hệ số An toàn vốn (CAR)</span>
+                  <strong style={{ fontSize: "1.6rem", display: "block", color: creditHealth?.financial_ratios?.car < 0.08 ? "#ef4444" : "#60a5fa", marginTop: "0.2rem" }}>
+                    {creditHealth?.financial_ratios?.car !== undefined ? (creditHealth.financial_ratios.car * 100).toFixed(2) + "%" : "--"}
+                  </strong>
+                  <span style={{ color: creditHealth?.financial_ratios?.car < 0.08 ? "#ef4444" : "#10b981", fontSize: "0.75rem", fontWeight: "800" }}>
+                    {creditHealth?.financial_ratios?.car < 0.08 ? "● DƯỚI TIÊU CHUẨN (<8%)" : "● ĐẠT CHUẨN BASEL II (>=8%)"}
+                  </span>
+                </div>
+                <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                  <span style={{ fontSize: "0.78rem", color: mutedText }}>Biên lãi thuần (NIM)</span>
+                  <strong style={{ fontSize: "1.6rem", display: "block", color: "#f59e0b", marginTop: "0.2rem" }}>
+                    {creditHealth?.financial_ratios?.nim !== undefined ? (creditHealth.financial_ratios.nim * 100).toFixed(2) + "%" : "--"}
+                  </strong>
+                  <span style={{ color: mutedText, fontSize: "0.75rem" }}>
+                    Hiệu quả sinh lời tài sản
+                  </span>
+                </div>
+              </div>
+
+              {/* BANKING ADDITIONAL RATIOS */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "1rem" }}>
+                <div style={{ background: subBg, padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                  <span style={{ fontSize: "0.75rem", color: mutedText }}>Tỷ lệ Bao phủ nợ xấu (LLR)</span>
+                  <strong style={{ fontSize: "1.2rem", display: "block", color: textColor, marginTop: "0.15rem" }}>
+                    {creditHealth?.financial_ratios?.llr !== undefined ? (creditHealth.financial_ratios.llr * 100).toFixed(1) + "%" : "--"}
+                  </strong>
+                </div>
+                <div style={{ background: subBg, padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                  <span style={{ fontSize: "0.75rem", color: mutedText }}>Tỷ lệ Chi phí/Doanh thu (CIR)</span>
+                  <strong style={{ fontSize: "1.2rem", display: "block", color: textColor, marginTop: "0.15rem" }}>
+                    {creditHealth?.financial_ratios?.cir !== undefined ? (creditHealth.financial_ratios.cir * 100).toFixed(1) + "%" : "--"}
+                  </strong>
+                </div>
+                <div style={{ background: subBg, padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                  <span style={{ fontSize: "0.75rem", color: mutedText }}>Tỷ lệ Dư nợ/Huy động (LDR)</span>
+                  <strong style={{ fontSize: "1.2rem", display: "block", color: textColor, marginTop: "0.15rem" }}>
+                    {creditHealth?.financial_ratios?.ldr !== undefined ? (creditHealth.financial_ratios.ldr * 100).toFixed(1) + "%" : "--"}
+                  </strong>
+                </div>
+                <div style={{ background: subBg, padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                  <span style={{ fontSize: "0.75rem", color: mutedText }}>Hiệu suất sinh lời (ROE)</span>
+                  <strong style={{ fontSize: "1.2rem", display: "block", color: "#10b981", marginTop: "0.15rem" }}>
+                    {creditHealth?.financial_ratios?.roe !== undefined ? (creditHealth.financial_ratios.roe * 100).toFixed(1) + "%" : "--"}
+                  </strong>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "1rem" }}>
+              <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                <span style={{ fontSize: "0.78rem", color: mutedText }}>Altman Z-Score</span>
+                <strong style={{ fontSize: "1.6rem", display: "block", color: "#10b981", marginTop: "0.2rem" }}>
+                  {creditHealth?.distress_scores?.altman_z_score ? formatNumber(creditHealth.distress_scores.altman_z_score, 2) : "--"}
+                </strong>
+                <span style={{ color: creditHealth?.distress_scores?.altman_z_score < 1.81 ? "#ef4444" : "#10b981", fontSize: "0.75rem", fontWeight: "800" }}>
+                  {creditHealth?.distress_scores?.altman_z_score < 1.81 ? "● RỦI RO CAO" : "● VÙNG AN TOÀN"}
+                </span>
+              </div>
+              <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                <span style={{ fontSize: "0.78rem", color: mutedText }}>Springate S-Score</span>
+                <strong style={{ fontSize: "1.6rem", display: "block", color: "#60a5fa", marginTop: "0.2rem" }}>
+                  {creditHealth?.distress_scores?.springate_s_score ? formatNumber(creditHealth.distress_scores.springate_s_score, 2) : "--"}
+                </strong>
+                <span style={{ color: creditHealth?.distress_scores?.springate_distressed ? "#ef4444" : "#10b981", fontSize: "0.75rem", fontWeight: "800" }}>
+                  {creditHealth?.distress_scores?.springate_distressed ? "● RỦI RO CAO" : "● VÙNG AN TOÀN"}
+                </span>
+              </div>
+              <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
+                <span style={{ fontSize: "0.78rem", color: mutedText }}>Zmijewski X-Score</span>
+                <strong style={{ fontSize: "1.6rem", display: "block", color: "#f59e0b", marginTop: "0.2rem" }}>
+                  {creditHealth?.distress_scores?.zmijewski_x_score ? formatNumber(creditHealth.distress_scores.zmijewski_x_score, 2) : "--"}
+                </strong>
+                <span style={{ color: creditHealth?.distress_scores?.zmijewski_distressed ? "#ef4444" : "#10b981", fontSize: "0.75rem", fontWeight: "800" }}>
+                  {creditHealth?.distress_scores?.zmijewski_distressed ? "● RỦI RO CAO" : "● VÙNG AN TOÀN"}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* ADDITIONAL METRICS */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
             <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
-              <span style={{ fontSize: "0.78rem", color: mutedText }}>Altman Z-Score</span>
-              <strong style={{ fontSize: "1.6rem", display: "block", color: "#10b981", marginTop: "0.2rem" }}>
-                {creditHealth?.altman_z_score ? formatNumber(creditHealth.altman_z_score, 2) : "3.12 (SAFE)"}
+              <span style={{ fontSize: "0.78rem", color: mutedText }}>Xác suất Phá sản / Rủi ro tín dụng (ML Model)</span>
+              <strong style={{ fontSize: "1.4rem", display: "block", color: "#10b981", marginTop: "0.2rem" }}>
+                {creditHealth?.credit_metrics?.bankruptcy_probability ? formatNumber(creditHealth.credit_metrics.bankruptcy_probability * 100, 2) + "%" : "--"}
               </strong>
-              <span style={{ color: "#10b981", fontSize: "0.75rem", fontWeight: "800" }}>● VÙNG AN TOÀN TÀI CHÍNH</span>
+              <span style={{ color: mutedText, fontSize: "0.75rem" }}>XGBoost distress probability</span>
             </div>
             <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
-              <span style={{ fontSize: "0.78rem", color: mutedText }}>Xác suất Phá sản (1-Year PD)</span>
-              <strong style={{ fontSize: "1.6rem", display: "block", color: "#10b981", marginTop: "0.2rem" }}>0.08%</strong>
-              <span style={{ color: mutedText, fontSize: "0.75rem" }}>Rủi ro thanh khoản cực thấp</span>
-            </div>
-            <div style={{ background: subBg, padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${borderColor}` }}>
-              <span style={{ fontSize: "0.78rem", color: mutedText }}>Xếp hạng Tín nhiệm Nội bộ</span>
-              <strong style={{ fontSize: "1.6rem", display: "block", color: "#60a5fa", marginTop: "0.2rem" }}>AAA / Sovereign</strong>
-              <span style={{ color: mutedText, fontSize: "0.75rem" }}>Tổ chức uy tín hàng đầu</span>
+              <span style={{ fontSize: "0.78rem", color: mutedText }}>Đồng thuận xếp hạng</span>
+              <strong style={{ fontSize: "1.4rem", display: "block", color: "#60a5fa", marginTop: "0.2rem" }}>
+                {creditHealth?.credit_metrics?.risk_zone || "--"}
+              </strong>
+              <span style={{ color: mutedText, fontSize: "0.75rem" }}>Based on multi-model consensus</span>
             </div>
           </div>
         </div>
@@ -370,7 +455,14 @@ export function WarrantDetailPage({
         <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
           <h3 style={{ fontSize: "1.1rem", fontWeight: "800", color: textColor, margin: "0 0 1rem 0" }}>📈 Biểu đồ Kỹ thuật Chuyên sâu {sym}</h3>
           <div style={{ height: "450px", borderRadius: "0.5rem", overflow: "hidden" }}>
-            <TradingViewLightweightChart key={sym + "full" + preferences.colorMode} symbol={sym} theme={isDark ? "dark" : "light"} height={450} targetPrice={curPrice} />
+            <TradingViewLightweightChart 
+              key={sym + "_" + forceRefresh} 
+              symbol={sym} 
+              theme="dark" 
+              height={450} 
+              resolution="1D"
+              forceRefresh={forceRefresh}
+            />
           </div>
         </div>
       )}
@@ -397,7 +489,7 @@ export function WarrantDetailPage({
               {(() => {
                 const sameUnderlyingCws = realOpportunities
                   .filter(item => (item.underlying_symbol || item.underlying || "").toUpperCase() === underlyingSym.toUpperCase())
-                  .sort((a, b) => (b.composite_g_score || b.score || 0) - (a.composite_g_score || a.score || 0));
+                  .sort((a, b) => (b.composite_g_score || b.score) - (a.composite_g_score || a.score));
 
                 const rowsToRender = sameUnderlyingCws.length > 0 ? sameUnderlyingCws : [
                   {

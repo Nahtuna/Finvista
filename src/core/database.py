@@ -391,6 +391,44 @@ class CorporateMertonCredit(Base):
 
 
 # ==========================================
+# ATC (END-OF-SESSION CLOSE PRICE) MODELS
+# ==========================================
+
+class ATCSyncLog(Base):
+    """
+    Theo dõi lịch sử chạy sync dữ liệu ATC (giá chốt phiên).
+    Giúp kiểm tra xem ngày giao dịch nào đã được sync, trạng thái thành công/thất bại.
+    """
+    __tablename__ = "atc_sync_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    sync_date = Column(String, index=True, nullable=False)          # Ngày phiên giao dịch cần sync (YYYY-MM-DD)
+    sync_type = Column(String, index=True, nullable=False)          # 'STOCK' | 'CW' | 'ALL'
+    trigger_source = Column(String, nullable=False)                 # 'SCHEDULER' | 'STARTUP_CHECK' | 'MANUAL'
+    status = Column(String, index=True, nullable=False)             # 'RUNNING' | 'SUCCESS' | 'FAILED'
+    records_new = Column(Integer, default=0)                        # Số bản ghi mới / cập nhật
+    total_tickers = Column(Integer, default=0)                      # Tổng số ticker đã xử lý
+    error_message = Column(String, nullable=True)                   # Thông báo lỗi nếu thất bại
+    started_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    finished_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class DataFreshnessState(Base):
+    """
+    Theo dõi độ tươi mới dữ liệu theo từng loại.
+    Dùng để check nhanh trong Startup Check thay vì query toàn bộ stock_history/cw_history.
+    """
+    __tablename__ = "data_freshness_state"
+    
+    data_type = Column(String, primary_key=True, index=True)        # 'ATC_STOCK' | 'ATC_CW'
+    latest_trading_day = Column(String, nullable=False)             # Ngày giao dịch gần nhất có dữ liệu (YYYY-MM-DD)
+    last_synced_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_sync_log_id = Column(Integer, ForeignKey("atc_sync_logs.id"), nullable=True)
+    total_records = Column(Integer, default=0)
+
+
+# ==========================================
 # 2. HELPER INITIALIZER
 # ==========================================
 

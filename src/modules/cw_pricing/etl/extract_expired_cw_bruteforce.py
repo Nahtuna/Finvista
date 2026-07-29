@@ -126,7 +126,9 @@ def main():
         try:
             # Re-suppress for every call because vnstock might print on domain instantiation
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                quote = vnstock.Quote(symbol=symbol)
+                # Use new vnstock.api.quote API
+                from vnstock.api.quote import Quote
+                quote = Quote(symbol=symbol)
                 hist = quote.history(start=start_date, end=end_date)
             
             error_consecutive = 0

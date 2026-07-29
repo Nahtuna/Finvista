@@ -175,10 +175,10 @@ def analyze_historical_warrant(cw_symbol: str, lookback_days: int = 20) -> pd.Da
                 # In history_analyzer.py: close is divided by 1000.0 (e.g. r.close / 1000.0) to match vnstock's unit.
                 stock_hist = pd.DataFrame([{
                     'date': r.date,
-                    'open': r.open / 1000.0 if r.open is not None else None,
-                    'high': r.high / 1000.0 if r.high is not None else None,
-                    'low': r.low / 1000.0 if r.low is not None else None,
-                    'close': r.close / 1000.0,  # Convert to thousands to match vnstock unit
+                    'open': (r.open / 1000.0 if r.open > 1000.0 else r.open) if r.open is not None else None,
+                    'high': (r.high / 1000.0 if r.high > 1000.0 else r.high) if r.high is not None else None,
+                    'low': (r.low / 1000.0 if r.low > 1000.0 else r.low) if r.low is not None else None,
+                    'close': r.close / 1000.0 if r.close > 1000.0 else r.close,
                     'volume': r.volume
                 } for r in db_rows])
                 print(f"✅ Loaded {len(stock_hist)} stock historical quotes from SQLite DB.")

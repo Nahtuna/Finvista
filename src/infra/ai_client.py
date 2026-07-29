@@ -152,12 +152,66 @@ class AIClient:
             return ""
     
     def _generate_rule_based_financial_commentary(self, ticker: str, **kwargs) -> str:
-        return f"{ticker} đối mặt với rủi ro tài chính do các chỉ số thanh khoản và nợ vay suy yếu."
+        z_score = kwargs.get("altman_z_score", 0.0)
+        curr_ratio = kwargs.get("current_ratio", 1.0)
+        debt_ratio = kwargs.get("debt_ratio", 0.0)
+        pat = kwargs.get("profit_after_tax", 0.0)
+        ocf = kwargs.get("operating_cash_flow", 0.0)
+        
+        # Format values to billion VND
+        pat_bn = pat / 1e9
+        ocf_bn = ocf / 1e9
+        
+        if z_score < 1.1:
+            status = "nằm trong Vùng Nguy Hiểm (Danger Zone) với rủi ro kiệt quệ tài chính cao"
+        elif z_score <= 2.6:
+            status = "nằm trong Vùng Cảnh Báo (Grey Zone) với sức khỏe tài chính ở mức trung bình"
+        else:
+            status = "nằm trong Vùng An Toàn (Green Zone) với nền tảng tài chính lành mạnh"
+            
+        comment = f"Doanh nghiệp {ticker} hiện {status} (Altman Z-Score đạt {z_score:.2f}). "
+        
+        if debt_ratio > 0.6:
+            comment += f"Tỷ lệ nợ ở mức tương đối cao ({debt_ratio*100:.1f}%), có thể gây áp lực lên chi phí lãi vay. "
+        else:
+            comment += f"Cơ cấu nguồn vốn khá an toàn với tỷ lệ nợ duy trì ở mức {debt_ratio*100:.1f}%. "
+            
+        if curr_ratio < 1.0:
+            comment += f"Khả năng thanh toán ngắn hạn gặp áp lực lớn khi Current Ratio chỉ đạt {curr_ratio:.2f}. "
+        else:
+            comment += f"Khả năng thanh toán ngắn hạn được đảm bảo với hệ số thanh toán hiện thời đạt {curr_ratio:.2f}. "
+            
+        if pat_bn < 0:
+            comment += f"Hoạt động kinh doanh gặp thách thức khi ghi nhận lỗ ròng {abs(pat_bn):.1f} tỷ VND trong kỳ."
+        else:
+            comment += f"Hoạt động kinh doanh ghi nhận mức lãi sau thuế {pat_bn:.1f} tỷ VND cùng dòng tiền HĐKD đạt {ocf_bn:.1f} tỷ VND."
+            
+        return comment
 
     def generate_financial_commentary(self, ticker: str, **kwargs) -> str:
-        response = self.chat([{"role": "user", "content": f"Phân tích {ticker}"}])
+        if self.use_web_api:
+            return self._generate_rule_based_financial_commentary(ticker, **kwargs)
+            
+        z_score = kwargs.get("altman_z_score", 0.0)
+        curr_ratio = kwargs.get("current_ratio", 1.0)
+        debt_ratio = kwargs.get("debt_ratio", 0.0)
+        pat = kwargs.get("profit_after_tax", 0.0)
+        ocf = kwargs.get("operating_cash_flow", 0.0)
+        ebit_to_int = kwargs.get("ebit_to_interest", 9999.0)
+        
+        prompt = (
+            f"Phân tích ngắn gọn sức khỏe tài chính cho mã {ticker}.\n"
+            f"- Altman Z-Score: {z_score:.2f}\n"
+            f"- Tỷ lệ thanh toán hiện thời (Current Ratio): {curr_ratio:.2f}\n"
+            f"- Tỷ lệ nợ (Debt Ratio): {debt_ratio:.2f}\n"
+            f"- Lợi nhuận sau thuế: {pat/1e9:.2f} tỷ VND\n"
+            f"- Dòng tiền HĐKD: {ocf/1e9:.2f} tỷ VND\n"
+            f"- Khả năng trả lãi (ICR): {ebit_to_int:.2f}\n"
+            f"Hãy viết nhận xét tài chính ngắn gọn khoảng 3-4 câu bằng tiếng Việt."
+        )
+        response = self.chat([{"role": "user", "content": prompt}], model="google/gemini-2.5-flash")
         if not response:
-            return self._generate_rule_based_financial_commentary(ticker)
+            return self._generate_rule_based_financial_commentary(ticker, **kwargs)
         return response
     
     def generate_trading_signal_commentary(self, cw_code: str, signal: str, **kwargs) -> str:

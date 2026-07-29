@@ -1,17 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
-import { getHealth, getUnderlyingMarket } from "../api.js";
+import { getHealth, getUnderlyingMarket, getAtcQuickStatus } from "../api.js";
 import { getMarketRegime } from "../api/regime.js";
 import { useAuth } from "../auth/AuthProvider.jsx";
 import { ProfileMenu } from "../components/layout/ProfileMenu.jsx";
-import { CreditHealthPage } from "../features/credit-health/CreditHealthPage.jsx";
 import { HomePage } from "../features/home/HomePage.jsx";
 import { MarketPage } from "../features/market/MarketPage.jsx";
 import { OpportunitiesPage } from "../features/opportunities/OpportunitiesPage.jsx";
 import { SettingsPage } from "../features/settings/SettingsPage.jsx";
 import { WarrantDetailPage } from "../features/warrant-detail/WarrantDetailPage.jsx";
 import { PortfolioPage } from "../features/portfolio/PortfolioPage.jsx";
-import { DashboardPage } from "../features/dashboard/DashboardPage.jsx";
+
 import { WatchlistPage } from "../features/watchlist/WatchlistPage.jsx";
 import { LearningPage } from "../features/learning/LearningPage.jsx";
 import { AlertsPage } from "../features/alerts/AlertsPage.jsx";
@@ -19,13 +18,29 @@ import { ProductsPage } from "../features/products/ProductsPage.jsx";
 import { NewsPage } from "../features/news/NewsPage.jsx";
 import { AIChatWidget } from "../components/chat/AIChatWidget.jsx";
 import { LoginPage } from "../pages/LoginPage.jsx";
+import { LandingPage } from "../pages/LandingPage.jsx";
 import { NAV_ITEMS, STORAGE_KEYS } from "./config.js";
 import { usePreferences } from "./usePreferences.js";
-import { Sun, Moon, Bell, HelpCircle, Mail, MessageSquare } from "lucide-react";
+import {
+  Sun, Moon, Bell, BellOff, HelpCircle, Mail,
+  LayoutDashboard, BarChart2, ScanLine, PieChart, Briefcase,
+  Bookmark, BookOpen, Newspaper, Zap
+} from "lucide-react";
+
+// Icon component map keyed by icon name string from config
+const NAV_ICONS = {
+  LayoutDashboard, BarChart2, ScanLine, PieChart, Briefcase,
+  Bookmark, BookOpen, Newspaper, Bell, Zap
+};
+
 
 export function AppShell() {
   const auth = useAuth();
-  const [page, setPage] = useState(() => localStorage.getItem("finvista-active-page") || "intro");
+  const [page, setPage] = useState(() => {
+    const saved = localStorage.getItem("finvista-active-page");
+    // Show landing page only for brand-new visitors (no saved page)
+    return saved || "landing";
+  });
   const { language, setLanguage, preferences, setPreferences } = usePreferences();
   const [strategy, setStrategy] = useState(() => localStorage.getItem(STORAGE_KEYS.strategy) || "balanced");
   const [health, setHealth] = useState(null);
@@ -33,6 +48,12 @@ export function AppShell() {
   const [healthError, setHealthError] = useState("");
   const [selectedSymbol, setSelectedSymbol] = useState("");
   const [regime, setRegime] = useState(null);
+
+  // ========== ATC STATUS (for sidebar Market Active badge) ==========
+  const [atcQuick, setAtcQuick] = useState(null);
+  const refreshAtcQuick = useCallback(() => {
+    getAtcQuickStatus().then((r) => setAtcQuick(r || null)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.strategy, strategy);
@@ -51,11 +72,8 @@ export function AppShell() {
     localStorage.setItem("finvista-active-page", page);
   }, [page]);
 
-  const sampleNotifications = [
-    { id: 1, symbol: "CVPB2404", message: "Giá vừa chạm ngưỡng > 1,250 đ", time: "10:30:21", type: "success" },
-    { id: 2, symbol: "VN-Index", message: "Chỉ số biến động chạm < 1,700", time: "09:45:12", type: "danger" },
-    { id: 3, symbol: "CHPG2405", message: "Tín hiệu Delta đạt ≥ 0.6", time: "08:30:00", type: "info" },
-  ];
+  // Notifications: empty until real alert system is implemented
+  const notifications = [];
 
   async function refreshHealth() {
     setHealthLoading(true);
@@ -72,6 +90,7 @@ export function AppShell() {
 
   useEffect(() => {
     refreshHealth();
+    refreshAtcQuick();
     getMarketRegime().then(setRegime).catch(() => {});
     getUnderlyingMarket().then(res => {
       if (res?.indices) {
@@ -80,17 +99,33 @@ export function AppShell() {
       }
     }).catch(() => {});
 
-    const interval = setInterval(() => {
+    // Regime: 10s poll (signal-critical)
+    const regimeInterval = setInterval(() => {
       getMarketRegime().then(setRegime).catch(() => {});
+    }, 10_000);
+
+    // Market indices: 30s poll (less volatile)
+    const marketInterval = setInterval(() => {
       getUnderlyingMarket({ forceRefresh: false }).then(res => {
         if (res?.indices) {
           setMarketIndices(res.indices);
           localStorage.setItem("finvista-market-indices", JSON.stringify(res.indices));
         }
       }).catch(() => {});
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    }, 30_000);
+
+    // ATC data freshness: 2 minutes poll (non-critical, just for badge display)
+    const atcInterval = setInterval(() => {
+      if (document.visibilityState === "visible") refreshAtcQuick();
+    }, 120_000);
+
+    return () => {
+      clearInterval(regimeInterval);
+      clearInterval(marketInterval);
+      clearInterval(atcInterval);
+    };
+  }, [refreshAtcQuick]);
+
 
   const currentNavItems = NAV_ITEMS[language] || NAV_ITEMS.en;
 
@@ -119,18 +154,22 @@ export function AppShell() {
   };
 
   const isDark = preferences.colorMode === "dark";
-  const sidebarBg = isDark ? "#0f172a" : "#ffffff";
+  // Use CSS custom properties for colors — avoids duplicating theme logic in JS
   const sidebarBorder = isDark ? "rgba(255,255,255,0.08)" : "#e2e8f0";
   const sidebarTextColor = isDark ? "#94a3b8" : "#475569";
   const sidebarActiveBg = isDark ? "rgba(37,99,235,0.15)" : "#e0e7ff";
   const sidebarActiveColor = isDark ? "#60a5fa" : "#1d4ed8";
-  
-  const headerBg = isDark ? "#0f172a" : "#ffffff";
   const headerBorder = isDark ? "rgba(255,255,255,0.08)" : "#e2e8f0";
   const headerTextColor = isDark ? "#ffffff" : "#0f172a";
   const searchBg = isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9";
   const searchBorder = isDark ? "rgba(255,255,255,0.1)" : "#cbd5e1";
   const searchColor = isDark ? "#fff" : "#0f172a";
+
+
+  // Full-screen landing page — no sidebar/header
+  if (page === "landing") {
+    return <LandingPage onEnterApp={() => setPage("intro")} />;
+  }
 
   return (
     <div
@@ -146,7 +185,7 @@ export function AppShell() {
     >
       {/* LEFT SIDEBAR NAVIGATION */}
       <aside className="sidebar-nav" style={{
-        background: sidebarBg,
+        background: isDark ? "var(--surface-bg, #0b0f19)" : "#ffffff",
         borderRight: `1px solid ${sidebarBorder}`,
         display: "flex",
         flexDirection: "column",
@@ -168,40 +207,79 @@ export function AppShell() {
 
           {/* Navigation Links */}
           <nav aria-label="Main navigation" style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-            {currentNavItems.map((item) => (
-              <button
-                key={item.id}
-                className={`sidebar-nav-item ${page === item.id ? "active" : ""}`}
-                onClick={() => setPage(item.id)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  width: "100%",
-                  padding: "0.6rem 0.85rem",
-                  borderRadius: "0.375rem",
-                  background: page === item.id ? sidebarActiveBg : "transparent",
-                  color: page === item.id ? sidebarActiveColor : sidebarTextColor,
-                  border: page === item.id ? (isDark ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(0,0,0,0.12)") : "1px solid transparent",
-                  fontSize: "0.875rem",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  textAlign: "left",
-                  transition: "all 0.15s"
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
+            {currentNavItems.map((item) => {
+              const Icon = NAV_ICONS[item.icon];
+              return (
+                <button
+                  key={item.id}
+                  className={`sidebar-nav-item ${page === item.id ? "active" : ""}`}
+                  onClick={() => setPage(item.id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    width: "100%",
+                    padding: "0.6rem 0.85rem",
+                    borderRadius: "0.375rem",
+                    background: page === item.id ? sidebarActiveBg : "transparent",
+                    color: page === item.id ? sidebarActiveColor : sidebarTextColor,
+                    border: page === item.id ? (isDark ? "1px solid rgba(255,255,255,0.12)" : "1px solid rgba(0,0,0,0.12)") : "1px solid transparent",
+                    fontSize: "0.875rem",
+                    fontWeight: page === item.id ? "700" : "500",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.15s"
+                  }}
+                >
+                  {Icon && <Icon size={15} style={{ flexShrink: 0, opacity: page === item.id ? 1 : 0.7 }} />}
+                  {item.label}
+                </button>
+              );
+            })}
           </nav>
         </div>
 
         {/* Sidebar Footer Extras */}
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", borderTop: `1px solid ${sidebarBorder}`, paddingTop: "0.75rem" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: sidebarTextColor, fontSize: "0.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: sidebarTextColor, fontSize: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
             <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "#10b981", fontWeight: "600" }}>
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }}></span>
+              <span style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: atcQuick?.badge_color || "#10b981",
+                boxShadow: `0 0 0 2px ${(atcQuick?.badge_color || "#10b981")}22`,
+              }}></span>
               {language === "en" ? "Market Active" : "Thị trường hoạt động"}
             </span>
+            {/* Data date tag: hiển thị ngày data STOCK/CW */}
+            {atcQuick && (
+              <span
+                title={atcQuick.long_text || ""}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                  padding: "0.12rem 0.45rem",
+                  borderRadius: "999px",
+                  background: `${atcQuick.badge_color || "#10b981"}15`,
+                  color: atcQuick.badge_color || "#10b981",
+                  border: `1px solid ${(atcQuick.badge_color || "#10b981")}33`,
+                  fontWeight: "700",
+                  letterSpacing: "0.1px",
+                }}
+              >
+                {atcQuick.is_up_to_date
+                  ? (language === "en"
+                      ? `Data ${atcQuick.expected_trading_day_fmt || ""}`
+                      : `Data ${atcQuick.expected_trading_day_fmt || ""}`)
+                  : (atcQuick.stock_latest_fmt && atcQuick.cw_latest_fmt
+                      ? (language === "en"
+                          ? `CK ${atcQuick.stock_latest_fmt} · CW ${atcQuick.cw_latest_fmt}`
+                          : `CK ${atcQuick.stock_latest_fmt} · CW ${atcQuick.cw_latest_fmt}`)
+                      : (language === "en" ? "Outdated" : "Cũ"))}
+              </span>
+            )}
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button onClick={() => setPage("settings")} style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }} title="Settings & Help"><HelpCircle size={15} /></button>
               <a href="mailto:support@finvista.vn" style={{ color: "inherit" }} title="Support Email"><Mail size={15} /></a>
@@ -222,11 +300,12 @@ export function AppShell() {
           alignItems: "center",
           justifyContent: "space-between",
           gap: "1rem",
-          background: headerBg,
+          background: isDark ? "var(--surface-bg, #0b0f19)" : "#ffffff",
           position: "sticky",
           top: 0,
           zIndex: 10
         }}>
+
           {/* Global Search Bar */}
           <div style={{ position: "relative", flexShrink: 0 }}>
             <input
@@ -307,7 +386,7 @@ export function AppShell() {
                     <span style={{ opacity: 0.6, color: headerTextColor }}>UPCOM</span>
                     <span style={{ color: headerTextColor }}>{(marketIndices?.UPCOM?.close ?? marketIndices?.upcom?.close ?? 98.20).toLocaleString()}</span>
                     <span style={{ color: ((marketIndices?.UPCOM?.change ?? marketIndices?.upcom?.change) ?? 0.24) >= 0 ? "#10b981" : "#ef4444" }}>
-                      {((marketIndices?.UPCOM?.change ?? marketIndices?.upcom?.change) ?? 0.24) >= 0 ? "▲" : "▼"} {Math.abs((marketIndices?.UPCOM?.change ?? marketIndices?.upcom?.change) ?? 0.24).toFixed(2)} ({((marketIndices?.UPCOM?.pct ?? marketIndices?.upcom?.pct) ?? 0.24).toFixed(2)}%)
+                      {((marketIndices?.UPCOM?.change ?? marketIndices?.upcom?.change) ?? 0.24) >= 0 ? "▲" : "▼"} {typeof (marketIndices?.UPCOM?.change ?? marketIndices?.upcom?.change) === 'number' ? Math.abs((marketIndices?.UPCOM?.change ?? marketIndices?.upcom?.change)).toFixed(2) : (marketIndices?.UPCOM?.change ?? marketIndices?.upcom?.change ?? "-")} ({typeof (marketIndices?.UPCOM?.pct ?? marketIndices?.upcom?.pct) === 'number' ? ((marketIndices?.UPCOM?.pct ?? marketIndices?.upcom?.pct)).toFixed(2) : (marketIndices?.UPCOM?.pct ?? marketIndices?.upcom?.pct ?? "-")}%)
                     </span>
                   </div>
                   {/* CW-INDEX */}
@@ -315,25 +394,26 @@ export function AppShell() {
                     <span style={{ opacity: 0.6, color: headerTextColor }}>CW-INDEX</span>
                     <span style={{ color: headerTextColor }}>{(marketIndices?.CWINDEX?.close ?? marketIndices?.cwindex?.close ?? 108.45).toLocaleString()}</span>
                     <span style={{ color: ((marketIndices?.CWINDEX?.change ?? marketIndices?.cwindex?.change) ?? 1.35) >= 0 ? "#10b981" : "#ef4444" }}>
-                      {((marketIndices?.CWINDEX?.change ?? marketIndices?.cwindex?.change) ?? 1.35) >= 0 ? "▲" : "▼"} {Math.abs((marketIndices?.CWINDEX?.change ?? marketIndices?.cwindex?.change) ?? 1.35).toFixed(2)} ({((marketIndices?.CWINDEX?.pct ?? marketIndices?.cwindex?.pct) ?? 1.35).toFixed(2)}%)
+                      {((marketIndices?.CWINDEX?.change ?? marketIndices?.cwindex?.change) ?? 1.35) >= 0 ? "▲" : "▼"} {typeof (marketIndices?.CWINDEX?.change ?? marketIndices?.cwindex?.change) === 'number' ? Math.abs((marketIndices?.CWINDEX?.change ?? marketIndices?.cwindex?.change)).toFixed(2) : (marketIndices?.CWINDEX?.change ?? marketIndices?.cwindex?.change ?? "-")} ({typeof (marketIndices?.CWINDEX?.pct ?? marketIndices?.cwindex?.pct) === 'number' ? ((marketIndices?.CWINDEX?.pct ?? marketIndices?.cwindex?.pct)).toFixed(2) : (marketIndices?.CWINDEX?.pct ?? marketIndices?.cwindex?.pct ?? "-")}%)
                     </span>
                   </div>
+                  {/* US Market Indices - Removed per user request */}
                   {/* S&P 500 */}
-                  <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                  {/* <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
                     <span style={{ opacity: 0.6, color: headerTextColor }}>S&P 500</span>
                     <span style={{ color: headerTextColor }}>{(marketIndices?.SP500?.close ?? 5560.80).toLocaleString()}</span>
                     <span style={{ color: (marketIndices?.SP500?.change ?? 18.5) >= 0 ? "#10b981" : "#ef4444" }}>
                       {(marketIndices?.SP500?.change ?? 18.5) >= 0 ? "▲" : "▼"} {Math.abs(marketIndices?.SP500?.change ?? 18.5).toFixed(2)} ({(marketIndices?.SP500?.pct ?? 0.33).toFixed(2)}%)
                     </span>
-                  </div>
+                  </div> */}
                   {/* NASDAQ */}
-                  <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+                  {/* <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
                     <span style={{ opacity: 0.6, color: headerTextColor }}>NASDAQ</span>
                     <span style={{ color: headerTextColor }}>{(marketIndices?.NASDAQ?.close ?? 17872.40).toLocaleString()}</span>
                     <span style={{ color: (marketIndices?.NASDAQ?.change ?? 95.1) >= 0 ? "#10b981" : "#ef4444" }}>
                       {(marketIndices?.NASDAQ?.change ?? 95.1) >= 0 ? "▲" : "▼"} {Math.abs(marketIndices?.NASDAQ?.change ?? 95.1).toFixed(2)} ({(marketIndices?.NASDAQ?.pct ?? 0.54).toFixed(2)}%)
                     </span>
-                  </div>
+                  </div> */}
                   {/* USD/VND */}
                   <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
                     <span style={{ opacity: 0.6, color: headerTextColor }}>USD/VND</span>
@@ -365,9 +445,11 @@ export function AppShell() {
                 title="Cảnh báo & Tín hiệu"
               >
                 <Bell size={18} />
-                <span style={{ position: "absolute", top: "1px", right: "1px", background: "#ef4444", color: "#fff", fontSize: "0.6rem", borderRadius: "50%", width: "12px", height: "12px", display: "grid", placeItems: "center", fontWeight: "bold" }}>
-                  {sampleNotifications.length}
-                </span>
+                {notifications.length > 0 && (
+                  <span style={{ position: "absolute", top: "1px", right: "1px", background: "#ef4444", color: "#fff", fontSize: "0.6rem", borderRadius: "50%", width: "12px", height: "12px", display: "grid", placeItems: "center", fontWeight: "bold" }}>
+                    {notifications.length}
+                  </span>
+                )}
               </button>
 
               {/* Popup Dropdown */}
@@ -388,17 +470,22 @@ export function AppShell() {
                 >
                   <div style={{ padding: "0.85rem 1rem", borderBottom: `1px solid ${headerBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontWeight: "800", fontSize: "0.85rem", color: isDark ? "#f8fafc" : "#0f172a", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                      <Bell size={15} style={{ color: "#f59e0b" }} /> {language === "en" ? "Notifications & Alerts" : "Cảnh báo & Tín hiệu"}
+                      <Bell size={15} style={{ color: "#f59e0b" }} /> {language === "en" ? "Notifications" : "Cảnh báo"}
                     </span>
-                    <span style={{ fontSize: "0.7rem", background: "rgba(239,68,68,0.15)", color: "#ef4444", padding: "0.1rem 0.4rem", borderRadius: "0.25rem", fontWeight: "700" }}>
-                      3 {language === "en" ? "new" : "mới"}
+                    <span style={{ fontSize: "0.7rem", background: "rgba(100,116,139,0.15)", color: isDark ? "#94a3b8" : "#64748b", padding: "0.1rem 0.4rem", borderRadius: "0.25rem", fontWeight: "700" }}>
+                      {notifications.length} {language === "en" ? "active" : "hoạt động"}
                     </span>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column" }}>
-                    {sampleNotifications.map(n => (
-                      <div 
-                        key={n.id} 
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: "1.5rem", textAlign: "center", color: isDark ? "#64748b" : "#94a3b8", fontSize: "0.82rem" }}>
+                        <BellOff size={24} style={{ marginBottom: "0.5rem", opacity: 0.4 }} />
+                        <p style={{ margin: 0 }}>{language === "en" ? "No alerts yet" : "Chưa có cảnh báo"}</p>
+                      </div>
+                    ) : notifications.map(n => (
+                      <div
+                        key={n.id}
                         onClick={() => { setShowAlertsDropdown(false); setPage("alerts"); }}
                         style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${headerBorder}`, cursor: "pointer", transition: "background 0.15s", background: "transparent" }}
                         onMouseEnter={e => e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.04)" : "#f8fafc"}
@@ -418,7 +505,7 @@ export function AppShell() {
                       onClick={() => { setShowAlertsDropdown(false); setPage("alerts"); }} 
                       style={{ background: "none", border: "none", color: "#2563eb", fontSize: "0.78rem", fontWeight: "800", cursor: "pointer" }}
                     >
-                      {language === "en" ? "Manage all alerts →" : "Quản lý tất cả cảnh báo →"}
+                      {language === "en" ? "Manage alerts →" : "Quản lý cảnh báo →"}
                     </button>
                   </div>
                 </div>
@@ -482,22 +569,9 @@ export function AppShell() {
               />
             ) : null}
 
-            {page === "dashboard" ? (
-              <DashboardPage
-                language={language}
-                preferences={preferences}
-              />
-            ) : null}
 
             {page === "watchlist" ? (
               <WatchlistPage
-                language={language}
-                preferences={preferences}
-              />
-            ) : null}
-
-            {page === "credit" ? (
-              <CreditHealthPage
                 language={language}
                 preferences={preferences}
               />

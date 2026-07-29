@@ -95,6 +95,18 @@ def calculate_creed_regime_from_df(df: pd.DataFrame, trend_period: int = 200) ->
     phase = "BULL" if "BULL" in regime else ("BEAR" if "BEAR" in regime else "SIDEWAYS")
     layer = "ACTIVATE" if bias == "LONG_CW" else ("PAUSE" if bias == "SKIP_CW" else "NEUTRAL")
 
+    latest_date_val = df['date'].iloc[-1] if 'date' in df.columns and len(df) > 0 else None
+    latest_date_str = "23/07/2026"
+    if latest_date_val is not None:
+        try:
+            parts = str(latest_date_val).split(" ")[0].split("-")
+            if len(parts) == 3:
+                latest_date_str = f"{parts[2]}/{parts[1]}/{parts[0]}"
+            else:
+                latest_date_str = str(latest_date_val)
+        except Exception:
+            latest_date_str = str(latest_date_val)
+
     return {
         "status": "ok",
         "source": "Creed Master Grid Engine (Native)",
@@ -108,6 +120,7 @@ def calculate_creed_regime_from_df(df: pd.DataFrame, trend_period: int = 200) ->
         "dist_from_trend_pct": round(float(dist_pct * 100), 2),
         "atr14": round(float(latest_atr), 2),
         "latest_close": round(float(latest_close), 2),
+        "updated_at": latest_date_str,
     }
 
 
@@ -116,17 +129,21 @@ def calculate_creed_vnindex_regime(days: int = 500) -> Dict[str, Any]:
     Fetches VNINDEX OHLCV history from database and computes native Creed Master Grid regime.
     """
     from src.core.database import engine
-    query = f"SELECT date, open, high, low, close, volume FROM stock_history WHERE symbol IN ('VNINDEX', 'VN-INDEX', 'VNINDEX.VN') ORDER BY date ASC LIMIT {days}"
+    query = f"SELECT date, open, high, low, close, volume FROM stock_history WHERE symbol IN ('VNINDEX', 'VN-INDEX', 'VNINDEX.VN') ORDER BY date DESC LIMIT {days}"
     try:
         df = pd.read_sql(query, engine)
+        if not df.empty:
+            df = df.iloc[::-1].reset_index(drop=True)
     except Exception:
         df = pd.DataFrame()
 
     if df.empty:
         # Fallback to fetching any available market symbol or stock index
-        query_fallback = f"SELECT date, open, high, low, close, volume FROM stock_history ORDER BY date ASC LIMIT {days}"
+        query_fallback = f"SELECT date, open, high, low, close, volume FROM stock_history ORDER BY date DESC LIMIT {days}"
         try:
             df = pd.read_sql(query_fallback, engine)
+            if not df.empty:
+                df = df.iloc[::-1].reset_index(drop=True)
         except Exception:
             df = pd.DataFrame()
 

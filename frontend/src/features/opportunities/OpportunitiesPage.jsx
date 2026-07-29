@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { Search, RotateCcw, Star, TrendingUp, TrendingDown, ChevronUp, ChevronDown, RefreshCw, Loader2 } from "lucide-react";
-import { getOpportunities, getUnderlyingMarket, placeOrder } from "../../api.js";
+import { getUnderlyingMarket, placeOrder } from "../../api.js";
+import { useData } from "../../app/DataContext.jsx";
 import { useToast } from "../../components/ui/toast.jsx";
 import { formatNumber } from "../../lib/formatters.js";
 import { useThemeTokens } from "../../app/useThemeTokens.js";
@@ -55,11 +56,14 @@ function SortHeader({ label, field, sortField, sortDir, onSort }) {
 export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi", preferences = {}, strategy = "balanced", setStrategy }) {
   const isEnglish = language === "en";
   const { addToast } = useToast();
+  const { opportunitiesData, refreshDataType } = useData();
 
   const [activeTab, setActiveTab] = useState("nang_cao");
-  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Use data from DataContext (API returns data directly at root level)
+  const data = opportunitiesData || {};
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,16 +97,28 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
     { label: "Công nghệ", value: "công nghệ" },
   ];
 
+const ISSUER_NAMES = {
+    "MSVN": "Chứng khoán MB",
+    "VPBS": "Chứng khoán VPS",
+    "HSC": "Chứng khoán HSC",
+    "PHS": "Chứng khoán Phú Hưng",
+    "SSV": "Chứng khoán SSI",
+    "LPBS": "Chứng khoán LPB",
+    "KBSV": "Chứng khoán KBS",
+    "KAFI": "Chứng khoán KAFI",
+    "VNDS": "Chứng khoán VNDirect",
+    "ACBS": "Chứng khoán ACBS",
+    "KIS": "Chứng khoán KIS",
+    "TCBS": "Chứng khoán Techcom",
+    "MBS": "Chứng khoán MBS",
+    "SSI": "Chứng khoán SSI",
+  };
+
   function loadData(forceRefresh = false) {
     setLoading(true);
     setCurrentPage(1);
-    getOpportunities({ strategy, limit: 5000, forceRefresh })
-      .then(res => {
-        setData(res);
-        if (forceRefresh) addToast("Đã làm mới dữ liệu CW từ DB!", "success");
-      })
-      .catch(() => addToast("Đang kết nối lại server...", "warning"))
-      .finally(() => setLoading(false));
+    refreshDataType("opportunities", forceRefresh);
+    setLoading(false);
   }
 
   function loadStocks(forceRefresh = false) {
@@ -121,7 +137,7 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
     setPremiumMax(100); setDeltaMin(0); setGearingMin(0); setDaysMax(365); setGscoreMin(0);
     setChkUndervalued(false); setChkBuyOnly(false);
     setSelectedIssuer("all"); setSelectedUnderlying("all"); setSelectedMoneyness("all");
-    setSearchQuery(""); setVisibleCount(PAGE_SIZE);
+    setSearchQuery("");
   }
 
   async function handleBuyOrder(row) {
@@ -152,22 +168,21 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
   function handleSort(field) {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortField(field); setSortDir("desc"); }
-    setVisibleCount(PAGE_SIZE);
   }
 
   // Map API rows with dynamic Strategy G-Score weighting
   const rawRows = useMemo(() => {
-    const recs = data?.recommendations;
+    const recs = data?.recommendations || [];
     if (!recs || recs.length === 0) return [];
     return recs.map(r => {
-      const d = r.delta ?? 0.5;
+      const d = r.delta;
       const mState = r.moneyness_status || (d >= 0.6 ? "ITM" : d >= 0.4 ? "ATM" : "OTM");
-      const gear = Math.round((r.effective_gearing || r.gearing || (d * 9.5)) * 10) / 10;
-      const bkPrice = r.breakeven_price || Math.round((r.market_price || r.price || 1000) * 1.08);
-      const baseScore = r.composite_g_score || r.score || 50;
-      const prem = Math.round((r.premium_pct || 0) * 10) / 10;
-      const dtmDays = r.days_to_maturity || 90;
-      const priceChg = r.price_change_pct || 0;
+      const gear = Math.round((r.effective_gearing || r.gearing) * 10) / 10;
+      const bkPrice = r.break_even_price || Math.round((r.market_price || r.price) * 1.08);
+      const baseScore = r.composite_g_score || r.score;
+      const prem = Math.round((r.premium_pct) * 10) / 10;
+      const dtmDays = r.days_to_maturity;
+      const priceChg = r.price_change_pct;
 
       let calcScore = baseScore;
       if (strategy === "aggressive") {
@@ -183,16 +198,16 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
         symbol: r.warrant_symbol || r.symbol || "",
         underlying: r.underlying_symbol || r.underlying || "",
         issuer: r.issuer || "",
-        price: r.market_price || r.price || 0,
+        price: r.market_price || r.price,
         premium: prem,
-        delta: Math.round((r.delta || 0) * 100) / 100,
+        delta: Math.round((r.delta) * 100) / 100,
         gearing: gear,
         moneyness: mState,
         breakeven: bkPrice,
-        iv: Math.round((r.implied_volatility_pct || 0) * 10) / 10,
+        iv: Math.round((r.implied_volatility_pct) * 10) / 10,
         gscore: finalGscore,
         dtm: dtmDays,
-        volume: r.volume || 0,
+        volume: r.volume,
         changePct: priceChg,
         signal: r.recommendation_signal || r.decision_signal || "",
         isBuy: (r.recommendation_signal || r.decision_signal || "").toUpperCase().includes("BUY"),
@@ -203,6 +218,9 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
   // Dynamic dropdown options from live data
   const underlyingOptions = useMemo(() => [...new Set(rawRows.map(r => r.underlying))].sort(), [rawRows]);
   const issuerOptions = useMemo(() => [...new Set(rawRows.map(r => r.issuer))].sort(), [rawRows]);
+
+  // Helper to get Vietnamese issuer name
+  const getIssuerName = (code) => ISSUER_NAMES[code] || code;
 
   // Watchlist for favorites tab
   const favList = useMemo(() => JSON.parse(localStorage.getItem("finvista-watchlist") || "[]"), []);
@@ -334,7 +352,7 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
             <label style={{ fontSize: "0.72rem", color: mutedText, fontWeight: "600", display: "block", marginBottom: "0.3rem" }}>Tổ chức phát hành</label>
             <select value={selectedIssuer} onChange={e => setSelectedIssuer(e.target.value)} style={{ width: "100%", background: subBg, border: `1px solid ${borderColor}`, color: textColor, padding: "0.45rem", borderRadius: "0.375rem", fontSize: "0.8rem" }}>
               <option value="all" style={{ background: cardBg, color: textColor }}>Tất cả ({issuerOptions.length})</option>
-              {issuerOptions.map(is => <option key={is} value={is} style={{ background: cardBg, color: textColor }}>{is}</option>)}
+              {issuerOptions.map(is => <option key={is} value={is} style={{ background: cardBg, color: textColor }}>{getIssuerName(is)}</option>)}
             </select>
           </div>
 
@@ -476,12 +494,8 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
                           {row.symbol}
                         </td>
                         <td style={{ padding: "0.55rem 0.5rem", fontWeight: "700", color: textColor }}>{row.underlying}</td>
-                        <td style={{ padding: "0.55rem 0.5rem" }}>
-                          <span style={{ fontWeight: "800", color: "#3b82f6", fontSize: "0.8rem" }}>{row.symbol}</span>
-                          <span style={{ fontSize: "0.68rem", color: mutedText, display: "block" }}>{row.issuer}</span>
-                        </td>
-                        <td style={{ padding: "0.55rem 0.5rem" }}>
-                          <span style={{ fontWeight: "700", color: textColor }}>{row.underlying}</span>
+                        <td style={{ padding: "0.55rem 0.5rem", color: textColor, fontWeight: "600" }}>
+                          {getIssuerName(row.issuer)}
                         </td>
                         <td style={{ padding: "0.55rem 0.5rem", fontWeight: "700", color: textColor }}>
                           {row.price?.toLocaleString()} đ
@@ -493,7 +507,7 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
                           {row.premium}%
                         </td>
                         <td style={{ padding: "0.55rem 0.5rem", color: textColor, fontWeight: "600" }}>
-                          {row.delta}
+                          {Math.round(row.delta * 100)}%
                         </td>
                         <td style={{ padding: "0.55rem 0.5rem", color: textColor, fontWeight: "600" }}>
                           {row.gearing}x
@@ -511,6 +525,7 @@ export function OpportunitiesPage({ setPage, setSelectedSymbol, language = "vi",
                           {row.breakeven?.toLocaleString()} đ
                         </td>
                         <td style={{ padding: "0.55rem 0.5rem", color: mutedText }}>{row.iv}%</td>
+                        <td style={{ padding: "0.55rem 0.5rem", color: mutedText }}>{row.dtm || "-"}</td>
                         <td style={{ padding: "0.55rem 0.5rem", minWidth: "100px" }}>
                           <GScoreBar score={row.gscore} />
                         </td>

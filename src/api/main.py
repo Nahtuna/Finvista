@@ -13,6 +13,12 @@ import json
 import os
 import sys
 
+# Prevent vnstock update check from hanging by mocking the upgrade module
+from unittest.mock import MagicMock
+mock_upgrade = MagicMock()
+mock_upgrade.update_notice = lambda *args, **kwargs: None
+sys.modules['vnstock.core.utils.upgrade'] = mock_upgrade
+
 import pandas as pd
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,8 +32,8 @@ if BASE_DIR not in sys.path:
 
 from src.api import state
 from src.api.dependencies import limiter
-from src.api.routes import auth, chat, credit, market, news_impact, portfolio, regime, warrants, analyst, reports, admin, fireant, udf
-from src.api.scheduler import start_periodic_scheduler
+from src.api.routes import auth, chat, credit, market, news_impact, portfolio, regime, warrants, analyst, reports, admin, fireant, udf, atc
+from src.api.scheduler import start_periodic_scheduler, get_scheduler_status
 from src.api.websocket import websocket_endpoint
 from src.core import config
 
@@ -135,6 +141,7 @@ app.include_router(reports.router)
 app.include_router(admin.router)
 app.include_router(fireant.router)
 app.include_router(udf.router)
+app.include_router(atc.router)
 
 
 @app.exception_handler(RateLimitExceeded)
@@ -156,8 +163,28 @@ async def ws_route(websocket):
 
 
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
+    import asyncio as _asyncio
+    import os as _os
+    # === 0. Register the running event loop so scheduler threads can broadcast via WebSocket ===
+    from src.api.scheduler import set_event_loop as _set_loop
+    _set_loop(_asyncio.get_event_loop())
+
+    # === 1. ATC DATA FRESHNESS CHECK + AUTO-SYNC (chạy TRƯỚC khi scheduler bắt đầu) ===
+    #   - Nếu dữ liệu đã là phiên mới nhất: log "Data is up-to-date [YYYY-MM-DD]"
+    #   - Nếu dữ liệu cũ / thiếu (sau 15:15 mà chưa có data hôm nay, hoặc thiếu ngày trước):
+    #     Trigger sync BẤT ĐỘNG BỘ (blocking=True) để đảm bảo server nhận request với data mới
+    #   - Override bằng ENV nếu cần start nhanh: set FINVISTA_ATC_STARTUP_BLOCKING=false
+    from src.modules.atc_manager.service import run_startup_atc_check_and_sync
+    # Changed default to blocking=False to avoid server startup delay
+    _blocking = _os.environ.get("FINVISTA_ATC_STARTUP_BLOCKING", "false").lower() == "true"
+    startup_check_result = run_startup_atc_check_and_sync(blocking=_blocking)
+
+    # === 2. Bắt đầu Background Scheduler (sau khi đảm bảo data tươi) ===
     start_periodic_scheduler()
+
+    # === Optional: Lưu kết quả startup check vào app.state để API truy cập nhanh ===
+    app.state.atc_startup_result = startup_check_result
 
 
 @app.get("/", status_code=status.HTTP_200_OK)
@@ -216,7 +243,23 @@ def health_check():
     }
 
 
+@app.get("/api/scheduler/health")
+def scheduler_health_check():
+    """Retrieve scheduler status, job information, and next run times."""
+    from src.infra.redis_cache import cache
+    
+    scheduler_status = get_scheduler_status()
+    cache_stats = cache.get_stats()
+    
+    return {
+        "status": "healthy" if scheduler_status["engine"]["apscheduler"]["running"] or scheduler_status["engine"]["fallback_thread_loop"]["running"] else "warning",
+        "scheduler": scheduler_status,
+        "cache": cache_stats,
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run("src.api.main:app", host="127.0.0.1", port=8008, reload=True)
+# Forced reload comment to trigger uvicorn to pick up service.py changes.

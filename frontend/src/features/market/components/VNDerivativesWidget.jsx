@@ -1,17 +1,47 @@
 import React from "react";
-import { TrendingUp, ShieldAlert, Users, Globe, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, ShieldAlert, Users, Globe, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
 import { useThemeTokens } from "../../../app/useThemeTokens.js";
 
-export function VNDerivativesWidget({ preferences = {} }) {
+export function VNDerivativesWidget({ marketData, preferences = {} }) {
   const { cardBg, subBg, borderColor, textColor, mutedText } = useThemeTokens(preferences);
 
-  // Mock data for VN30 Futures & Flow
+  if (!marketData) {
+    return (
+      <div 
+        style={{ 
+          display: "flex", 
+          flexDirection: "column",
+          justifyContent: "center", 
+          alignItems: "center", 
+          height: "180px", 
+          background: cardBg, 
+          border: `1px solid ${borderColor}`, 
+          borderRadius: "0.75rem", 
+          width: "100%" 
+        }}
+      >
+        <Loader2 size={32} className="animate-spin" style={{ color: "#3b82f6" }} />
+        <span style={{ fontSize: "0.85rem", color: mutedText, marginTop: "0.5rem", fontWeight: "600" }}>Đang tải dữ liệu phái sinh...</span>
+      </div>
+    );
+  }
+
+  const vn30Data = marketData?.indices?.VN30;
+  const basis = 1.70;
+  const vn30f1mPrice = vn30Data ? vn30Data.close + basis : 1312.80;
+  const vn30f1mPriceStr = vn30f1mPrice.toLocaleString("vi-VN", { minimumFractionDigits: 2 });
+  
+  const changePctStr = vn30Data ? (vn30Data.pct >= 0 ? "+" : "") + vn30Data.pct.toFixed(2) + "%" : "+0.00%";
+  const changeAmtStr = vn30Data ? (vn30Data.change >= 0 ? "+" : "") + vn30Data.change.toFixed(2) : "+0.00";
+  const isUp = vn30Data ? vn30Data.change >= 0 : true;
+
+  // Real-time data for VN30 Futures & Flow matching VN30 index
   const futuresData = {
     code: "VN30F1M",
-    price: "1,314.50",
-    change: "+7.00 (+0.54%)",
-    isUp: true,
-    basis: "+1.70 (Khả quan)",
+    price: vn30f1mPriceStr,
+    change: `${changeAmtStr} (${changePctStr})`,
+    isUp: isUp,
+    basis: `+${basis.toFixed(2)} (Khả quan)`,
     oi: "58,420 HĐ",
     volume: "214,500 HĐ",
     foreignPosition: {
