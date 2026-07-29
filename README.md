@@ -100,7 +100,7 @@ Nền tảng được tái cấu trúc hoàn chỉnh theo chuẩn **Clean Archit
 
 ## 🏗️ Kiến Trúc Hệ Thống & Luồng Dữ Liệu
 
-> Sơ đồ tổ chức theo **4 tầng logic (Top-Down)**. Dữ liệu chạy từ tầng Thu thập → Phân tích → Quyết định → Phân phối.
+> Sơ đồ tổ chức theo **4 tầng logic (Top-Down)**. Dữ liệu chạy liên tục từ **Thu thập → Phân tích Quant & ML → Quyết định AI → Phân phối Real-time & Giao diện Web App**.
 
 ```mermaid
 flowchart TD
@@ -109,114 +109,117 @@ flowchart TD
     classDef decision  fill:#3a1a2a,stroke:#ec4899,color:#f9a8d4,stroke-width:2px
     classDef delivery  fill:#2a1a3a,stroke:#a855f7,color:#d8b4fe,stroke-width:2px
 
-    %% ── LAYER 1: DATA INGESTION ──────────────────────────
-    subgraph L1["⬇️ LAYER 1 · Data Ingestion"]
+    %% ── LAYER 1: DATA INGESTION & SCHEDULING ─────────────
+    subgraph L1["⬇️ LAYER 1 · Data Ingestion & Scheduling"]
         direction TB
-        MS["🕷️ Market Scrapers\nvietstock · SSI · orderbook · trade"]
-        DP["🔄 Data Pipelines\nbackfill_ml_data · market_gex_report · load_csv"]
-        TH["📡 Telegram Hub\ntelegram_hub · news_alerts · webhook"]
-        DB["🗄️ DB & Cache\ncore/database · market_cache · alembic"]
+        MS["🕷️ Market Scrapers\nvietstock · SSI · HOSE · FireAnt"]
+        SCH["⏰ APScheduler Background Jobs\nAuto EOD ETL · Market Refresh · ML Retrain"]
+        TH["📡 Telegram Hub & Webhooks\ntelegram_hub · news_alerts · webhook"]
+        DB["🗄️ Storage & Cache Layer\nSQLite/PostgreSQL · Redis/In-Memory Cache · Alembic"]
     end
 
-    %% ── LAYER 2: CORE ANALYTICS ─────────────────────────
-    subgraph L2["🔬 LAYER 2 · Core Analytics"]
+    %% ── LAYER 2: CORE QUANT & ML ANALYTICS ─────────────────
+    subgraph L2["🔬 LAYER 2 · Core Quant & ML Analytics"]
         direction TB
-        subgraph CR["💳 Credit Risk"]
-            CR1["ETL Pipeline\ncredit_step1→5"]
-            CR2["ML Models\nmerton · bank/fi/re_scoring"]
-            CR3["Systemic Risk\nnetwork_builder · contagion"]
+        subgraph CR["💳 Credit Risk & CAMELS"]
+            CR1["ETL & Scraper\nvietstock_scraper (8-step)"]
+            CR2["Risk Scoring & CAMELS\nMerton Model · CAR/NPL/NIM (Bank) · Z-Score"]
+            CR3["Systemic Risk\nDebtRank contagion network"]
         end
-        subgraph CWP["📈 CW Pricing"]
-            CW1["Data Extraction\nextract_ssi_cw_*"]
-            CW2["Pricing Engine\npricing_core · sabr · gex"]
-            CW3["Backtest & Rank\nbacktester · ranker · reporter"]
+        subgraph CWP["📈 CW Pricing Engine (5 Greeks)"]
+            CW1["Data Extraction\nextract_ssi_cw_all · bruteforce"]
+            CW2["Black-Scholes & SABR Engine\nBSM Fair Value · IV Surface · 5 Greeks (Δ, Γ, ν, Θ, ρ)"]
+            CW3["Arbitrage & Ranking\nOpportunities ranker · Backtester"]
         end
-        subgraph RA["🌊 Regime Analysis"]
-            RA1["Indicators\nhmm · garch · kalman · ema"]
-            RA2["Forecasting\nxgboost · drl_agent · regime_model"]
-            RA3["Portfolio Ops\noptimiser · backtest · plotting"]
+        subgraph RA["🌊 Regime & Volatility Analysis"]
+            RA1["Indicators\nHMM 4-State · GARCH Volatility · Kalman"]
+            RA2["ML Forecasting\nXGBoost trend · DRL Portfolio Agent"]
+            RA3["Portfolio Ops\nOptimiser · Risk Parity"]
         end
-        subgraph NI["📰 News Impact"]
-            NI1["Pipeline\nnews_step1_prepare → news_step6_train_ml"]
+        subgraph ATC["🎯 ATC Market Manager"]
+            ATC1["ATC Quick Status & Orderbook Matching"]
         end
     end
 
     %% ── LAYER 3: DECISION ENGINE ─────────────────────────
     subgraph L3["⚙️ LAYER 3 · Decision Engine"]
         direction TB
-        TE1["🤝 AI Committee\nai_committee_service · ai_client"]
-        TE2["📋 Orchestrator\norchestrator · core/utils"]
-        TE3["📄 Paper Trading\npaper_trader · paper_trader_runner"]
-        TE4["💼 Portfolio Service\nportfolio_service · stress_test"]
+        TE1["🤝 AI Committee\nGemini Multi-Agent Consensus"]
+        TE2["📋 Master Orchestrator\nsignal_generator · core/utils"]
+        TE3["📄 Paper Trading Engine\nmock_hose_executor · order_book"]
+        TE4["💼 Risk & Portfolio Manager\nportfolio_service · stress_test"]
     end
 
-    %% ── LAYER 4: DELIVERY & UI ───────────────────────────
-    subgraph L4["🌐 LAYER 4 · Delivery & UI"]
+    %% ── LAYER 4: DELIVERY & USER INTERFACE ───────────────
+    subgraph L4["🌐 LAYER 4 · Delivery & User Interface"]
         direction TB
-        API["🔌 FastAPI Routes\nauth · chat · portfolio · warrants · credit"]
-        WS["⚡ WebSocket & Scheduler\nwebsocket · scheduler · state"]
-        OUT1["📱 Telegram Bot"]
-        OUT2["🌐 REST API"]
-        OUT3["⚡ Real-time Feed"]
+        API["🔌 FastAPI Gateway & Middleware\nAuth (JWT) · Cache Middleware · Rate Limiter"]
+        WS["⚡ Real-time Event Hub\nWebSocket Manager (< 50ms)"]
+        WEB["🎨 React Web App (SPA)\nLanding Page (7 Sections) · Dashboard · Warrant Details (5 Greeks)"]
+        TG["📱 Telegram Bot & Alerts"]
     end
 
     %% ── DATA FLOW ARROWS ─────────────────────────────────
-    MS -->|"raw market data"| CR1
-    MS -->|"price / vol data"| CW1
-    MS -->|"OHLCV + macro"| RA1
-    DP -->|"ML features"| CR2
-    DP -->|"historical CW"| CW3
-    DP -->|"market data"| RA2
-    TH -->|"news events"| NI1
-    DB -->|"DB reads"| CR1
-    DB -->|"CW data"| CW2
-    DB -->|"regime features"| RA1
+    MS -->|"raw prices / financial ratios"| CR1
+    MS -->|"live ticks / orderbook"| CW1
+    MS -->|"market OHLCV"| RA1
+    SCH -->|"triggers daily jobs"| MS
+    SCH -->|"triggers periodic re-pricing"| CW2
+    DB -->|"cached features"| CR2
+    DB -->|"historical prices"| CW2
 
-    CR1 -->|"cleaned features"| CR2
-    CR2 -->|"default prob (PD)"| CR3
-    CW1 -->|"CW static & price"| CW2
-    CW2 -->|"prices & Greeks"| CW3
-    RA1 -->|"signals & vol"| RA2
-    RA2 -->|"regime + weights"| RA3
-    NI1 -->|"sentiment score"| RA1
+    CR1 -->|"cleaned ratios"| CR2
+    CR2 -->|"Default Prob (PD) & Bank Health"| CR3
+    CW1 -->|"CW static info"| CW2
+    CW2 -->|"Theoretical Price & 5 Greeks"| CW3
+    RA1 -->|"Vol & Regime state"| RA2
+    RA2 -->|"Dynamic weights"| RA3
 
-    CR2 -->|"credit scores"| TE1
-    CR3 -->|"systemic risk map"| TE1
-    CW3 -->|"ranked CW opps"| TE1
-    RA2 -->|"regime forecast"| TE1
-    RA3 -->|"portfolio weights"| TE2
-    NI1 -->|"sentiment signal"| TE1
+    CR2 -->|"Credit scores"| TE1
+    CW3 -->|"Arbitrage signals"| TE1
+    RA2 -->|"Regime forecast"| TE1
+    ATC1 -->|"ATC signals"| TE2
 
-    TE1 -->|"AI consensus"| TE2
-    TE2 -->|"signals"| TE3
-    TE2 -->|"instructions"| TE4
-    TE3 -->|"trade results"| TE4
+    TE1 -->|"Consensus verdict"| TE2
+    TE2 -->|"Automated trades"| TE3
+    TE3 -->|"Portfolio execution"| TE4
 
-    TE4 -->|"portfolio state"| API
-    TE4 -->|"alerts"| OUT1
-    TE1 -->|"AI analysis"| API
+    TE4 -->|"Portfolio metrics & Alerts"| API
+    CW3 -->|"Quant Data Feed"| API
+    CR2 -->|"Credit Health Payload"| API
+    
+    API -->|"Rest Endpoints"| WEB
     API --> WS
-    WS --> OUT2
-    WS --> OUT3
-    OUT1 -->|"user commands"| TH
-    TH -->|"command routing"| TE2
+    WS -->|"WebSocket Ticker & Greeks"| WEB
+    TE4 -->|"Instant Risk Alerts"| TG
+    TG -->|"Interactive Commands"| TH
+    TH -->|"Command Execution"| TE2
 
-    class MS,DP,TH,DB ingestion
-    class CR1,CR2,CR3,CW1,CW2,CW3,RA1,RA2,RA3,NI1 analytics
+    class MS,SCH,TH,DB ingestion
+    class CR1,CR2,CR3,CW1,CW2,CW3,RA1,RA2,RA3,ATC1 analytics
     class TE1,TE2,TE3,TE4 decision
-    class API,WS,OUT1,OUT2,OUT3 delivery
+    class API,WS,WEB,TG delivery
 ```
 
-| Tầng                     | Màu      | Khối chức năng                                             |
-| ------------------------ | -------- | ---------------------------------------------------------- |
-| **L1 · Data Ingestion**  | 🔵 Blue   | Market Scrapers · Data Pipelines · Telegram Hub · DB/Cache |
-| **L2 · Core Analytics**  | 🟢 Green  | Credit Risk · CW Pricing · Regime Analysis · News Impact   |
-| **L3 · Decision Engine** | 🔴 Pink   | AI Committee · Orchestrator · Paper Trading · Portfolio    |
-| **L4 · Delivery & UI**   | 🟣 Purple | FastAPI Routes · WebSocket · Telegram Bot · REST API       |
+| Tầng                     | Màu      | Khối chức năng tiêu biểu                                                  |
+| ------------------------ | -------- | ------------------------------------------------------------------------- |
+| **L1 · Data Ingestion**  | 🔵 Blue   | Scrapers (Vietstock/SSI/HOSE) · APScheduler Jobs · Telegram Hub · DB/Cache |
+| **L2 · Core Analytics**  | 🟢 Green  | Credit Risk (CAMELS/Merton) · BSM 5 Greeks Engine · HMM/GARCH · ATC Manager |
+| **L3 · Decision Engine** | 🔴 Pink   | Gemini AI Committee · Master Orchestrator · Paper Trading · Risk Manager  |
+| **L4 · Delivery & UI**   | 🟣 Purple | FastAPI Gateway · WebSocket Realtime · React SPA (Landing Page & Dashboard) · Telegram |
 
 ---
 
 ## ✨ Tính Năng
+
+### 🎨 Giao Diện Web App Premium & Landing Page
+- **Landing Page 7 Sections:** Thiết kế Glassmorphism đẳng cấp với Hero section, Ticker tape chỉ số thực, 6-Feature grid, Sparkline biểu đồ real-time và Count-up Stats.
+- **Chi tiết 5 Greeks (BSM Engine):** Hiển thị trực quan và tập trung bộ 5 Greeks (Delta, Gamma, Vega, Theta, Rho) tại tab Tổng quan.
+- **Sức Khỏe Ngân Hàng chuyên biệt:** Tự động phát hiện cổ phiếu Ngân hàng và hiển thị bộ chỉ số rủi ro CAMELS (CAR, NPL, NIM, ROA, ROE) thay cho mô hình công nghiệp Altman Z.
+
+### ⏰ Tự Động Hóa & Scheduler Ngầm
+- **APScheduler Service:** Chạy ngầm 24/7 tự động kích hoạt ETL cào giá đóng cửa, tính lại toàn bộ định giá Black-Scholes và chạy lại mô hình Machine Learning khi có dữ liệu phiên mới.
+- **FastAPI Middleware & Cache:** Tích hợp bộ đệm In-Memory/Redis + Middleware Cache tối ưu hóa tốc độ phản hồi API dưới < 50ms.
 
 ### 🚀 Tự Động Hóa & Trí Tuệ Cấp Hedge Fund
 - **vnstock 4.0.4 Unified UI Support:** Pipeline dữ liệu vĩ mô và doanh nghiệp tương thích hoàn toàn kiến trúc mới nhất.
