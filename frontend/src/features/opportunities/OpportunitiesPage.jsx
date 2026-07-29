@@ -185,7 +185,12 @@ const ISSUER_NAMES = {
       const priceChg = r.price_change_pct;
 
       let calcScore = baseScore;
-      if (strategy === "aggressive") {
+      if (strategy === "delta_adaptive") {
+        // Delta-Adaptive Exit: High weight on optimal Delta range (0.45 - 0.75), Theta safety & trend momentum
+        const deltaOptimal = (d >= 0.45 && d <= 0.75) ? 30 : (d > 0.75 ? 20 : 10);
+        const thetaSafety = dtmDays > 30 ? 25 : (dtmDays > 15 ? 10 : -20);
+        calcScore = (baseScore * 0.35) + deltaOptimal + thetaSafety + (priceChg > 0 ? 10 : 0);
+      } else if (strategy === "aggressive") {
         // Aggressive: Higher weight on leverage (gearing), Delta & momentum upside
         calcScore = (baseScore * 0.4) + (d * 35) + (Math.min(gear, 12) * 2.5) + (priceChg > 0 ? 8 : -5);
       } else if (strategy === "safe" || strategy === "defensive") {
@@ -310,7 +315,7 @@ const ISSUER_NAMES = {
           {/* Strategy selector */}
           <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
             <span style={{ fontSize: "0.75rem", color: mutedText }}>Chiến lược:</span>
-            {[{ id: "balanced", label: "Quân bình" }, { id: "aggressive", label: "Tấn công" }, { id: "safe", label: "Phòng thủ" }].map(s => (
+            {[{ id: "balanced", label: "Quân bình" }, { id: "delta_adaptive", label: "🎯 Delta-Adaptive Exit" }, { id: "aggressive", label: "Tấn công" }, { id: "safe", label: "Phòng thủ" }].map(s => (
               <button key={s.id} onClick={() => setStrategy(s.id)} style={{ background: strategy === s.id ? "#2563eb" : subBg, color: strategy === s.id ? "#fff" : textColor, border: "1px solid " + (strategy === s.id ? "#2563eb" : borderColor), borderRadius: "0.3rem", padding: "0.3rem 0.65rem", fontSize: "0.75rem", fontWeight: "700", cursor: "pointer" }}>
                 {s.label}
               </button>

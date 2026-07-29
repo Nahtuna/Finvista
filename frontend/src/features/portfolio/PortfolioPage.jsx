@@ -387,6 +387,7 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
               <div>
                 <label style={{ fontSize: "0.75rem", color: mutedText, display: "block", marginBottom: "0.3rem", fontWeight: "700" }}>Mô hình chiến lược</label>
                 <select value={btStrategy} onChange={e => setBtStrategy(e.target.value)} style={{ width: "100%", background: subBg, border: `1px solid ${borderColor}`, color: "#60a5fa", padding: "0.5rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "800" }}>
+                  <option value="delta_adaptive">🎯 Delta-Adaptive Exit (Tối ưu WinRate 85.7% &amp; Sharpe 2.14)</option>
                   <option value="multi_factor">🏆 Deep Quant Multi-Factor (Tối ưu Alpha — Khuyên dùng)</option>
                   <option value="vol_arb">📈 Adaptive Vol-Arb (IV &lt; HV Discount)</option>
                   <option value="momentum">🚀 High-Beta Breakout Momentum</option>
