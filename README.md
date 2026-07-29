@@ -88,12 +88,13 @@ Nền tảng được tái cấu trúc hoàn chỉnh theo chuẩn **Clean Archit
 
 | Module                | Công nghệ                         | Mô tả                                                                   |
 | --------------------- | --------------------------------- | ----------------------------------------------------------------------- |
-| **💳 Credit Risk**     | Merton Model · HistGBM · DebtRank | ETL 8 bước, ML dự báo kiệt quệ tài chính, mô phỏng lan truyền hệ thống  |
-| **📈 CW Pricing**      | SABR · Black-Scholes · GEX Engine | Định giá lý thuyết, giải ngược IV, tính Greeks, backtest Delta-Adaptive |
+| **💳 Credit Risk**     | Merton Model · HistGBM · DebtRank | ETL 8 bước, ML dự báo kiệt quệ tài chính, hỗ trợ chỉ số CAMELS cho Ngân hàng (CAR, NPL, NIM...) |
+| **📈 CW Pricing**      | SABR · Black-Scholes · GEX Engine | Định giá lý thuyết, giải ngược IV, tính đủ 5 Greeks (Delta, Gamma, Vega, Theta, Rho), backtest Delta-Adaptive |
 | **🌊 Regime Analysis** | HMM · GARCH · XGBoost · DRL       | Phát hiện chế độ thị trường, dự báo biến động, tối ưu danh mục DRL      |
 | **📰 News Impact**     | NLP · ML Classifier               | Pipeline 6 bước: cào → align → tính xác suất → huấn luyện ML            |
 | **🤝 Trading Engine**  | Gemini AI · Paper Trader          | AI Committee đồng thuận, Paper Trading mô phỏng HOSE, stress test       |
-| **🔧 Infra & Scripts** | FastAPI · Telegram · Scrapers     | API gateway, bot Telegram, scrapers SSI/Vietstock, data pipelines       |
+| **🔧 Infra & Scripts** | FastAPI · Telegram · Scrapers     | API gateway, bot Telegram, scrapers, automatic scheduler tự động chạy mô phòng hàng ngày |
+| **🎨 Premium UI**      | React · CSS Glassmorphic          | Landing page 7-section chuyên sâu, dashboard phân tích thời gian thực và quản lý rủi ro |
 
 ---
 
