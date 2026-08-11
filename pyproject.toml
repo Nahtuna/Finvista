@@ -12,13 +12,13 @@ requires-python = ">=3.9"
 dynamic = ["dependencies"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0.0"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.package-dir]
-"finvista" = "src"
+"finvista" = "backend"
 
 [tool.setuptools]
 packages = [
@@ -48,8 +48,11 @@ packages = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = [
+    "-v"
+]
 
 [tool.pyrefly]
-# Project is run from Finvista/ root: `uvicorn src.api.main:app`
-# All code uses `from src.xxx import ...` — project root must be in search_paths
+# Project is run from Finvista/ root: `uvicorn backend.api.main:app`
+# All code uses `from backend.xxx import ...` — project root must be in search_paths
 search_paths = ["."]

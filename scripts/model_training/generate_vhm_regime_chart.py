@@ -15,8 +15,8 @@ import mplfinance as mpf
 # Ensure project root is in path
 sys.path.append(os.getcwd())
 
-from src.modules.regime_analysis.indicators.regime_detector import RegimeDetector
-from src.core.database import engine
+from backend.modules.regime_analysis.indicators.regime_detection import RegimeDetector
+from backend.core.database import engine
 
 def generate_regime_chart(symbol: str = "VHM", days: int = 250):
     print(f"🔍 Đang truy xuất dữ liệu cho {symbol}...")

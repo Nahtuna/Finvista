@@ -6,10 +6,10 @@ import json
 # Add project root to sys.path
 sys.path.append(os.getcwd())
 
-from src.modules.cw_pricing.service import WarrantService
-from src.modules.trading_engine.portfolio_service import PortfolioService
-from src.modules.credit_risk.service import CreditRiskService
-from src.api.state import load_distress_models
+from backend.modules.cw_pricing.service import WarrantService
+from backend.modules.trading_engine.portfolio_service import PortfolioService
+from backend.modules.credit_risk.service import CreditRiskService
+from backend.api.state import load_distress_models
 
 def run_e2e_validation():
     print("="*80)

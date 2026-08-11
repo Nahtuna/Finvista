@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 
 import { getHealth, getUnderlyingMarket, getAtcQuickStatus } from "../api.js";
 import { getMarketRegime } from "../api/regime.js";
@@ -12,10 +12,10 @@ import { WarrantDetailPage } from "../features/warrant-detail/WarrantDetailPage.
 import { PortfolioPage } from "../features/portfolio/PortfolioPage.jsx";
 
 import { WatchlistPage } from "../features/watchlist/WatchlistPage.jsx";
-import { LearningPage } from "../features/learning/LearningPage.jsx";
 import { AlertsPage } from "../features/alerts/AlertsPage.jsx";
 import { ProductsPage } from "../features/products/ProductsPage.jsx";
 import { NewsPage } from "../features/news/NewsPage.jsx";
+import { TradingViewLightweightChart } from "../components/charts/TradingViewLightweightChart.jsx";
 import { AIChatWidget } from "../components/chat/AIChatWidget.jsx";
 import { LoginPage } from "../pages/LoginPage.jsx";
 import { LandingPage } from "../pages/LandingPage.jsx";
@@ -36,11 +36,8 @@ const NAV_ICONS = {
 
 export function AppShell() {
   const auth = useAuth();
-  const [page, setPage] = useState(() => {
-    const saved = localStorage.getItem("finvista-active-page");
-    // Show landing page only for brand-new visitors (no saved page)
-    return saved || "landing";
-  });
+  // Always start at landing page when launching the app
+  const [page, setPage] = useState("landing");
   const { language, setLanguage, preferences, setPreferences } = usePreferences();
   const [strategy, setStrategy] = useState(() => localStorage.getItem(STORAGE_KEYS.strategy) || "balanced");
   const [health, setHealth] = useState(null);
@@ -129,6 +126,11 @@ export function AppShell() {
 
   const currentNavItems = NAV_ITEMS[language] || NAV_ITEMS.en;
 
+  // Full-screen landing page — no sidebar/header (always allowed without login)
+  if (page === "landing") {
+    return <LandingPage onEnterApp={() => setPage("intro")} />;
+  }
+
   if (auth.authEnabled && auth.loading) {
     return (
       <main className={`login-shell color-${preferences.colorMode}`}>
@@ -165,12 +167,6 @@ export function AppShell() {
   const searchBorder = isDark ? "rgba(255,255,255,0.1)" : "#cbd5e1";
   const searchColor = isDark ? "#fff" : "#0f172a";
 
-
-  // Full-screen landing page — no sidebar/header
-  if (page === "landing") {
-    return <LandingPage onEnterApp={() => setPage("intro")} />;
-  }
-
   return (
     <div
       className={[
@@ -198,7 +194,7 @@ export function AppShell() {
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           {/* Logo brand from Finvista.pdf */}
           <button className="brand" onClick={() => setPage("intro")} style={{ background: "none", border: "none", textAlign: "left", display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.25rem 0", cursor: "pointer" }}>
-            <span className="brand-mark" style={{ background: "linear-gradient(135deg, #ef4444 0%, #2563eb 100%)", color: "#fff", width: "38px", height: "38px", borderRadius: "0.6rem", display: "grid", placeItems: "center", fontWeight: "900", fontSize: "1.25rem", boxShadow: "0 4px 14px rgba(239, 68, 68, 0.35)", flexShrink: 0 }}>F</span>
+            <img src="/logo.png" alt="Finvista Logo" style={{ width: "38px", height: "38px", borderRadius: "0.6rem", objectFit: "cover", boxShadow: "0 4px 14px rgba(37, 99, 235, 0.35)", flexShrink: 0 }} />
             <div style={{ display: "flex", flexDirection: "column" }}>
               <span style={{ fontSize: "1.15rem", fontWeight: "900", color: isDark ? "#ffffff" : "#0f172a", letterSpacing: "0.75px", lineHeight: "1.1" }}>FINVISTA</span>
               <span style={{ fontSize: "0.6rem", color: isDark ? "#94a3b8" : "#64748b", fontWeight: "600", marginTop: "0.15rem" }}>Quantitative Edge, Smarter Decisions.</span>
@@ -376,9 +372,23 @@ export function AppShell() {
                   {/* HNX */}
                   <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
                     <span style={{ opacity: 0.6, color: headerTextColor }}>HNX</span>
-                    <span style={{ color: headerTextColor }}>{(marketIndices?.HNXINDEX?.close ?? marketIndices?.hnx?.close ?? 242.15).toLocaleString()}</span>
+                    <span style={{ color: headerTextColor }}>
+                      {(() => {
+                        const close = marketIndices?.HNXINDEX?.close ?? marketIndices?.hnx?.close ?? 242.15;
+                        if (close == null || isNaN(close) || close > 1000000) return "—";
+                        return close.toLocaleString();
+                      })()}
+                    </span>
                     <span style={{ color: ((marketIndices?.HNXINDEX?.change ?? marketIndices?.hnx?.change) ?? -0.60) >= 0 ? "#10b981" : "#ef4444" }}>
-                      {((marketIndices?.HNXINDEX?.change ?? marketIndices?.hnx?.change) ?? -0.60) >= 0 ? "▲" : "▼"} {Math.abs((marketIndices?.HNXINDEX?.change ?? marketIndices?.hnx?.change) ?? 0.60).toFixed(2)} ({((marketIndices?.HNXINDEX?.pct ?? marketIndices?.hnx?.pct) ?? -0.60).toFixed(2)}%)
+                      {(() => {
+                        const change = marketIndices?.HNXINDEX?.change ?? marketIndices?.hnx?.change ?? -0.60;
+                        const pct = marketIndices?.HNXINDEX?.pct ?? marketIndices?.hnx?.pct ?? -0.60;
+                        // Validate values
+                        if (change == null || isNaN(change) || Math.abs(change) > 10000) return "—";
+                        if (pct == null || isNaN(pct) || Math.abs(pct) > 1000) return "—";
+                        const arrow = change >= 0 ? "▲" : "▼";
+                        return `${arrow} ${Math.abs(change).toFixed(2)} (${pct.toFixed(2)}%)`;
+                      })()}
                     </span>
                   </div>
                   {/* UPCOM */}
@@ -577,8 +587,8 @@ export function AppShell() {
               />
             ) : null}
 
-            {page === "learning" ? (
-              <LearningPage
+            {page === "chart" ? (
+              <ChartWorkspace
                 language={language}
                 preferences={preferences}
               />
@@ -656,6 +666,8 @@ function RegimeBadge({ regime, onClick }) {
   const r = regime?.regime || "";
   const conf = regime?.confidence ? Math.round(regime.confidence * 100) : 0;
   const bias = regime?.bias || "";
+  const perfMode = regime?.performance_mode || "";
+  const source = regime?.source || "";
 
   const isBullish = r.toLowerCase().includes("bullish");
   const isBearish = r.toLowerCase().includes("bearish") || r.toLowerCase().includes("crisis");
@@ -663,16 +675,19 @@ function RegimeBadge({ regime, onClick }) {
   const color = isBullish ? "#008b7a" : isBearish ? "#d94a6f" : "#c9952f";
   const label = isBullish ? "BULL" : isBearish ? "BEAR" : "SIDE";
 
+  const tooltip = `${r} · ${bias} · ${conf}% confidence${perfMode ? ` · ${perfMode} mode` : ""}${source ? ` · ${source}` : ""}`;
+
   return (
     <button
       className="regime-badge"
       onClick={onClick}
-      title={`${r} · ${bias} · ${conf}% confidence`}
+      title={tooltip}
       style={{ "--regime-color": color }}
     >
       <span className="regime-dot" />
       <span className="regime-label">{label}</span>
       <span className="regime-conf">{conf}%</span>
+      {perfMode && <span style={{ fontSize: "0.6rem", marginLeft: "0.2rem", opacity: 0.7 }}>{perfMode.slice(0,3)}</span>}
     </button>
   );
 }
@@ -741,5 +756,405 @@ function GlobalFooter({ language, setPage }) {
         </span>
       </div>
     </footer>
+  );
+}
+
+function ChartWorkspace({ language, preferences }) {
+  const [symbol, setSymbol] = useState("VNINDEX");
+  const [inputText, setInputText] = useState("VNINDEX");
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [showSR, setShowSR] = useState(true);
+  const [showForecast, setShowForecast] = useState(true);
+  const [showRegime, setShowRegime] = useState(true);
+  const [showStructure, setShowStructure] = useState(false);
+  const [evalData, setEvalData] = useState(null);
+  const [evalLoading, setEvalLoading] = useState(false);
+
+  const [leftWidthPct, setLeftWidthPct] = useState(65);
+  const isDraggingRef = useRef(false);
+  const containerRef = useRef(null);
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const handleMouseMove = (moveEvent) => {
+      if (!isDraggingRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const offsetX = moveEvent.clientX - rect.left;
+      const totalWidth = rect.width;
+      const newPct = Math.max(25, Math.min(85, (offsetX / totalWidth) * 100));
+      setLeftWidthPct(newPct);
+      window.dispatchEvent(new Event("resize"));
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.dispatchEvent(new Event("resize"));
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const isDark = preferences.colorMode === "dark";
+  const isEnglish = language === "en";
+
+  useEffect(() => {
+    async function fetchStats() {
+      setStatsLoading(true);
+      setStats(null);
+      try {
+        const backendBase = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8008";
+        const r = await fetch(`${backendBase}/api/regime/${symbol}/support-resistance`);
+        const data = await r.json();
+        if (data.status === "ok") {
+          setStats(data);
+        } else {
+          setStats(null);
+        }
+      } catch (_) {
+        setStats(null);
+      } finally {
+        setStatsLoading(false);
+      }
+    }
+    fetchStats();
+
+    // Also fetch live backtest evaluation from real evaluate_regime_performance
+    async function fetchEval() {
+      setEvalLoading(true);
+      setEvalData(null);
+      try {
+        const backendBase = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8008";
+        const r = await fetch(`${backendBase}/api/regime/evaluation?ticker=${symbol}&days=500&regime_type=kairos`);
+        const data = await r.json();
+        if (data.status === "ok") setEvalData(data);
+        else setEvalData(null);
+      } catch (_) {
+        setEvalData(null);
+      } finally {
+        setEvalLoading(false);
+      }
+    }
+    fetchEval();
+  }, [symbol]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (inputText.trim()) {
+      setSymbol(inputText.trim().toUpperCase());
+    }
+  };
+
+  const quickSymbols = ["VNINDEX", "VN30", "ACB", "FPT", "HPG", "MWG", "VHM"];
+
+  return (
+    <div style={{
+      background: isDark ? "var(--surface-bg, #0b0f19)" : "#ffffff",
+      border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#e2e8f0"}`,
+      borderRadius: "0.75rem",
+      padding: "1.5rem",
+      height: "calc(100vh - 120px)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "1rem"
+    }}>
+      {/* Search Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+        <form onSubmit={handleSearch} style={{ display: "flex", gap: "0.5rem" }}>
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder={isEnglish ? "Enter symbol (e.g. ACB)..." : "Nhập mã (Ví dụ: ACB)..."}
+            style={{
+              background: isDark ? "rgba(255,255,255,0.04)" : "#f1f5f9",
+              border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#cbd5e1"}`,
+              borderRadius: "0.375rem",
+              padding: "0.45rem 0.75rem",
+              fontSize: "0.85rem",
+              color: isDark ? "#fff" : "#0f172a",
+              width: "200px"
+            }}
+          />
+          <button
+            type="submit"
+            style={{
+              background: "#2563eb",
+              color: "#fff",
+              border: "none",
+              borderRadius: "0.375rem",
+              padding: "0.45rem 1rem",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              cursor: "pointer"
+            }}
+          >
+            {isEnglish ? "View" : "Xem"}
+          </button>
+        </form>
+
+        {/* Quick Ticker list */}
+        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+          {quickSymbols.map(s => (
+            <button
+              key={s}
+              onClick={() => { setSymbol(s); setInputText(s); }}
+              style={{
+                background: symbol === s ? "rgba(37, 99, 235, 0.15)" : "transparent",
+                border: `1px solid ${symbol === s ? "#2563eb" : (isDark ? "rgba(255,255,255,0.08)" : "#cbd5e1")}`,
+                borderRadius: "0.25rem",
+                padding: "0.25rem 0.6rem",
+                fontSize: "0.75rem",
+                fontWeight: "600",
+                color: symbol === s ? "#60a5fa" : (isDark ? "#94a3b8" : "#475569"),
+                cursor: "pointer",
+                transition: "all 0.15s"
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        {/* Toggle buttons */}
+        <div style={{ display: "flex", gap: "0.35rem", marginLeft: "auto", borderLeft: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid #cbd5e1", paddingLeft: "1rem" }}>
+          <button
+            onClick={() => setShowSR(!showSR)}
+            style={{
+              background: showSR ? "rgba(16, 185, 129, 0.15)" : "transparent",
+              border: `1px solid ${showSR ? "rgba(16, 185, 129, 0.4)" : (isDark ? "rgba(255,255,255,0.08)" : "#cbd5e1")}`,
+              borderRadius: "0.35rem",
+              color: showSR ? "#10b981" : (isDark ? "#94a3b8" : "#475569"),
+              padding: "0.2rem 0.5rem",
+              fontSize: "0.7rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              transition: "all 0.2s"
+            }}
+          >
+            🔍 S/R
+          </button>
+          <button
+            onClick={() => setShowForecast(!showForecast)}
+            style={{
+              background: showForecast ? "rgba(245, 158, 11, 0.15)" : "transparent",
+              border: `1px solid ${showForecast ? "rgba(245, 158, 11, 0.4)" : (isDark ? "rgba(255,255,255,0.08)" : "#cbd5e1")}`,
+              borderRadius: "0.35rem",
+              color: showForecast ? "#f59e0b" : (isDark ? "#94a3b8" : "#475569"),
+              padding: "0.2rem 0.5rem",
+              fontSize: "0.7rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              transition: "all 0.2s"
+            }}
+          >
+            🔮 {isEnglish ? "Forecast" : "Dự báo"}
+          </button>
+          <button
+            onClick={() => setShowRegime(!showRegime)}
+            style={{
+              background: showRegime ? "rgba(59, 130, 246, 0.15)" : "transparent",
+              border: `1px solid ${showRegime ? "rgba(59, 130, 246, 0.4)" : (isDark ? "rgba(255,255,255,0.08)" : "#cbd5e1")}`,
+              borderRadius: "0.35rem",
+              color: showRegime ? "#3b82f6" : (isDark ? "#94a3b8" : "#475569"),
+              padding: "0.2rem 0.5rem",
+              fontSize: "0.7rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              transition: "all 0.2s"
+            }}
+          >
+            🌐 Regime
+          </button>
+          <button
+            onClick={() => setShowStructure(!showStructure)}
+            style={{
+              background: showStructure ? "rgba(245, 158, 11, 0.15)" : "transparent",
+              border: `1px solid ${showStructure ? "rgba(245, 158, 11, 0.4)" : (isDark ? "rgba(255,255,255,0.08)" : "#cbd5e1")}`,
+              borderRadius: "0.35rem",
+              color: showStructure ? "#f59e0b" : (isDark ? "#94a3b8" : "#475569"),
+              padding: "0.2rem 0.5rem",
+              fontSize: "0.7rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              transition: "all 0.2s"
+            }}
+          >
+            📐 {isEnglish ? "Structure" : "Cấu trúc"}
+          </button>
+        </div>
+      </div>
+
+      {/* Main split display with draggable divider */}
+      <div ref={containerRef} style={{ display: "flex", flex: 1, minHeight: 0, gap: "0.5rem", position: "relative" }}>
+        {/* Left Side: Dynamic Chart */}
+        <div style={{ width: `${leftWidthPct}%`, display: "flex", flexDirection: "column", height: "100%", minHeight: 0, flexShrink: 0 }}>
+          <div style={{ flex: 1, borderRadius: "0.5rem", overflow: "hidden", position: "relative", minHeight: 0 }}>
+            <TradingViewLightweightChart
+              symbol={symbol}
+              height={window.innerHeight - 250}
+              resolution="1D"
+              timeframe="3M"
+              theme={isDark ? "dark" : "light"}
+              showSR={showSR}
+              showForecast={showForecast}
+              showRegime={showRegime}
+              showStructure={showStructure}
+              language={language}
+            />
+          </div>
+        </div>
+
+        {/* Draggable Divider Bar (Thanh kéo thay đổi kích thước ô Chart và ô Metrics) */}
+        <div
+          onMouseDown={handleMouseDown}
+          title={isEnglish ? "Drag left/right to resize Chart & Metrics" : "Kéo sang Trái / Phải để thay đổi kích thước ô Chart và Metrics"}
+          style={{
+            width: "14px",
+            margin: "0 -3px",
+            cursor: "col-resize",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 20,
+            userSelect: "none",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            if (e.currentTarget.firstElementChild) {
+              e.currentTarget.firstElementChild.style.background = "#2563eb";
+              e.currentTarget.firstElementChild.style.boxShadow = "0 0 10px #2563eb";
+              e.currentTarget.firstElementChild.style.height = "70px";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (e.currentTarget.firstElementChild) {
+              e.currentTarget.firstElementChild.style.background = isDark ? "rgba(255,255,255,0.18)" : "#cbd5e1";
+              e.currentTarget.firstElementChild.style.boxShadow = "none";
+              e.currentTarget.firstElementChild.style.height = "48px";
+            }
+          }}
+        >
+          <div
+            style={{
+              width: "4px",
+              height: "48px",
+              borderRadius: "4px",
+              background: isDark ? "rgba(255,255,255,0.18)" : "#cbd5e1",
+              transition: "all 0.2s ease-in-out",
+            }}
+          />
+        </div>
+
+        {/* Right Side: Stats Panel */}
+        <div style={{
+          width: `calc(${100 - leftWidthPct}% - 8px)`,
+          background: isDark ? "#0b0f19" : "#f8fafc",
+          borderRadius: "0.5rem",
+          padding: "1.25rem",
+          overflowY: "auto",
+          border: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#e2e8f0"}`,
+          height: "100%",
+          flexShrink: 0,
+        }}>
+          <h3 style={{ fontSize: "1.05rem", fontWeight: "900", marginTop: 0, marginBottom: "1rem", color: isDark ? "#fff" : "#0f172a" }}>
+            {isEnglish ? `${symbol} Metrics` : `Thống kê chỉ số ${symbol}`}
+          </h3>
+
+          {statsLoading ? (
+            <div style={{ color: isDark ? "#64748b" : "#94a3b8", fontSize: "0.85rem", padding: "1rem 0" }}>
+              {isEnglish ? "Loading metrics..." : "Đang tải chỉ số..."}
+            </div>
+          ) : stats ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              {[
+                { label: isEnglish ? "Symbol" : "Mã chứng khoán", value: symbol },
+                { label: isEnglish ? "Current Price" : "Giá hiện tại", value: stats.current_price ? Number(stats.current_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "N/A" },
+                { label: isEnglish ? "Support levels" : "Các mức Hỗ trợ (S)", value: (stats.support_zones || []).map(z => Number(z.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })).join(" · ") || "N/A" },
+                { label: isEnglish ? "Resistance levels" : "Các mức Kháng cự (R)", value: (stats.resistance_zones || []).map(z => Number(z.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })).join(" · ") || "N/A" },
+                { label: isEnglish ? "POC Value" : "Điểm POC", value: stats.poc?.price ? Number(stats.poc.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "N/A" },
+                { label: isEnglish ? "Levels count" : "Tổng mức tìm thấy", value: stats.total_levels_found || 0 },
+              ].map(item => (
+                <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "0.6rem 0", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#e2e8f0"}`, fontSize: "0.82rem" }}>
+                  <span style={{ color: isDark ? "#64748b" : "#475569", fontWeight: "500" }}>{item.label}</span>
+                  <span style={{ color: isDark ? "#fff" : "#0f172a", fontWeight: "700" }}>{item.value}</span>
+                </div>
+              ))}
+
+              {/* KAIROS v4 Backtest Performance */}
+              <div style={{ marginTop: "1.2rem", paddingTop: "1rem", borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "#cbd5e1"}` }}>
+                <h4 style={{ fontSize: "0.85rem", fontWeight: "800", color: "#60a5fa", margin: "0 0 0.8rem 0" }}>
+                  🏆 {isEnglish ? "KAIROS v4 Backtest Performance" : "Hiệu suất Backtest KAIROS v4"}
+                </h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
+                  {(() => {
+                    const perf = evalData?.financial_performance || {};
+                    const passes = evalData?.benchmark_pass || {};
+                    return [
+                      { label: "Sharpe Ratio",     value: evalLoading ? "…" : (perf.sharpe_ratio != null ? String(perf.sharpe_ratio) : "N/A"), target: "≥ 1.2", pass: passes.sharpe ?? false },
+                      { label: "CAGR",              value: evalLoading ? "…" : (perf.cagr_pct != null ? `${perf.cagr_pct}%` : "N/A"), target: "≥ 25%", pass: passes.cagr ?? false },
+                      { label: "Max Drawdown",      value: evalLoading ? "…" : (perf.max_drawdown_pct != null ? `${perf.max_drawdown_pct}%` : "N/A"), target: "≥ -40%", pass: passes.max_dd ?? false },
+                      { label: "Profit Factor",     value: evalLoading ? "…" : (perf.profit_factor != null ? String(perf.profit_factor) : "N/A"), target: "≥ 1.7", pass: passes.profit_factor ?? false },
+                      { label: "Calmar Ratio",      value: evalLoading ? "…" : (perf.calmar_ratio != null ? String(perf.calmar_ratio) : "N/A"), target: "≥ 0.9", pass: passes.calmar ?? false },
+                      { label: "Time to Recovery",  value: evalLoading ? "…" : (perf.time_to_recovery_days != null ? `${perf.time_to_recovery_days} phiên` : "N/A"), target: "< 45 phiên", pass: passes.recovery ?? false },
+                      { label: "Max Loss Streak",   value: evalLoading ? "…" : (perf.max_consecutive_losses != null ? `${perf.max_consecutive_losses} lệnh` : "N/A"), target: "< 5 lệnh", pass: passes.loss_streak ?? false },
+                      { label: "OOS Validation",   value: evalLoading ? "…" : (perf.oos_sharpe_ratio != null ? String(perf.oos_sharpe_ratio) : "N/A"), target: "OOS/IS ≥ 70%", pass: passes.oos ?? false },
+                    ];
+                  })().map(metric => (
+                    <div 
+                      key={metric.label} 
+                      style={{ 
+                        background: isDark ? "rgba(255,255,255,0.02)" : "#f8fafc", 
+                        border: `1px solid ${isDark ? "rgba(255,255,255,0.04)" : "#e2e8f0"}`,
+                        borderRadius: "6px",
+                        padding: "0.5rem 0.6rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "2px"
+                      }}
+                    >
+                      <span style={{ fontSize: "0.68rem", color: isDark ? "#94a3b8" : "#64748b", fontWeight: "600" }}>{metric.label}</span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontSize: "0.95rem", fontWeight: "900", color: metric.pass ? "#10b981" : "#ef4444" }}>
+                          {metric.value}
+                        </span>
+                        <span style={{ fontSize: "0.6rem", color: isDark ? "#64748b" : "#94a3b8", fontWeight: "bold" }}>
+                          Mục tiêu: {metric.target}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ color: isDark ? "#64748b" : "#94a3b8", fontSize: "0.82rem", fontStyle: "italic" }}>
+              {isEnglish ? "No metrics available for this symbol." : "Không có dữ liệu thống kê cho mã này."}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

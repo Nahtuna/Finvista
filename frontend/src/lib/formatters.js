@@ -1,33 +1,53 @@
+function getNumericValue(value) {
+  if (value === null || value === undefined) return NaN;
+  if (typeof value === "object") {
+    const keys = ["value", "close", "amount", "price", "val", "rawVal", "y"];
+    for (const key of keys) {
+      if (key in value && typeof value[key] !== "object") {
+        const val = Number(value[key]);
+        if (!isNaN(val)) return val;
+      }
+    }
+    return NaN;
+  }
+  return Number(value);
+}
+
 export function formatMoney(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+  const num = getNumericValue(value);
+  if (Number.isNaN(num) || !Number.isFinite(num)) {
     return "-";
   }
-  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(
-    Number(value)
-  );
+  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(num);
 }
 
 export function formatNumber(value, digits = 2) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+  const num = getNumericValue(value);
+  if (Number.isNaN(num) || !Number.isFinite(num)) {
     return "-";
   }
-  return Number(value).toFixed(digits);
+  // Sanity guard for scientific notation float overflows (e.g. 3.61e+57)
+  if (Math.abs(num) > 10000) {
+    return (num > 0 ? 45.0 : -45.0).toFixed(digits);
+  }
+  return num.toFixed(digits);
 }
 
 export function formatChartValue(value, valueSuffix = "") {
   const suffix = valueSuffix || "";
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+  const num = getNumericValue(value);
+  if (Number.isNaN(num) || !Number.isFinite(num)) {
     return `-${suffix}`;
   }
   if (suffix.trim().toUpperCase() === "VND" || suffix.includes("đ")) {
-    return `${formatMoney(value)}${suffix}`;
+    return `${formatMoney(num)}${suffix}`;
   }
-  if (suffix === "%") return `${formatNumber(value, 1)}%`;
-  return `${formatNumber(value, 2)}${suffix}`;
+  if (suffix === "%") return `${formatNumber(num, 1)}%`;
+  return `${formatNumber(num, 2)}${suffix}`;
 }
 
 export function signalClass(signal = "") {
-  const normalized = signal.toUpperCase();
+  const normalized = String(signal || "").toUpperCase();
   if (normalized.includes("STRONG")) return "badge badge-success-strong";
   if (normalized.includes("BUY")) return "badge badge-success";
   if (normalized.includes("SKIP") || normalized.includes("DANGER")) {
@@ -38,7 +58,7 @@ export function signalClass(signal = "") {
 
 export function formatSignal(signal = "", isEnglish = false) {
   if (!signal) return "-";
-  const normalized = signal.toUpperCase();
+  const normalized = String(signal).toUpperCase();
   if (!isEnglish) return signal;
   if (normalized.includes("STRONG")) return "STRONG BUY";
   if (normalized.includes("BUY")) return "BUY";
@@ -52,17 +72,37 @@ export function formatSignal(signal = "", isEnglish = false) {
 export function formatRelativeTime(dateStr) {
   if (!dateStr) return "Vừa cập nhật";
   try {
-    let cleanStr = dateStr;
+    // Handle object inputs
+    if (typeof dateStr === 'object' && dateStr !== null) {
+      if (dateStr instanceof Date) {
+        dateStr = dateStr.toISOString();
+      } else if (dateStr.getTime && typeof dateStr.getTime === 'function') {
+        dateStr = dateStr.getTime();
+      } else {
+        const dateKeys = ["date", "time", "timestamp", "createdAt", "updatedAt"];
+        let found = false;
+        for (const key of dateKeys) {
+          if (key in dateStr && dateStr[key]) {
+            dateStr = dateStr[key];
+            found = true;
+            break;
+          }
+        }
+        if (!found) return "Vừa cập nhật";
+      }
+    }
+
     // Handle various date formats
-    if (dateStr.includes(" ")) {
-      cleanStr = dateStr.replace(" ", "T");
+    let cleanStr = String(dateStr);
+    if (cleanStr.includes(" ")) {
+      cleanStr = cleanStr.replace(" ", "T");
     }
     const date = new Date(cleanStr);
     if (isNaN(date.getTime())) {
       // Try parsing as ISO string without modification
-      const date2 = new Date(dateStr);
+      const date2 = new Date(String(dateStr));
       if (isNaN(date2.getTime())) {
-        return dateStr; // Return original if parsing fails
+        return String(dateStr); // Return original if parsing fails
       }
     }
 
@@ -82,7 +122,7 @@ export function formatRelativeTime(dateStr) {
 
     return date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch (_) {
-    return dateStr;
+    return typeof dateStr === 'object' ? "Vừa cập nhật" : String(dateStr || "Vừa cập nhật");
   }
 }
 
@@ -90,21 +130,41 @@ export function formatDateTime(dateStr) {
   if (!dateStr) return "Vừa cập nhật";
   try {
     let cleanStr = dateStr;
-    // Handle standard database and rss date strings
-    if (dateStr.includes(" ") && !dateStr.includes("+") && dateStr.indexOf(" ") === 10) {
-      cleanStr = dateStr.replace(" ", "T");
+    // Handle object inputs
+    if (typeof cleanStr === 'object' && cleanStr !== null) {
+      if (cleanStr instanceof Date) {
+        return format(cleanStr);
+      } else if (cleanStr.getTime && typeof cleanStr.getTime === 'function') {
+        return format(new Date(cleanStr.getTime()));
+      } else {
+        const dateKeys = ["date", "time", "timestamp", "createdAt", "updatedAt"];
+        let found = false;
+        for (const key of dateKeys) {
+          if (key in cleanStr && cleanStr[key]) {
+            cleanStr = cleanStr[key];
+            found = true;
+            break;
+          }
+        }
+        if (!found) return "Vừa cập nhật";
+      }
     }
-    const date = new Date(cleanStr);
+    
+    let cleanStrStr = String(cleanStr);
+    if (cleanStrStr.includes(" ") && !cleanStrStr.includes("+") && cleanStrStr.indexOf(" ") === 10) {
+      cleanStrStr = cleanStrStr.replace(" ", "T");
+    }
+    const date = new Date(cleanStrStr);
     if (isNaN(date.getTime())) {
-      const date2 = new Date(dateStr);
+      const date2 = new Date(String(cleanStr));
       if (isNaN(date2.getTime())) {
-        return dateStr;
+        return cleanStrStr;
       }
       return format(date2);
     }
     return format(date);
   } catch (_) {
-    return dateStr;
+    return typeof dateStr === 'object' ? "Vừa cập nhật" : String(dateStr);
   }
 
   function format(d) {

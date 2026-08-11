@@ -16,14 +16,14 @@ import sys
 # Ensure project root is in path
 sys.path.append(os.getcwd())
 
-from src.modules.cw_pricing.backtest.opt_cw_backtest_audit import get_all_data
-from src.modules.regime_analysis.portfolio.drl_portfolio_agent import DRLPortfolioAgent, VNWarrantEnv, calculate_performance_metrics
-from src.modules.regime_analysis.indicators.hmm_regime import GaussianHMM
+from backend.modules.cw_pricing.backtest.opt_cw_backtest_audit import get_all_data
+from backend.modules.regime_analysis.portfolio.drl_portfolio_agent import DRLPortfolioAgent, VNWarrantEnv, calculate_performance_metrics
+from backend.modules.regime_analysis.indicators.hmm_regime import GaussianHMM
 
 def prepare_real_data():
     """Fetches real stock returns directly from the stock_history table."""
     print("  📡 Đang lấy dữ liệu thực tế từ table 'stock_history'...")
-    from src.core.database import engine
+    from backend.core.database import engine
     
     query = """
         SELECT symbol, date, close 

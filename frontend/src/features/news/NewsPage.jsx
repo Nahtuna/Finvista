@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { getFireantArticles } from "../../api/news.js";
-import { Newspaper, Search, RefreshCw, ExternalLink, Filter, TrendingUp, Sparkles, Tag, ShieldCheck, X } from "lucide-react";
+import { getFireantArticles, getDailyBrief, getSectorBrief } from "../../api/news.js";
+import { Newspaper, Search, RefreshCw, ExternalLink, Filter, TrendingUp, Sparkles, Tag, ShieldCheck, X, FileText, Download, Globe, Building2, Flame } from "lucide-react";
 import { useThemeTokens } from "../../app/useThemeTokens.js";
 import { formatDateTime } from "../../lib/formatters.js";
 
@@ -14,6 +14,11 @@ export function NewsPage({ language = "vi", preferences = {} }) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedNews, setSelectedNews] = useState(null);
 
+  // New briefs state
+  const [dailyBrief, setDailyBrief] = useState(null);
+  const [sectors, setSectors] = useState([]);
+  const [briefLoading, setBriefLoading] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     getFireantArticles(symbolFilter || null, 30)
@@ -23,6 +28,18 @@ export function NewsPage({ language = "vi", preferences = {} }) {
       .catch(() => setArticles([]))
       .finally(() => setLoading(false));
   }, [symbolFilter]);
+
+  useEffect(() => {
+    setBriefLoading(true);
+    getDailyBrief()
+      .then(res => setDailyBrief(res))
+      .catch(err => console.error("Error fetching daily brief:", err))
+      .finally(() => setBriefLoading(false));
+
+    getSectorBrief()
+      .then(res => setSectors(res?.sectors || []))
+      .catch(err => console.error("Error fetching sector briefs:", err));
+  }, []);
 
   const filteredArticles = useMemo(() => {
     return articles.filter(item => {
@@ -48,14 +65,64 @@ export function NewsPage({ language = "vi", preferences = {} }) {
     });
   }, [articles, categoryFilter]);
 
+  // Helper to parse ticker markdown links like [MBB](detail:MBB)
+  function parseAndRenderBriefText(text) {
+    if (!text) return "";
+    const regex = /\[([^\]]+)\]\(detail:([^\)]+)\)/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+      
+      const ticker = match[1];
+      parts.push(
+        <button
+          key={match.index}
+          onClick={(e) => {
+            e.stopPropagation();
+            setSymbolFilter(ticker);
+          }}
+          style={{
+            background: "rgba(37, 99, 235, 0.15)",
+            border: "1px solid rgba(37, 99, 235, 0.3)",
+            color: "#60a5fa",
+            padding: "0.1rem 0.4rem",
+            borderRadius: "0.25rem",
+            fontSize: "0.75rem",
+            fontWeight: "800",
+            cursor: "pointer",
+            margin: "0 0.25rem",
+            display: "inline-flex",
+            alignItems: "center",
+            verticalAlign: "middle"
+          }}
+        >
+          {ticker}
+        </button>
+      );
+      
+      lastIndex = regex.lastIndex;
+    }
+    
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+    
+    return parts.length > 0 ? parts : text;
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", color: textColor, background: bg }}>
       
       {/* HEADER BAR */}
       <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
         <div>
-          <h2 style={{ fontSize: "1.4rem", fontWeight: "900", margin: 0, color: textColor, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            📰 Tin tức & Phân tích Tác động Định lượng (Finvista News Hub)
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "900", margin: 0, color: textColor }}>
+            {isEnglish ? "NEWS & QUANTITATIVE IMPACT ANALYSIS (FINVISTA NEWS HUB)" : "TIN TỨC & PHÂN TÍCH TÁC ĐỘNG ĐỊNH LƯỢNG (FINVISTA NEWS HUB)"}
           </h2>
           <p style={{ fontSize: "0.8rem", color: mutedText, margin: "0.25rem 0 0 0" }}>
             Tổng hợp tin tức thị trường realtime · Phân tích mức độ tác động AI Score lên cổ phiếu & Chứng quyền
@@ -73,11 +140,96 @@ export function NewsPage({ language = "vi", preferences = {} }) {
             />
           </div>
 
-          <button onClick={() => setSymbolFilter(symbolFilter)} style={{ background: subBg, color: textColor, border: `1px solid ${borderColor}`, padding: "0.4rem 0.85rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Tải lại
+          <button onClick={() => { setSymbolFilter(""); setCategoryFilter("all"); }} style={{ background: subBg, color: textColor, border: `1px solid ${borderColor}`, padding: "0.4rem 0.85rem", borderRadius: "0.375rem", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            <RefreshCw size={14} className={loading || briefLoading ? "animate-spin" : ""} /> Tải lại
           </button>
         </div>
       </div>
+
+      {/* DAILY AI BRIEF (SSI Style split layout) */}
+      {(dailyBrief?.macro_brief?.length > 0 || dailyBrief?.corp_brief?.length > 0) && (
+        <div style={{
+          background: cardBg,
+          border: `1px solid ${borderColor}`,
+          borderRadius: "0.75rem",
+          padding: "1.25rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem",
+          boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.15)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", borderBottom: `1px solid ${borderColor}`, paddingBottom: "0.6rem" }}>
+            <Sparkles size={18} style={{ color: "#2563eb" }} />
+            <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "900", letterSpacing: "0.5px" }}>
+              🔔 BẢN TIN VẮN 24H TỪ AI (DAILY QUANT BRIEF)
+            </h3>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", minWidth: 0 }}>
+            {/* Tin vĩ mô */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              <h4 style={{ margin: 0, fontSize: "0.85rem", color: "#60a5fa", fontWeight: "800", display: "flex", alignItems: "center", gap: "0.3rem", textTransform: "uppercase" }}>
+                <Globe size={14} /> Tin vĩ mô
+              </h4>
+              <ul style={{ margin: 0, paddingLeft: "1.2rem", display: "flex", flexDirection: "column", gap: "0.45rem", color: textColor, fontSize: "0.85rem" }}>
+                {dailyBrief.macro_brief.map((item, index) => (
+                  <li key={index} style={{ lineHeight: "1.5" }}>
+                    {parseAndRenderBriefText(item)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Tin doanh nghiệp */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", borderLeft: `1px solid ${borderColor}`, paddingLeft: "1.5rem" }}>
+              <h4 style={{ margin: 0, fontSize: "0.85rem", color: "#34d399", fontWeight: "800", display: "flex", alignItems: "center", gap: "0.3rem", textTransform: "uppercase" }}>
+                <Building2 size={14} /> Tin doanh nghiệp
+              </h4>
+              <ul style={{ margin: 0, paddingLeft: "1.2rem", display: "flex", flexDirection: "column", gap: "0.45rem", color: textColor, fontSize: "0.85rem" }}>
+                {dailyBrief.corp_brief.map((item, index) => (
+                  <li key={index} style={{ lineHeight: "1.5" }}>
+                    {parseAndRenderBriefText(item)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTOR SENTIMENT GRID */}
+      {sectors.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          <h4 style={{ margin: 0, fontSize: "0.85rem", color: mutedText, fontWeight: "800", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            <Flame size={14} style={{ color: "#ef4444" }} /> Cảm xúc nhóm ngành trong ngày (AI Sector Index)
+          </h4>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.75rem" }}>
+            {sectors.map((sec, idx) => {
+              const totalRatio = sec.positive_pct + sec.negative_pct;
+              const hasData = totalRatio > 0;
+              const positiveProgress = hasData ? (sec.positive_pct / (totalRatio || 100)) * 100 : 50;
+
+              return (
+                <div key={idx} style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.6rem", padding: "0.85rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "0.85rem", fontWeight: "800", color: textColor }}>{sec.sector}</span>
+                    <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#10b981" }}>{sec.positive_pct}% Pos</span>
+                  </div>
+                  {/* Progress bar */}
+                  <div style={{ height: "6px", width: "100%", background: "rgba(239, 68, 68, 0.2)", borderRadius: "999px", overflow: "hidden", display: "flex" }}>
+                    <div style={{ height: "100%", width: `${positiveProgress}%`, background: "#10b981" }}></div>
+                  </div>
+                  <span style={{ fontSize: "0.7rem", color: mutedText, lineHeight: "1.3" }}>
+                    {sec.brief}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* CATEGORY TABS */}
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -166,6 +318,41 @@ export function NewsPage({ language = "vi", preferences = {} }) {
               <p style={{ margin: 0, fontSize: "0.85rem", color: mutedText, lineHeight: "1.5" }}>
                 {item.summary || item.content || "Không có tóm tắt"}
               </p>
+
+              {/* PDF Attachment */}
+              {item.attachment && item.attachment.url && (
+                <div style={{ 
+                  background: "rgba(59, 130, 246, 0.08)", 
+                  border: `1px solid #3b82f640`, 
+                  borderRadius: "0.375rem", 
+                  padding: "0.4rem 0.6rem", 
+                  marginTop: "0.4rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem"
+                }}>
+                  <FileText size={14} style={{ color: "#3b82f6" }} />
+                  <a
+                    href={item.attachment.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ 
+                      fontSize: "0.75rem", 
+                      color: "#3b82f6", 
+                      fontWeight: "600", 
+                      textDecoration: "none",
+                      flex: 1,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis"
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {item.attachment.filename || "Tài liệu đính kèm"}
+                  </a>
+                  <Download size={12} style={{ color: "#3b82f6", flexShrink: 0 }} />
+                </div>
+              )}
 
               {/* Footer Row */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${borderColor}`, paddingTop: "0.6rem", marginTop: "0.2rem" }}>

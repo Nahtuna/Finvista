@@ -2,17 +2,23 @@ import sqlite3
 import pandas as pd
 import argparse
 import sys
+import os
 import warnings
+
+# Ensure project root is in path
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
 
-from src.modules.regime_analysis.forecasting.dataset import RegimeDataset
-from src.modules.regime_analysis.forecasting.xgboost_trainer import XGBoostRegimeTrainer
+from backend.modules.regime_analysis.forecasting.dataset import RegimeDataset
+from backend.modules.regime_analysis.forecasting.xgboost_trainer import XGBoostRegimeTrainer
 
 def main():
     parser = argparse.ArgumentParser(description="Train ML Forecaster for Market Regimes")
-    parser.add_argument('--symbol', type=str, default='VNINDEX', help='Stock symbol to train on')
+    parser.add_argument('--symbol', type=str, default='SPY', help='Stock symbol to train on (default: SPY for reliable data availability)')
     parser.add_argument('--horizon', type=int, default=5, help='Prediction horizon (e.g., 5 days ahead)')
     args = parser.parse_args()
 
@@ -20,28 +26,30 @@ def main():
     
     # 1. Load Data
     try:
-        conn = sqlite3.connect('data/finvista.db')
-        query = f"SELECT date, open, high, low, close, volume FROM stock_history WHERE symbol = '{args.symbol}' ORDER BY date ASC"
-        df = pd.read_sql(query, conn)
-        conn.close()
+        # Use yfinance with SPY as default for reliable data
+        print(f"📊 Fetching data via yfinance...")
+        import yfinance as yf
+        ticker = args.symbol
+        
+        # Get 5 years of data for training
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=5*365)  # 5 years
+        
+        df = yf.download(ticker, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), progress=False)
+        df = df.reset_index()
+        df = df.rename(columns={'Date': 'date', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
         
         if df.empty:
-            print(f"⚠️ No data found in database for {args.symbol}. Falling back to yfinance...")
-            import yfinance as yf
-            ticker = args.symbol
-            if ticker == 'VNINDEX': ticker = '^VNINDEX'
-            df = yf.download(ticker, start='2015-01-01', progress=False)
-            df = df.reset_index()
-            df = df.rename(columns={'Date': 'date', 'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
+            print(f"❌ Failed to fetch data for {args.symbol} from yfinance.")
+            sys.exit(1)
             
-            if df.empty:
-                print(f"❌ Failed to fetch data for {args.symbol} from yfinance either.")
-                sys.exit(1)
+        print(f"✅ Loaded {len(df)} rows from yfinance")
                 
     except Exception as e:
-        print(f"❌ Database error: {e}")
+        print(f"❌ Data loading error: {e}")
         sys.exit(1)
 
     df['date'] = pd.to_datetime(df['date'])
@@ -53,7 +61,7 @@ def main():
     print(f"✅ Dataset ready: {len(X)} samples, {len(X.columns)} features.")
     
     # 3. Train Model
-    trainer = XGBoostRegimeTrainer()
+    trainer = XGBoostRegimeTrainer(horizon=args.horizon)
     trainer.train_and_evaluate(X, y, n_splits=5)
     
     # 4. Save Model

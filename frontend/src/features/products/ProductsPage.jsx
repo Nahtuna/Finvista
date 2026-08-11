@@ -6,7 +6,50 @@ export function ProductsPage({ language = "vi", preferences = {} }) {
   const isEnglish = language === "en";
   const { isDark, bg, cardBg, subBg, textColor, mutedText, borderColor } = useThemeTokens(preferences);
 
-  const tiers = [
+  const tiers = isEnglish ? [
+    {
+      name: "Free Trial",
+      price: "0đ / month",
+      desc: "Basic warrant valuation tools",
+      features: [
+        "Warrant valuation (15-min delay)",
+        "Basic opportunity scanner",
+        "Default simulation account",
+        "Basic AI assistant support"
+      ],
+      current: false,
+      actionText: "Try Now"
+    },
+    {
+      name: "Professional (PRO)",
+      price: "299,000đ / month",
+      desc: "Real-time data and advanced Greeks",
+      features: [
+        "Real-time data without delay",
+        "Advanced Greeks scanner (Delta/Gamma/Theta/Vega)",
+        "Altman Z-Score credit analysis",
+        "Unlimited simulation accounts",
+        "Email and Webhook alerts"
+      ],
+      current: true,
+      actionText: "Current Plan",
+      popular: true
+    },
+    {
+      name: "Premium (PREMIUM)",
+      price: "799,000đ / month",
+      desc: "Enterprise-level quantitative models",
+      features: [
+        "Creed Market Regime forecasting system",
+        "XGBoost price impact algorithm",
+        "API for quantitative backtesting",
+        "Priority support from quantitative engineers",
+        "Custom ML model integration support"
+      ],
+      current: false,
+      actionText: "Contact for Upgrade"
+    }
+  ] : [
     {
       name: "Bản dùng thử (Free)",
       price: "0đ / tháng",
@@ -57,10 +100,10 @@ export function ProductsPage({ language = "vi", preferences = {} }) {
       {/* HEADER BAR (PDF Page 13) */}
       <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
         <h2 style={{ fontSize: "1.5rem", fontWeight: "900", margin: 0, letterSpacing: "0.5px", color: textColor }}>
-          10. SẢN PHẨM & DỊCH VỤ FINVISTA
+          {isEnglish ? "FINVISTA PRODUCTS & SERVICES" : "SẢN PHẨM & DỊCH VỤ FINVISTA"}
         </h2>
         <p style={{ fontSize: "0.82rem", color: mutedText, margin: "0.25rem 0 0 0" }}>
-          Nâng cấp tài khoản để mở khóa toàn bộ dữ liệu định lượng real-time, Greeks và API backtest.
+          {isEnglish ? "Upgrade your account to unlock full real-time quantitative data, Greeks and backtest API" : "Nâng cấp tài khoản để mở khóa toàn bộ dữ liệu định lượng real-time, Greeks và API backtest"}
         </p>
       </div>
 
@@ -94,7 +137,7 @@ export function ProductsPage({ language = "vi", preferences = {} }) {
                 borderRadius: "999px",
                 boxShadow: "0 0 10px rgba(239, 68, 68, 0.5)"
               }}>
-                NỔI BẬT NHẤT
+                {isEnglish ? "MOST POPULAR" : "NỔI BẬT NHẤT"}
               </span>
             )}
 

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Briefcase, Plus, Trash2, RefreshCw, TrendingUp, TrendingDown, BarChart2, Clock, AlertTriangle } from "lucide-react";
 import { placeOrder, resetPortfolio } from "../../api.js";
-import { runBacktestApi, runCsvBacktestApi, runLongtermBacktestApi } from "../../api/portfolio.js";
+import { runBacktestApi, runCsvBacktestApi, runLongtermBacktestApi, runCustomBacktest } from "../../api/portfolio.js";
 import { useData } from "../../app/DataContext.jsx";
 import { useToast } from "../../components/ui/toast.jsx";
 import { formatMoney } from "../../lib/formatters.js";
 import { useThemeTokens } from "../../app/useThemeTokens.js";
+import { StrategyBuilder } from "./StrategyBuilder.jsx";
+import { useStrategies } from "./useStrategies.js";
 
 function KpiCard({ label, value, sub, subColor = "#10b981", border, cardBg, textColor, mutedText, borderColor }) {
   return (
@@ -18,10 +20,12 @@ function KpiCard({ label, value, sub, subColor = "#10b981", border, cardBg, text
 }
 
 export function PortfolioPage({ language = "vi", preferences = {}, initialTab = "danh_sach" }) {
+  const isEnglish = language === "en";
   const { isDark, bg, cardBg, subBg, textColor, mutedText, borderColor } = useThemeTokens(preferences);
 
   const { addToast } = useToast();
   const { portfolioData, refreshDataType } = useData();
+  const { strategies, saveStrategy, deleteStrategy } = useStrategies();
   const [activeTab, setActiveTab] = useState(initialTab || "danh_sach");
 
   useEffect(() => {
@@ -114,6 +118,7 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
   const [btYears, setBtYears] = useState(3);
   const [quantStage, setQuantStage] = useState("train"); // "train" | "test" | "simulate" | "live"
   const [quantSubTab, setQuantSubTab] = useState("overview"); // "overview" | "performance" | "analysis"
+  const [showCustomBuilder, setShowCustomBuilder] = useState(false);
 
   async function runBacktestSim() {
     setBtRunning(true);
@@ -151,6 +156,33 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
     }
   }
 
+  async function handleCustomBacktest(strategyConfig) {
+    setBtRunning(true);
+    try {
+      const res = await runCustomBacktest(strategyConfig);
+      if (res && res.status === "success") {
+        setBtResult(res);
+        addToast(`✅ Hoàn tất Custom Backtest — ${strategyConfig.name}`, "success");
+      } else {
+        addToast(res?.message || "Không thể chạy custom backtest.", "error");
+      }
+    } catch (err) {
+      addToast("Lỗi kết nối Custom Backtest.", "error");
+    } finally {
+      setBtRunning(false);
+    }
+  }
+
+  const handleSaveStrategy = (strategy) => {
+    saveStrategy(strategy);
+    addToast(`✅ Đã lưu chiến lược "${strategy.name}"`, "success");
+  };
+
+  const handleDeleteStrategy = (id) => {
+    deleteStrategy(id);
+    addToast("🗑️ Đã xóa chiến lược", "success");
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem", color: textColor, background: bg }}>
 
@@ -158,7 +190,9 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
       <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
           <div>
-            <h2 style={{ fontSize: "1.3rem", fontWeight: "900", margin: 0, color: textColor }}>💼 Portfolio — Danh mục chứng quyền</h2>
+            <h2 style={{ fontSize: "1.5rem", fontWeight: "900", margin: 0, color: textColor }}>
+              {isEnglish ? "PORTFOLIO — WARRANT PORTFOLIO" : "PORTFOLIO — DANH MỤC CHỨNG QUYỀN"}
+            </h2>
             <p style={{ fontSize: "0.8rem", color: mutedText, margin: "0.25rem 0 0 0" }}>
               Quản lý vị thế · Đặt lệnh giả lập · Theo dõi lãi/lỗ realtime & Backtest Lịch sử
             </p>
@@ -182,13 +216,49 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
             { id: "danh_sach", label: "Vị thế" },
             { id: "lich_su", label: "Lịch sử" },
             { id: "phan_tich", label: "Phân tích" },
-            { id: "backtest", label: "📊 Backtest Chiến lược" }
+            { id: "backtest", label: "Backtest Chiến lược" }
           ].map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ background: activeTab === t.id ? "#2563eb" : "transparent", color: activeTab === t.id ? "#fff" : textColor, border: "none", borderRadius: "0.3rem", padding: "0.35rem 1rem", fontSize: "0.8rem", fontWeight: "700", cursor: "pointer" }}>
               {t.label}
             </button>
           ))}
         </div>
+
+        {/* Backtest Mode Toggle */}
+        {activeTab === "backtest" && (
+          <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem" }}>
+            <button 
+              onClick={() => setShowCustomBuilder(false)}
+              style={{ 
+                background: !showCustomBuilder ? "#2563eb" : subBg, 
+                color: !showCustomBuilder ? "#fff" : textColor, 
+                border: `1px solid ${borderColor}`, 
+                padding: "0.4rem 0.8rem", 
+                borderRadius: "0.375rem", 
+                fontSize: "0.78rem", 
+                fontWeight: "700", 
+                cursor: "pointer" 
+              }}
+            >
+              Backtest Có sẵn
+            </button>
+            <button 
+              onClick={() => setShowCustomBuilder(true)}
+              style={{ 
+                background: showCustomBuilder ? "#8b5cf6" : subBg, 
+                color: showCustomBuilder ? "#fff" : textColor, 
+                border: `1px solid ${borderColor}`, 
+                padding: "0.4rem 0.8rem", 
+                borderRadius: "0.375rem", 
+                fontSize: "0.78rem", 
+                fontWeight: "700", 
+                cursor: "pointer" 
+              }}
+            >
+              Visual Builder (Tùy chỉnh)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* FORM ĐẶT LỆNH */}
@@ -364,9 +434,19 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
       {activeTab === "backtest" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
           
-          {/* Controls Panel */}
-          <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: "900", margin: "0 0 1rem 0", color: "#60a5fa" }}>📊 BỘ KIỂM THỬ BACKTEST LỊCH SỬ CHỨNG QUYỀN</h3>
+          {showCustomBuilder ? (
+            <StrategyBuilder
+              preferences={preferences}
+              onRunBacktest={handleCustomBacktest}
+              onSaveStrategy={handleSaveStrategy}
+              onDeleteStrategy={handleDeleteStrategy}
+              savedStrategies={strategies}
+            />
+          ) : (
+            <React.Fragment>
+              {/* Controls Panel */}
+              <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: "900", margin: "0 0 1rem 0", color: "#60a5fa" }}>📊 BỘ KIỂM THỬ BACKTEST LỊCH SỬ CHỨNG QUYỀN</h3>
 
             {/* Data Source Toggle */}
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
@@ -481,7 +561,7 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
 
           {/* Results Summary */}
           {btResult && (
-            <>
+            <React.Fragment>
               {/* === PIPELINE STAGE & NAVIGATION BAR === */}
               <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "0.75rem 1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -519,7 +599,7 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
 
               {/* === TAB 1: OVERVIEW === */}
               {quantSubTab === "overview" && (
-                <>
+                <React.Fragment>
                   {/* Aggregate Data Banner */}
                   <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: "0.75rem", padding: "1.25rem" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -565,7 +645,7 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
                       </tbody>
                     </table>
                   </div>
-                </>
+                </React.Fragment>
               )}
 
               {/* === TAB 2: PERFORMANCE === */}
@@ -819,7 +899,9 @@ export function PortfolioPage({ language = "vi", preferences = {}, initialTab = 
                   </table>
                 </div>
               </div>
-            </>
+            </React.Fragment>
+          )}
+        </React.Fragment>
           )}
         </div>
       )}

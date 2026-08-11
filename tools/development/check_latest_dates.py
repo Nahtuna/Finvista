@@ -1,4 +1,4 @@
-from src.core.database import SessionLocal, StockHistoricalPrice, CWHistoricalPrice
+from backend.core.database import SessionLocal, StockHistoricalPrice, CWHistoricalPrice
 from datetime import datetime
 
 db = SessionLocal()

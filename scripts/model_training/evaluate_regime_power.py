@@ -18,8 +18,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 sys.path.append(os.getcwd())
-from src.modules.regime_analysis.indicators.regime_detector import RegimeDetector
-from src.core.database import engine
+from backend.modules.regime_analysis.indicators.regime_detection import RegimeDetector
+from backend.core.database import engine
 
 from scipy import stats
 

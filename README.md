@@ -90,7 +90,7 @@ Nền tảng được tái cấu trúc hoàn chỉnh theo chuẩn **Clean Archit
 | --------------------- | --------------------------------- | ----------------------------------------------------------------------- |
 | **💳 Credit Risk**     | Merton Model · HistGBM · DebtRank | ETL 8 bước, ML dự báo kiệt quệ tài chính, hỗ trợ chỉ số CAMELS cho Ngân hàng (CAR, NPL, NIM...) |
 | **📈 CW Pricing**      | SABR · Black-Scholes · GEX Engine | Định giá lý thuyết, giải ngược IV, tính đủ 5 Greeks (Delta, Gamma, Vega, Theta, Rho), backtest Delta-Adaptive |
-| **🌊 Regime Analysis** | HMM · GARCH · XGBoost · DRL       | Phát hiện chế độ thị trường, dự báo biến động, tối ưu danh mục DRL      |
+| **🌊 Regime Analysis** | Ensemble Engine · HMM · GARCH · XGBoost · DRL | Phát hiện chế độ thị trường (4-model ensemble), dự báo biến động, tối ưu danh mục DRL, Vietnam market adaptation |
 | **📰 News Impact**     | NLP · ML Classifier               | Pipeline 6 bước: cào → align → tính xác suất → huấn luyện ML            |
 | **🤝 Trading Engine**  | Gemini AI · Paper Trader          | AI Committee đồng thuận, Paper Trading mô phỏng HOSE, stress test       |
 | **🔧 Infra & Scripts** | FastAPI · Telegram · Scrapers     | API gateway, bot Telegram, scrapers, automatic scheduler tự động chạy mô phòng hàng ngày |
@@ -132,9 +132,10 @@ flowchart TD
             CW3["Arbitrage & Ranking\nOpportunities ranker · Backtester"]
         end
         subgraph RA["🌊 Regime & Volatility Analysis"]
-            RA1["Indicators\nHMM 4-State · GARCH Volatility · Kalman"]
-            RA2["ML Forecasting\nXGBoost trend · DRL Portfolio Agent"]
-            RA3["Portfolio Ops\nOptimiser · Risk Parity"]
+            RA1["Ensemble Regime Engine\nCreed + HMM + Kairos + XGBoost (FAST/HYBRID/FULL modes)"]
+            RA2["Vietnam Market Adaptation\nSettlement delays · Price band filters · Volatility scaling"]
+            RA3["ML Forecasting\nXGBoost T+1/T+5 · Multi-Timeframe Analysis"]
+            RA4["Portfolio Ops\nOptimiser · Risk Parity · DRL Agent"]
         end
         subgraph ATC["🎯 ATC Market Manager"]
             ATC1["ATC Quick Status & Orderbook Matching"]
@@ -172,12 +173,13 @@ flowchart TD
     CR2 -->|"Default Prob (PD) & Bank Health"| CR3
     CW1 -->|"CW static info"| CW2
     CW2 -->|"Theoretical Price & 5 Greeks"| CW3
-    RA1 -->|"Vol & Regime state"| RA2
-    RA2 -->|"Dynamic weights"| RA3
+    RA1 -->|"Ensemble regime & Vol state"| RA2
+    RA2 -->|"Vietnam-adjusted signals"| RA3
+    RA3 -->|"Multi-timeframe forecasts"| RA4
 
     CR2 -->|"Credit scores"| TE1
     CW3 -->|"Arbitrage signals"| TE1
-    RA2 -->|"Regime forecast"| TE1
+    RA3 -->|"Multi-timeframe ensemble forecast"| TE1
     ATC1 -->|"ATC signals"| TE2
 
     TE1 -->|"Consensus verdict"| TE2
@@ -271,7 +273,7 @@ from finvista.modules.cw_pricing.models.pricing_core import calculate_greeks_for
 from finvista.common import config
 ```
 
-> **Ghi chú:** `python run.py` dùng `from src.modules...` (tương thích ngược). Import `finvista.*` là chuẩn sau khi `pip install -e .`.
+> **Ghi chú:** `python run.py` dùng `from backend.modules...` (tương thích ngược). Import `finvista.*` là chuẩn sau khi `pip install -e .`.
 
 ---
 

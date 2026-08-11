@@ -8,8 +8,8 @@ their structural credit health using the Merton DD model.
 
 import pandas as pd
 import numpy as np
-from src.core.database import engine
-from src.modules.credit_risk.models.merton_engine import calculate_merton_dd_realtime
+from backend.core.database import engine
+from backend.modules.credit_risk.models.merton_engine import calculate_merton_dd_realtime
 
 def run_stress_test():
     print("="*90)

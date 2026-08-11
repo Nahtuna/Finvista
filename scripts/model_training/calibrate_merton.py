@@ -21,8 +21,8 @@ import json
 # Ensure project root is on PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.core.database import SessionLocal, StockHistoricalPrice, CompanyDistressAnalysis
-from src.core.utils import logger
+from backend.core.database import SessionLocal, StockHistoricalPrice, CompanyDistressAnalysis
+from backend.core.utils import logger
 
 def merton_log_likelihood(params, returns, dt=1/252):
     """

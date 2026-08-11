@@ -55,10 +55,7 @@ describe("AuthProvider", () => {
       expect.stringContaining("/api/auth/login"),
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({
-          username: "tester@example.com",
-          password: "secret"
-        })
+        body: expect.stringContaining("username=tester%40example.com")
       })
     );
     expect(localStorage.getItem("finvista-access-token")).toBe("jwt-token");

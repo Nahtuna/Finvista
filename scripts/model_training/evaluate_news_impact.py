@@ -12,7 +12,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.modules.news_impact.pipeline import run_full_pipeline, run_event_study
+from backend.modules.news_impact.pipeline import run_full_pipeline, run_event_study
 
 
 def run_news_impact_pipeline(

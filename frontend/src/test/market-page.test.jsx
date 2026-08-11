@@ -3,7 +3,18 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { MarketPage } from "../features/market/MarketPage.jsx";
+import { AuthProvider } from "../auth/AuthProvider.jsx";
+import { DataProvider } from "../app/DataContext.jsx";
 
+function renderMarketPage(props) {
+  return render(
+    <AuthProvider>
+      <DataProvider>
+        <MarketPage {...props} />
+      </DataProvider>
+    </AuthProvider>
+  );
+}
 
 const apiMocks = vi.hoisted(() => ({
   getMarketMetadata: vi.fn(async () => ({
@@ -137,14 +148,21 @@ const apiMocks = vi.hoisted(() => ({
   }))
 }));
 
-vi.mock("../api.js", () => apiMocks);
+vi.mock("../api.js", () => ({
+  ...apiMocks,
+  getPortfolio: vi.fn(async () => null),
+  getMarketRegime: vi.fn(async () => null),
+  getFireantArticles: vi.fn(async () => []),
+  setAuthTokenProvider: vi.fn(),
+  API_BASE_URL: "http://127.0.0.1:8008"
+}));
 
 
 describe("Underlying market page", () => {
   it("renders only CW-linked stocks and opens the selected best warrant", async () => {
     const setPage = vi.fn();
     const setSelectedSymbol = vi.fn();
-    render(<MarketPage language="en" setPage={setPage} setSelectedSymbol={setSelectedSymbol} />);
+    renderMarketPage({ language: "en", setPage, setSelectedSymbol });
 
     expect(await screen.findByRole("heading", { name: "Market Overview" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Covered warrant pulse" })).toBeInTheDocument();
@@ -163,7 +181,7 @@ describe("Underlying market page", () => {
   });
 
   it("uses Vietnamese labels and requests live refresh on demand", async () => {
-    render(<MarketPage language="vi" setPage={vi.fn()} setSelectedSymbol={vi.fn()} />);
+    renderMarketPage({ language: "vi", setPage: vi.fn(), setSelectedSymbol: vi.fn() });
     expect(await screen.findByRole("heading", { name: "Tổng quan thị trường" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Làm mới live" }));
@@ -177,7 +195,7 @@ describe("Underlying market page", () => {
   });
 
   it("toggles a selected news symbol off on the second click", async () => {
-    render(<MarketPage language="en" setPage={vi.fn()} setSelectedSymbol={vi.fn()} />);
+    renderMarketPage({ language: "en", setPage: vi.fn(), setSelectedSymbol: vi.fn() });
     const newsSymbol = await screen.findByRole("button", { name: "MBB" });
 
     fireEvent.click(newsSymbol);
@@ -188,7 +206,7 @@ describe("Underlying market page", () => {
   });
 
   it("shows custom CW pulse hover values for signal and traded-value charts", async () => {
-    const { container } = render(<MarketPage language="en" setPage={vi.fn()} setSelectedSymbol={vi.fn()} />);
+    const { container } = renderMarketPage({ language: "en", setPage: vi.fn(), setSelectedSymbol: vi.fn() });
     expect(await screen.findByRole("heading", { name: "Covered warrant pulse" })).toBeInTheDocument();
 
     fireEvent.pointerEnter(container.querySelector(".cw-signal-segment"), {
@@ -205,7 +223,7 @@ describe("Underlying market page", () => {
   });
 
   it("suggests and filters ticker prefixes before matching company names", async () => {
-    render(<MarketPage language="en" setPage={vi.fn()} setSelectedSymbol={vi.fn()} />);
+    renderMarketPage({ language: "en", setPage: vi.fn(), setSelectedSymbol: vi.fn() });
     const search = await screen.findByPlaceholderText("Search symbol or company");
 
     fireEvent.change(search, { target: { value: "VI" } });

@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
-from src.modules.regime_analysis.portfolio.optimiser import mean_variance_long_only
-from src.modules.regime_analysis.portfolio.utils import sharpe_ratio, max_drawdown, annualise_return, annualise_vol, project_weights_to_simplex, project_to_subsimplex
+from backend.modules.regime_analysis.portfolio.optimiser import mean_variance_long_only
+from backend.modules.regime_analysis.portfolio.utils import sharpe_ratio, max_drawdown, annualise_return, annualise_vol, project_weights_to_simplex, project_to_subsimplex
 
 
 def test_mean_variance_weights_valid():
@@ -85,21 +85,21 @@ def test_annualise_vol():
 
 
 def test_sortino_ratio():
-    from src.modules.regime_analysis.portfolio.utils import sortino_ratio
+    from backend.modules.regime_analysis.portfolio.utils import sortino_ratio
     r = np.array([0.01, -0.02, 0.015, -0.01, 0.005])
     s = sortino_ratio(r)
     assert np.isfinite(s)
 
 
 def test_calmar_ratio():
-    from src.modules.regime_analysis.portfolio.utils import calmar_ratio
+    from backend.modules.regime_analysis.portfolio.utils import calmar_ratio
     c = calmar_ratio(0.12, -0.20)
     assert c == 0.60
     assert np.isnan(calmar_ratio(0.12, 0.0))
 
 
 def test_align_states():
-    from src.modules.regime_analysis.portfolio.regime_model import align_states
+    from backend.modules.regime_analysis.portfolio.regime_model import align_states
     from hmmlearn.hmm import GaussianHMM
     model = GaussianHMM(n_components=3, covariance_type="diag")
     model.n_features = 1
@@ -118,7 +118,7 @@ def test_align_states():
 
 
 def test_backtest_exposure_modes():
-    from src.modules.regime_analysis.portfolio.backtest import run_backtest
+    from backend.modules.regime_analysis.portfolio.backtest import run_backtest
     
     # Create mock data
     idx = pd.date_range(start="2026-06-01", periods=5, freq="D")

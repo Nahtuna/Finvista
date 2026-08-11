@@ -20,8 +20,8 @@ from datetime import datetime
 warnings.filterwarnings('ignore')
 
 sys.path.append(os.getcwd())
-from src.modules.regime_analysis.indicators.regime_detector import RegimeDetector
-from src.core.database import engine
+from backend.modules.regime_analysis.indicators.regime_detection import RegimeDetector
+from backend.core.database import engine
 
 # Trading Parameters
 INITIAL_CASH = 1_000_000_000.0  # 1 Billion VND
@@ -96,8 +96,10 @@ class KairosBacktester:
         for symbol in self.symbols:
             query = f"SELECT * FROM stock_history WHERE symbol='{symbol}' ORDER BY date ASC"
             df = pd.read_sql(query, engine)
+            df = df.drop_duplicates(subset=['date']).reset_index(drop=True)
             df['date'] = pd.to_datetime(df['date'])
             df.set_index('date', inplace=True)
+            df['symbol'] = symbol  # BUG 3 FIX: required for RegimeDetector SMC lookup
             df = self.calculate_indicators(df)
             
             # Layer 1: Kairos v3 Regimes
@@ -187,7 +189,7 @@ class KairosBacktester:
                 # STRATEGY B: REVERSAL (S7 + RSI + CONFIRMATION)
                 is_reversal = (row['regime'] == "S7: Quét_Thanh_Khoản" and 
                                row['rsi14'] < 30 and 
-                               row['close'] > row['open']) # Bullish candle confirmation
+                               'open' in row and row['close'] > row['open']) # BUG 4 FIX: guard missing column
                 
                 if (is_trend or is_reversal) and row['signal_score'] >= 65:
                     candidates.append({

@@ -5,9 +5,9 @@ import os
 # Ensure project root is on PYTHONPATH
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.modules.regime_analysis.service import GlobalAlphaEngine
-from src.modules.credit_risk.service import CreditRiskService
-from src.modules.regime_analysis.indicators.hmm_regime import calculate_vnindex_regime
+from backend.modules.regime_analysis.service import GlobalAlphaEngine
+from backend.modules.credit_risk.service import CreditRiskService
+from backend.modules.regime_analysis.indicators.hmm_regime import calculate_vnindex_regime
 
 async def health_check():
     print("🔍 [HEALTH CHECK] Starting Core Services Validation...")

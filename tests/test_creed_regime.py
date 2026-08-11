@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-from src.modules.regime_analysis.indicators.creed_regime import calculate_creed_regime_from_df
+from backend.modules.regime_analysis.indicators.creed_regime import calculate_creed_regime_from_df
 
 
 def test_creed_regime_bullish():

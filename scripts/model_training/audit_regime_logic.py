@@ -14,8 +14,8 @@ import sys
 # Ensure project root is in path
 sys.path.append(os.getcwd())
 
-from src.modules.regime_analysis.indicators.regime_detector import RegimeDetector
-from src.core.database import engine
+from backend.modules.regime_analysis.indicators.regime_detection import RegimeDetector
+from backend.core.database import engine
 
 def run_batch_regime_audit(symbols: list, days: int = 1000):
     print(f"🚀 Bắt đầu Audit hệ thống Regime cho {len(symbols)} mã...")

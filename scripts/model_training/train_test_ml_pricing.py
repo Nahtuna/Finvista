@@ -15,7 +15,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import warnings
 warnings.filterwarnings('ignore')
 
-from src.modules.cw_pricing.models.pricing_core import RISK_FREE_RATE
+from backend.modules.cw_pricing.models.pricing_core import RISK_FREE_RATE
 
 print("=" * 80)
 print("ML T+5 VOLATILITY FORECASTER & HYBRID PRICING")
@@ -26,18 +26,171 @@ print("=" * 80)
 # ==========================================
 
 print("\n" + "=" * 80)
-print("1. LOAD HISTORICAL DATA")
+print("1. LOAD HISTORICAL DATA FROM DATABASE")
 print("=" * 80)
 
 import os
+import sys
 
-dataset_path = os.path.join("data", "processed", "ml_historical_dataset.csv")
-if os.path.exists(dataset_path):
-    print(f"📥 Loading massive historical dataset from {dataset_path}...")
-    df = pd.read_csv(dataset_path)
-else:
-    print(f"❌ Error: Dataset not found. Please run backfill_ml_data.py first.")
+# Add project root to path
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from backend.core.database import engine
+
+# Load data from database
+print("📥 Loading CW and Stock historical data from SQLite...")
+cw_hist = pd.read_sql("SELECT * FROM cw_history", engine)
+stock_hist = pd.read_sql("SELECT * FROM stock_history", engine)
+mo_df = pd.read_sql("SELECT symbol, underlying, strike_price, ratio, days_to_maturity, last_updated FROM market_opportunities", engine)
+
+if cw_hist.empty or mo_df.empty:
+    print("❌ Error: Need both cw_history and market_opportunities to train.")
     exit(1)
+
+print(f"   ✅ Found {len(cw_hist):,} CW history rows and {len(mo_df)} active CW profiles.")
+
+# Use the backfill logic to generate features on-the-fly
+print("⚙️ Generating ML features from database...")
+from backend.modules.cw_pricing.models.pricing_core import (
+    estimate_implied_volatility, 
+    calculate_greeks_for_cw, 
+    calculate_d1_d2, 
+    RISK_FREE_RATE,
+    parse_ratio
+)
+from backend.modules.regime_analysis.indicators.volatility_forecasting import VolatilityModeler
+from scipy.stats import norm
+
+# Parse ratios and estimate maturity dates
+mo_df['parsed_ratio'] = mo_df['ratio'].apply(parse_ratio)
+mo_df['last_updated'] = pd.to_datetime(mo_df['last_updated'])
+mo_df['maturity_date'] = mo_df.apply(lambda row: row['last_updated'] + pd.Timedelta(days=row['days_to_maturity']), axis=1)
+
+# Build underlying volatility features
+print("� Pre-calculating historical volatility for underlying stocks...")
+underlying_vols = {}
+for underlying in mo_df['underlying'].unique():
+    sh = stock_hist[stock_hist['symbol'] == underlying].sort_values('date')
+    if not sh.empty:
+        sh['date'] = pd.to_datetime(sh['date'])
+        sh = sh.set_index('date')
+        returns = sh['close'].pct_change().dropna()
+        
+        hist_vol = returns.rolling(window=30).std() * np.sqrt(252) * 100
+        ewma_var = VolatilityModeler.ewma_variance(returns)
+        ewma_vol = np.sqrt(ewma_var) * np.sqrt(252) * 100
+        
+        vol_df = pd.DataFrame({
+            'historical_volatility_pct': hist_vol,
+            'garch_vol_forecast_pct': ewma_vol
+        })
+        underlying_vols[underlying] = vol_df
+
+# Process historical data
+print("⚙️ Processing historical data to generate ML dataset...")
+backfill_data = []
+
+cw_hist['date'] = pd.to_datetime(cw_hist['date'])
+stock_hist['date'] = pd.to_datetime(stock_hist['date'])
+stock_lookup = stock_hist.set_index(['symbol', 'date'])['close'].to_dict()
+profile_lookup = mo_df.set_index('symbol').to_dict('index')
+
+processed_count = 0
+skipped_count = 0
+
+for idx, row in cw_hist.iterrows():
+    symbol = row['symbol']
+    cw_date = row['date']
+    cw_price = row['close']
+    cw_volume = row['volume']
+    
+    profile = profile_lookup.get(symbol)
+    if not profile:
+        skipped_count += 1
+        continue
+        
+    underlying = profile['underlying']
+    strike = profile['strike_price']
+    ratio = profile['parsed_ratio']
+    maturity_date = profile['maturity_date']
+    
+    days_to_mat = (maturity_date - cw_date).days
+    if days_to_mat <= 2 or cw_price <= 0:
+        skipped_count += 1
+        continue
+        
+    s_price = stock_lookup.get((underlying, cw_date))
+    if not s_price:
+        skipped_count += 1
+        continue
+        
+    vol_df = underlying_vols.get(underlying)
+    if vol_df is not None and cw_date in vol_df.index:
+        hist_vol = vol_df.loc[cw_date, 'historical_volatility_pct']
+        garch_vol = vol_df.loc[cw_date, 'garch_vol_forecast_pct']
+    else:
+        hist_vol = 45.0
+        garch_vol = 45.0
+        
+    if pd.isna(hist_vol): hist_vol = 45.0
+    if pd.isna(garch_vol): garch_vol = 45.0
+        
+    iv = estimate_implied_volatility(
+        market_price=cw_price * ratio,
+        underlying_price=s_price,
+        strike_price=strike,
+        days_to_maturity=days_to_mat,
+        risk_free_rate=RISK_FREE_RATE
+    )
+    iv_pct = iv * 100.0
+    
+    vol_for_pricing = garch_vol / 100.0
+    
+    greeks = calculate_greeks_for_cw(
+        underlying_price=s_price,
+        strike_price=strike,
+        days_to_maturity=days_to_mat,
+        implied_volatility=vol_for_pricing,
+        conversion_ratio=ratio,
+        risk_free_rate=RISK_FREE_RATE
+    )
+    
+    T = days_to_mat / 365.0
+    d1_theo, d2_theo = calculate_d1_d2(s_price, strike, T, RISK_FREE_RATE, vol_for_pricing)
+    bsm_theoretical_price_unscaled = s_price * norm.cdf(d1_theo) - strike * np.exp(-RISK_FREE_RATE * T) * norm.cdf(d2_theo)
+    bsm_theoretical_price = bsm_theoretical_price_unscaled / ratio
+    
+    record = {
+        'symbol': symbol,
+        'date': cw_date.strftime('%Y-%m-%d'),
+        'market_price': cw_price,
+        'underlying_price': s_price,
+        'strike_price': strike,
+        'ratio': ratio,
+        'days_to_maturity': days_to_mat,
+        'volume': cw_volume,
+        'moneyness': greeks['moneyness'],
+        'implied_volatility_pct': iv_pct,
+        'historical_volatility_pct': hist_vol,
+        'garch_vol_forecast_pct': garch_vol,
+        'delta': greeks['delta'],
+        'gamma': greeks['gamma'],
+        'theta': greeks['theta'],
+        'vega': greeks['vega'],
+        'prob_itm': greeks['prob_itm'],
+        'bsm_price': bsm_theoretical_price,
+        'normalized_market_price': cw_price * ratio
+    }
+    backfill_data.append(record)
+    processed_count += 1
+    
+    if processed_count % 5000 == 0:
+        print(f"   ... processed {processed_count:,} rows")
+
+df = pd.DataFrame(backfill_data)
+print(f"✅ Generated ML dataset: {len(df):,} valid rows (skipped: {skipped_count:,})")
     
 # Filter valid data
 df = df.dropna(subset=[
@@ -215,7 +368,7 @@ print("\n" + "=" * 80)
 print("6. HYBRID BSM PRICING & TRADING SIMULATION")
 print("=" * 80)
 
-from src.modules.cw_pricing.models.pricing_core import calculate_d1_d2
+from backend.modules.cw_pricing.models.pricing_core import calculate_d1_d2
 from scipy.stats import norm
 
 test_df = df_clean.loc[X_test.index].copy()

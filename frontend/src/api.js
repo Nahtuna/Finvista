@@ -11,7 +11,7 @@ export {
   triggerAtcSync,
   getAtcStatusFull,
 } from "./api/system.js";
-export { getUnderlyingMarket, getMacroData, refreshAllData } from "./api/market.js";
+export { getUnderlyingMarket, getMacroData, refreshAllData, getCashflowData } from "./api/market.js";
 
 export {
   getOpportunities,
@@ -42,7 +42,9 @@ export {
   getNewsMLSignal,
   getNewsSentiment,
   runNewsPipeline,
-  getFireantArticles
+  getFireantArticles,
+  getDailyBrief,
+  getSectorBrief
 } from "./api/news.js";
 export {
   chatCompletion,

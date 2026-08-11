@@ -4,8 +4,8 @@ from unittest.mock import patch, MagicMock
 # Mock yfinance to prevent ImportError on system python environments lacking websockets.asyncio
 sys.modules['yfinance'] = MagicMock()
 
-from src.modules.cw_pricing.prompts.analyst_prompt import build_analyst_prompt
-import src.modules.regime_analysis.indicators.hmm_regime
+from backend.modules.cw_pricing.prompts.analyst_prompt import build_analyst_prompt
+import backend.modules.regime_analysis.indicators.hmm_regime
 
 def test_build_analyst_prompt():
     mock_opps = {
@@ -32,10 +32,10 @@ def test_build_analyst_prompt():
 
     # WarrantService and NewsImpactService are lazy-imported inside the function,
     # so patch at their source modules, not at analyst_prompt.
-    with patch("src.modules.cw_pricing.service.WarrantService.get_opportunities", return_value=mock_opps), \
-         patch("src.modules.cw_pricing.service.WarrantService.get_actionable_levels", return_value={"status": "error"}), \
-         patch("src.modules.regime_analysis.indicators.hmm_regime.calculate_vnindex_regime", return_value=mock_market_regime), \
-         patch("src.modules.news_impact.service.NewsImpactService.get_ticker_sentiment_score", return_value={"composite_score": 0.25, "label": "POSITIVE"}):
+    with patch("backend.modules.cw_pricing.service.WarrantService.get_opportunities", return_value=mock_opps), \
+         patch("backend.modules.cw_pricing.service.WarrantService.get_actionable_levels", return_value={"status": "error"}), \
+         patch("backend.modules.regime_analysis.indicators.hmm_regime.calculate_vnindex_regime", return_value=mock_market_regime), \
+         patch("backend.modules.news_impact.service.NewsImpactService.get_ticker_sentiment_score", return_value={"composite_score": 0.25, "label": "POSITIVE"}):
 
         res = build_analyst_prompt("HPG")
         assert "prompt" in res

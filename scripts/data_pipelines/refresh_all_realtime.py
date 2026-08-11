@@ -34,7 +34,7 @@ def refresh_market_opportunities():
     """Refresh CW market opportunities data."""
     print("\n📊 [1/7] Refreshing Market Opportunities (CW data)...")
     try:
-        from src.modules.cw_pricing.backtest.run_analysis import run_quant_pipeline_programmatic
+        from backend.modules.cw_pricing.backtest.run_analysis import run_quant_pipeline_programmatic
         run_quant_pipeline_programmatic(strategy="balanced")
         print("✅ Market opportunities refreshed")
         return True
@@ -47,7 +47,7 @@ def refresh_stock_history():
     """Refresh stock history data."""
     print("\n📈 [2/7] Refreshing Stock History...")
     try:
-        from src.modules.atc_manager.service import sync_atc_data, get_last_trading_day
+        from backend.modules.atc_manager.service import sync_atc_data, get_last_trading_day
         expected_trading_day = get_last_trading_day()
         sync_atc_data(
             sync_type="STOCK",
@@ -66,7 +66,7 @@ def refresh_cw_history():
     """Refresh CW history data."""
     print("\n📉 [3/7] Refreshing CW History...")
     try:
-        from src.modules.atc_manager.service import sync_atc_data, get_last_trading_day
+        from backend.modules.atc_manager.service import sync_atc_data, get_last_trading_day
         expected_trading_day = get_last_trading_day()
         sync_atc_data(
             sync_type="CW",
@@ -104,7 +104,7 @@ def refresh_macro_data():
     """Refresh macro data (USD/VND, Gold, VIX, Oil)."""
     print("\n💰 [5/7] Refreshing Macro Data...")
     try:
-        from src.modules.regime_analysis.etl.macro_scraper import fetch_macro_indicators
+        from backend.modules.regime_analysis.etl.macro_scraper import fetch_macro_indicators
         fetch_macro_indicators()
         print("✅ Macro data refreshed")
         return True
@@ -117,7 +117,7 @@ def refresh_derivatives_data():
     """Refresh derivatives data (VN30F1M)."""
     print("\n📈 [6/7] Refreshing Derivatives Data...")
     try:
-        from src.modules.cw_pricing.backtest.fetcher import fetch_derivatives_sentiment
+        from backend.modules.cw_pricing.backtest.fetcher import fetch_derivatives_sentiment
         fetch_derivatives_sentiment()
         print("✅ Derivatives data refreshed")
         return True
@@ -132,7 +132,7 @@ def refresh_us_indices():
     try:
         import yfinance as yf
         import pandas as pd
-        from src.core.database import SessionLocal, StockHistoricalPrice
+        from backend.core.database import SessionLocal, StockHistoricalPrice
         
         db = SessionLocal()
         try:
@@ -201,7 +201,7 @@ def refresh_merton_credit_model():
     """Refresh Merton credit risk model data."""
     print("\n🏦 [8/12] Refreshing Merton Credit Risk Model...")
     try:
-        from src.modules.credit_risk.etl.merton_calculator import calculate_merton_for_all_companies
+        from backend.modules.credit_risk.etl.merton_calculator import calculate_merton_for_all_companies
         calculate_merton_for_all_companies()
         print("✅ Merton credit risk model refreshed")
         return True
@@ -214,7 +214,7 @@ def refresh_company_distress_analysis():
     """Refresh company distress analysis model."""
     print("\n📉 [9/12] Refreshing Company Distress Analysis...")
     try:
-        from src.modules.credit_risk.etl.distress_analyzer import analyze_all_companies_distress
+        from backend.modules.credit_risk.etl.distress_analyzer import analyze_all_companies_distress
         analyze_all_companies_distress()
         print("✅ Company distress analysis refreshed")
         return True
@@ -227,7 +227,7 @@ def refresh_garch_volatility_model():
     """Refresh GARCH volatility model data."""
     print("\n📊 [10/12] Refreshing GARCH Volatility Model...")
     try:
-        from src.modules.regime_analysis.etl.garch_volatility import calculate_garch_for_all_symbols
+        from backend.modules.regime_analysis.etl.garch_volatility import calculate_garch_for_all_symbols
         calculate_garch_for_all_symbols()
         print("✅ GARCH volatility model refreshed")
         return True
@@ -240,7 +240,7 @@ def refresh_gamma_exposure_model():
     """Refresh VN30 gamma exposure model."""
     print("\n📈 [11/12] Refreshing VN30 Gamma Exposure Model...")
     try:
-        from src.modules.regime_analysis.etl.gamma_exposure import calculate_vn30_gamma_exposure
+        from backend.modules.regime_analysis.etl.gamma_exposure import calculate_vn30_gamma_exposure
         calculate_vn30_gamma_exposure()
         print("✅ VN30 gamma exposure model refreshed")
         return True
@@ -253,7 +253,7 @@ def refresh_regime_analysis():
     """Refresh market regime analysis model."""
     print("\n🔄 [12/12] Refreshing Market Regime Analysis...")
     try:
-        from src.modules.regime_analysis.etl.regime_detector import detect_market_regime
+        from backend.modules.regime_analysis.etl.regime_detector import detect_market_regime
         detect_market_regime()
         print("✅ Market regime analysis refreshed")
         return True

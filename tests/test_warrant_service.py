@@ -1,8 +1,8 @@
 import pytest
 import pandas as pd
 from unittest.mock import patch, MagicMock
-from src.modules.cw_pricing.service import WarrantService
-from src.core.database import MarketOpportunity
+from backend.modules.cw_pricing.service import WarrantService
+from backend.core.database import MarketOpportunity
 
 def test_simulate_scenarios_success():
     # Mock database record
@@ -25,7 +25,7 @@ def test_simulate_scenarios_success():
     mock_db = MagicMock()
     mock_db.query.return_value.filter.return_value.first.return_value = mock_opp
 
-    with patch("src.modules.cw_pricing.service.SessionLocal", return_value=mock_db):
+    with patch("backend.modules.cw_pricing.service.SessionLocal", return_value=mock_db):
         res = WarrantService.simulate_scenarios("CACB2511")
         assert res["symbol"] == "CACB2511"
         assert res["underlying_symbol"] == "ACB"
@@ -59,7 +59,7 @@ def test_get_history_success():
         }
     ])
 
-    with patch("src.modules.cw_pricing.service.analyze_historical_warrant", return_value=mock_df):
+    with patch("backend.modules.cw_pricing.service.analyze_historical_warrant", return_value=mock_df):
         res = WarrantService.get_history("CACB2511", days=1)
         assert res["symbol"] == "CACB2511"
         assert len(res["history"]) == 1

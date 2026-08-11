@@ -1,17 +1,21 @@
 import React from "react";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePreferences } from "../app/usePreferences.js";
 import { LoginPage } from "../pages/LoginPage.jsx";
 
 describe("language preferences", () => {
-  it("defaults to English and persists a later language choice", () => {
-    const { result } = renderHook(() => usePreferences());
-    expect(result.current.language).toBe("en");
+  beforeEach(() => {
+    localStorage.clear();
+  });
 
-    act(() => result.current.setLanguage("vi"));
-    expect(localStorage.getItem("finvista-language")).toBe("vi");
+  it("defaults to Vietnamese and persists a later language choice", () => {
+    const { result } = renderHook(() => usePreferences());
+    expect(result.current.language).toBe("vi");
+
+    act(() => result.current.setLanguage("en"));
+    expect(localStorage.getItem("finvista-language")).toBe("en");
   });
 
   it("renders and submits the password login form using the selected language", () => {

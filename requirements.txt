@@ -11,9 +11,9 @@ joblib>=1.3.0
 hmmlearn>=0.3.0
 
 
-# NLP & Machine Learning (Optional PhoBERT Sentiment analysis - uncomment if needed)
-# torch>=2.0.0
-# transformers>=4.30.0
+# NLP & Machine Learning (PhoBERT Sentiment analysis)
+torch>=2.0.0
+transformers>=4.30.0
 tqdm>=4.65.0
 
 # Vietnamese stock data adapter
@@ -29,6 +29,7 @@ Flask>=3.0.0
 matplotlib>=3.7.0
 yfinance>=0.2.30
 pytest>=7.0.0
+pytest-cov>=4.0.0
 pypdf>=4.0.0
 
 # API Gateway & Database
@@ -58,4 +59,8 @@ nest-asyncio>=1.5.8
 # Redis caching layer
 redis>=5.0.0
 aioredis>=2.0.0
+
+# HTML-to-PDF report generation (replaces LaTeX)
+weasyprint>=62.0
+jinja2>=3.1.0
 

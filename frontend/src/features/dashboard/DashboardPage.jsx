@@ -49,7 +49,7 @@ export function DashboardPage({ language = "vi", preferences = {} }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <div>
             <h2 style={{ fontSize: "1.5rem", fontWeight: "900", margin: 0, color: textColor, letterSpacing: "0.5px" }}>
-              4. DASHBOARD – BẢNG ĐIỀU KHIỂN ({activeTab.toUpperCase()})
+              {isEnglish ? `DASHBOARD — CONTROL PANEL (${activeTab.toUpperCase()})` : `DASHBOARD — BẢNG ĐIỀU KHIỂN (${activeTab.toUpperCase()})`}
             </h2>
             <p style={{ fontSize: "0.82rem", color: mutedText, margin: "0.25rem 0 0 0" }}>
               Phân tích hiệu suất, phân bổ tài sản và cảnh báo rủi ro danh mục tự động.

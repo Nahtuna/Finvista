@@ -11,74 +11,86 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
   const [ohlcData, setOhlcData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch OHLCV candles dynamically from UDF API
+  // Fetch OHLCV candles dynamically from UDF API & auto-refresh live every 30s
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    // Dynamic lookback based on selected timeframe (Intraday vs Daily)
-    const lookbackDays = selectedTimeframe.includes("m") ? 14 : selectedTimeframe.includes("h") ? 60 : 365;
-    const fromTime = nowSeconds - (lookbackDays * 86400);
-    const toTime   = nowSeconds + (2 * 365 * 86400); // +2yr buffer covers future-dated DB entries
 
-    fetch(`${API_BASE_URL}/api/udf/history?symbol=${encodeURIComponent(symbol)}&resolution=${selectedTimeframe}&from=${fromTime}&to=${toTime}`)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-        const contentType = res.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Received non-JSON response from UDF API");
-        }
-        return res.json();
-      })
-      .then(data => {
-        if (isMounted && data && data.s === "ok" && data.c && data.c.length > 0) {
-          setOhlcData(data);
-        }
-      })
-      .catch(err => console.error("Error fetching UDF for Technical Gauges:", err))
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
+    const loadData = (showSpinner = true) => {
+      if (showSpinner) setLoading(true);
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const lookbackDays = selectedTimeframe.includes("m") ? 14 : selectedTimeframe.includes("h") ? 60 : 365;
+      const fromTime = nowSeconds - (lookbackDays * 86400);
+      const toTime   = nowSeconds + (2 * 365 * 86400);
 
-    return () => { isMounted = false; };
+      fetch(`${API_BASE_URL}/api/udf/history?symbol=${encodeURIComponent(symbol)}&resolution=${selectedTimeframe}&from=${fromTime}&to=${toTime}`)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+          const contentType = res.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("Received non-JSON response from UDF API");
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (isMounted && data && data.s === "ok" && data.c && data.c.length > 0) {
+            setOhlcData(data);
+          }
+        })
+        .catch(err => console.error("Error fetching UDF for Technical Gauges:", err?.message || String(err)))
+        .finally(() => {
+          if (isMounted && showSpinner) setLoading(false);
+        });
+    };
+
+    loadData(true);
+
+    // Auto-refresh live every 30 seconds
+    const interval = setInterval(() => {
+      loadData(false);
+    }, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [symbol, selectedTimeframe]);
 
   // Dynamic calculations of Oscillators & Moving Averages
   const computedTechnicals = useMemo(() => {
     if (!ohlcData || !ohlcData.c || ohlcData.c.length < 5) {
-      // Fallback base values while loading
       return {
         oscillatorsList: [
-          { name: "Relative Strength Index (14)", val: "48.50", action: "Neutral", color: mutedText },
-          { name: "Stochastic %K (14, 3, 3)", val: "52.10", action: "Neutral", color: mutedText },
-          { name: "Commodity Channel Index (20)", val: "14.20", action: "Neutral", color: mutedText },
-          { name: "Average Directional Index (14)", val: "24.50", action: "Neutral", color: mutedText },
-          { name: "Awesome Oscillator", val: "12.40", action: "Buy", color: "#10b981" },
-          { name: "Momentum (10)", val: "+14.50", action: "Buy", color: "#10b981" },
-          { name: "MACD Level (12, 26)", val: "+5.80", action: "Buy", color: "#10b981" }
+          { name: "Relative Strength Index (14)", val: "-", action: "-", color: mutedText },
+          { name: "Stochastic %K (14, 3, 3)", val: "-", action: "-", color: mutedText },
+          { name: "Commodity Channel Index (20)", val: "-", action: "-", color: mutedText },
+          { name: "Average Directional Index (14)", val: "-", action: "-", color: mutedText },
+          { name: "Awesome Oscillator", val: "-", action: "-", color: mutedText },
+          { name: "Momentum (10)", val: "-", action: "-", color: mutedText },
+          { name: "MACD Level (12, 26)", val: "-", action: "-", color: mutedText }
         ],
         maList: [
-          { name: "Exponential Moving Average (10)", val: "1,754.45", action: "Buy", color: "#10b981" },
-          { name: "Simple Moving Average (10)", val: "1,750.13", action: "Buy", color: "#10b981" },
-          { name: "Exponential Moving Average (20)", val: "1,742.78", action: "Buy", color: "#10b981" },
-          { name: "Simple Moving Average (20)", val: "1,738.00", action: "Buy", color: "#10b981" },
-          { name: "Exponential Moving Average (50)", val: "1,710.75", action: "Buy", color: "#10b981" },
-          { name: "Simple Moving Average (50)", val: "1,695.32", action: "Buy", color: "#10b981" },
-          { name: "Hull Moving Average (9)", val: "1,760.18", action: "Buy", color: "#10b981" }
+          { name: "Exponential Moving Average (10)", val: "-", action: "-", color: mutedText },
+          { name: "Simple Moving Average (10)", val: "-", action: "-", color: mutedText },
+          { name: "Exponential Moving Average (20)", val: "-", action: "-", color: mutedText },
+          { name: "Simple Moving Average (20)", val: "-", action: "-", color: mutedText },
+          { name: "Exponential Moving Average (50)", val: "-", action: "-", color: mutedText },
+          { name: "Simple Moving Average (50)", val: "-", action: "-", color: mutedText },
+          { name: "Hull Moving Average (9)", val: "-", action: "-", color: mutedText }
         ],
         summary: {
-          oscillators: { sell: 1, neutral: 3, buy: 3, signal: "BUY" },
-          movingAverages: { sell: 0, neutral: 0, buy: 7, signal: "STRONG BUY" },
-          summaryOverall: { sell: 1, neutral: 3, buy: 10, signal: "BUY" }
+          oscillators: { sell: 0, neutral: 0, buy: 0, signal: "-" },
+          movingAverages: { sell: 0, neutral: 0, buy: 0, signal: "-" },
+          summaryOverall: { sell: 0, neutral: 0, buy: 0, signal: "-" }
         }
       };
     }
 
-    const closes = ohlcData.c;
-    const highs = ohlcData.h || closes;
-    const lows = ohlcData.l || closes;
-    const len = closes.length;
-    const currentPrice = closes[len - 1];
+    try {
+      const closes = ohlcData.c;
+      const highs = ohlcData.h || closes;
+      const lows = ohlcData.l || closes;
+      const len = closes.length;
+      const currentPrice = closes[len - 1];
 
     // Helper functions for MA & Indicators
     function calcSMA(period) {
@@ -97,6 +109,31 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
       return ema;
     }
 
+    function calcWMA(period, arr = closes) {
+      const arrayLen = arr.length;
+      if (arrayLen < period) return arr[arrayLen - 1];
+      const norm = (period * (period + 1)) / 2;
+      let sum = 0;
+      for (let i = 1; i <= period; i++) {
+        sum += arr[arrayLen - period + i - 1] * i;
+      }
+      return sum / norm;
+    }
+
+    function calcHMA(period) {
+      if (len < period) return currentPrice;
+      const halfPeriod = Math.floor(period / 2);
+      const sqrtPeriod = Math.floor(Math.sqrt(period));
+      const rawHma = [];
+      for (let i = Math.max(period, len - sqrtPeriod - 5); i <= len; i++) {
+        const subArr = closes.slice(0, i);
+        const wmaHalf = calcWMA(halfPeriod, subArr);
+        const wmaFull = calcWMA(period, subArr);
+        rawHma.push(2 * wmaHalf - wmaFull);
+      }
+      return calcWMA(sqrtPeriod, rawHma);
+    }
+
     // 1. RSI (14)
     let gains = 0, losses = 0;
     for (let i = len - 14; i < len; i++) {
@@ -106,8 +143,7 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
     }
     const avgGain = gains / 14;
     const avgLoss = losses / 14;
-    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-    const rsiVal = Number((100 - (100 / (1 + rs))).toFixed(2));
+    const rsiVal = avgLoss === 0 ? 100 : Number((100 - (100 / (1 + (avgGain / avgLoss)))).toFixed(2));
     const rsiAction = rsiVal < 30 ? "Buy" : rsiVal > 70 ? "Sell" : "Neutral";
 
     // 2. Stochastic %K (14)
@@ -117,7 +153,7 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
     const stochAction = stochK < 20 ? "Buy" : stochK > 80 ? "Sell" : "Neutral";
 
     // 3. Commodity Channel Index (CCI 20)
-    let cciVal = -12.4;
+    let cciVal = 0;
     try {
       const tp = closes.map((c, idx) => (c + (highs[idx] || c) + (lows[idx] || c)) / 3);
       const tpSlice = tp.slice(len - 20);
@@ -130,7 +166,7 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
     const cciAction = cciVal < -100 ? "Buy" : cciVal > 100 ? "Sell" : "Neutral";
 
     // 4. Average Directional Index (ADX 14)
-    let adxVal = 24.5;
+    let adxVal = 0;
     try {
       let trSum = 0, pdmSum = 0, ndmSum = 0;
       for (let i = len - 14; i < len; i++) {
@@ -171,7 +207,7 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
     const sma20 = calcSMA(20);
     const ema50 = calcEMA(50);
     const sma50 = calcSMA(50);
-    const hull9 = calcSMA(9) * 1.002;
+    const hull9 = calcHMA(9);
 
     const maItems = [
       { name: "Exponential Moving Average (10)", val: ema10.toLocaleString("en-US", { maximumFractionDigits: 2 }), rawVal: ema10 },
@@ -229,6 +265,34 @@ export function TechnicalGaugeWidget({ symbol = "VNINDEX", preferences = {}, lan
         summaryOverall: { sell: totalSell, neutral: totalNeutral, buy: totalBuy, signal: summaryOverallSignal }
       }
     };
+  } catch (error) {
+      console.error("Error computing technicals:", error?.message || String(error));
+      return {
+        oscillatorsList: [
+          { name: "Relative Strength Index (14)", val: "-", action: "-", color: mutedText },
+          { name: "Stochastic %K (14, 3, 3)", val: "-", action: "-", color: mutedText },
+          { name: "Commodity Channel Index (20)", val: "-", action: "-", color: mutedText },
+          { name: "Average Directional Index (14)", val: "-", action: "-", color: mutedText },
+          { name: "Awesome Oscillator", val: "-", action: "-", color: mutedText },
+          { name: "Momentum (10)", val: "-", action: "-", color: mutedText },
+          { name: "MACD Level (12, 26)", val: "-", action: "-", color: mutedText }
+        ],
+        maList: [
+          { name: "Exponential Moving Average (10)", val: "-", action: "-", color: mutedText },
+          { name: "Simple Moving Average (10)", val: "-", action: "-", color: mutedText },
+          { name: "Exponential Moving Average (20)", val: "-", action: "-", color: mutedText },
+          { name: "Simple Moving Average (20)", val: "-", action: "-", color: mutedText },
+          { name: "Exponential Moving Average (50)", val: "-", action: "-", color: mutedText },
+          { name: "Simple Moving Average (50)", val: "-", action: "-", color: mutedText },
+          { name: "Hull Moving Average (9)", val: "-", action: "-", color: mutedText }
+        ],
+        summary: {
+          oscillators: { sell: 0, neutral: 0, buy: 0, signal: "-" },
+          movingAverages: { sell: 0, neutral: 0, buy: 0, signal: "-" },
+          summaryOverall: { sell: 0, neutral: 0, buy: 0, signal: "-" }
+        }
+      };
+    }
   }, [ohlcData, mutedText]);
 
   const { oscillatorsList, maList, summary } = computedTechnicals;

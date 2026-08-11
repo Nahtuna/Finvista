@@ -4,38 +4,34 @@ import os
 import pandas as pd
 from unittest.mock import patch, MagicMock
 from pathlib import Path
-from src.modules.annual_reports.manager import AnnualReportManager
+from backend.modules.annual_reports.manager import AnnualReportManager
 
-def test_annual_report_manager_load_index():
-    # Test loading Zenodo index
-    with patch("pathlib.Path.exists", return_value=True), \
-         patch("pandas.read_csv") as mock_read_csv:
-         
-        mock_df = pd.DataFrame([{
-            'record_id': 'AAH_2024_e28d74e0',
-            'ticker_folder': 'AAH',
-            'ticker_file': 'AAH',
-            'year_full': 2024,
-            'archive_period': '2021_2025',
-            'document_type': 'annual_report',
-            'file_name': 'AAH_24CN_BCTN.pdf',
-            'relative_path': 'AAH/AAH_24CN_BCTN.pdf',
-            'file_size_bytes': 9035689,
-            'file_size_mb': 8.62,
-            'sha256': 'e28d74e0538669d8c5cf28210292794e65d00bbe06a41b9da22f3917c6d8cde2',
-            'status': 'ok',
-            'notes': ''
-        }])
-        mock_read_csv.return_value = mock_df
+def test_annual_report_manager_list_reports():
+    # Test listing reports from local cafef cache
+    manager = AnnualReportManager()
+    
+    # Locate BASE_DIR and set test_pdf_dir inside it
+    from backend.modules.annual_reports.manager import BASE_DIR
+    test_pdf_dir = BASE_DIR / "data" / "temp_test_pdfs"
+    
+    # Mock LOCAL_PDF_DIR to point to test_pdf_dir
+    with patch("backend.modules.annual_reports.manager.LOCAL_PDF_DIR", test_pdf_dir):
+        ticker_dir = test_pdf_dir / "FPT"
+        ticker_dir.mkdir(parents=True, exist_ok=True)
+        (ticker_dir / "FPT_2024_NAM_BCTN.pdf").write_text("dummy pdf content")
         
-        manager = AnnualReportManager()
-        assert manager.index_df is not None
-        assert len(manager.index_df) == 1
-        
-        reports = manager.list_available_reports("AAH")
-        assert len(reports) == 1
-        assert reports[0]['year'] == 2024
-        assert reports[0]['source'] == 'zenodo'
+        try:
+            reports = manager.list_available_reports("FPT")
+            assert len(reports) == 1
+            assert reports[0]['source'] == 'cafef'
+            assert reports[0]['year'] == 2024
+            assert reports[0]['quarter'] == 5
+            assert reports[0]['file_name'] == "FPT_2024_NAM_BCTN.pdf"
+        finally:
+            # Cleanup
+            if test_pdf_dir.exists():
+                import shutil
+                shutil.rmtree(test_pdf_dir)
 
 def test_download_from_cafef_success():
     manager = AnnualReportManager()

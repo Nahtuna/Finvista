@@ -24,41 +24,26 @@ import sys
 import argparse
 import subprocess
 
-# Sanitize proxy variables to prevent httpx IPv6 loopback crash (::1)
-for var in ["no_proxy", "NO_PROXY"]:
-    if var in os.environ:
-        parts = [p.strip() for p in os.environ[var].split(",")]
-        cleaned = [p for p in parts if "::1" not in p]
-        os.environ[var] = ",".join(cleaned)
+# Suppress annoying warnings in both parent and all spawned child processes
+os.environ["PYTHONWARNINGS"] = "ignore"
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
-# Reconfigure stdout/stderr to UTF-8 to prevent encoding errors on Windows
-if hasattr(sys.stdout, 'reconfigure'):
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-    except Exception:
-        pass
-if hasattr(sys.stderr, 'reconfigure'):
-    try:
-        sys.stderr.reconfigure(encoding='utf-8')
-    except Exception:
-        pass
+# Ensure root folder is in sys.path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+from backend.core.utils import initialize_console_setup
+
+# Initialize console setup (UTF-8 encoding and proxy sanitization)
+initialize_console_setup()
 
 # Prevent vnstock update check from hanging by mocking the upgrade module
 from unittest.mock import MagicMock
 mock_upgrade = MagicMock()
 mock_upgrade.update_notice = lambda *args, **kwargs: None
 sys.modules['vnstock.core.utils.upgrade'] = mock_upgrade
-
-# Force terminal UTF-8 encoding on Windows to ensure flawless Vietnamese text rendering
-if sys.platform == 'win32':
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
-
-# Ensure root folder is in sys.path
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
 
 def print_banner():
     banner = """
@@ -81,7 +66,7 @@ def handle_api(args):
     
     try:
         import uvicorn
-        uvicorn.run("src.api.main:app", host="127.0.0.1", port=8008, reload=True)
+        uvicorn.run("backend.api.main:app", host="127.0.0.1", port=8008, reload=True)
     except KeyboardInterrupt:
         print("\n🛑 API Gateway stopped successfully.")
     except Exception as e:
@@ -89,7 +74,7 @@ def handle_api(args):
 
 def handle_cw(args):
     print("⏳ Đang khởi động engine chứng quyền (nạp thư viện, có thể mất 20–30 giây)...", flush=True)
-    from src.modules.cw_pricing.backtest.run_analysis import main as run_cw_main
+    from backend.modules.cw_pricing.backtest.run_analysis import main as run_cw_main
     print(f"🏁 Triggering Covered Warrant valuation scan with strategy: '{args.strategy}'...", flush=True)
     
     # Set sys.argv to mock the command line for run_analysis
@@ -113,19 +98,19 @@ def handle_credit(args):
     if getattr(args, 'all', False):
         print("🔄 [ALL] Running complete A-Z Multi-Gate Credit Pipeline...")
         print("\n--- PHASE 1: FINANCIAL INSTITUTIONS GATE ---")
-        from src.modules.credit_risk.models.financial_health_crawler import main as run_financial_gate
+        from backend.modules.credit_risk.models.financial_health_crawler import main as run_financial_gate
         run_financial_gate()
         
         print("\n--- PHASE 2: INDUSTRIAL DATA PIPELINE ---")
-        from src.modules.credit_risk.models.credit_pipeline import run_full_pipeline
+        from backend.modules.credit_risk.models.credit_pipeline import run_full_pipeline
         run_full_pipeline()
         
         print("\n--- PHASE 3: ML MODEL TRAINING ---")
-        from src.modules.credit_risk.models.credit_step6_train_model import train_prediction_model
+        from backend.modules.credit_risk.models.credit_step6_train_model import train_prediction_model
         train_prediction_model()
         
         print("\n--- PHASE 4: MARKET EVALUATION ---")
-        from src.modules.credit_risk.models.credit_step7_evaluate_market import evaluate_market_health
+        from backend.modules.credit_risk.models.credit_step7_evaluate_market import evaluate_market_health
         evaluate_market_health()
         
         print("\n✅ A-Z Pipeline completed successfully!")
@@ -133,34 +118,34 @@ def handle_credit(args):
 
     if args.train:
         print("⚙️ [Training] Initializing XGBoost distress prediction model training...")
-        from src.modules.credit_risk.models.credit_step6_train_model import train_prediction_model
+        from backend.modules.credit_risk.models.credit_step6_train_model import train_prediction_model
         train_prediction_model()
     elif args.evaluate:
         print("🔍 [Evaluation] Running full-market quantitative credit health assessment...")
-        from src.modules.credit_risk.models.credit_step7_evaluate_market import evaluate_market_health
+        from backend.modules.credit_risk.models.credit_step7_evaluate_market import evaluate_market_health
         evaluate_market_health()
     elif args.contagion:
         print("🕸️ [Contagion] Simulating systematic risk contagion (DebtRank) across entire market...")
-        from src.modules.credit_risk.models.credit_step8_contagion_model import evaluate_systemic_risk
+        from backend.modules.credit_risk.models.credit_step8_contagion_model import evaluate_systemic_risk
         evaluate_systemic_risk()
     elif args.financial:
         print("🏦 [Financial] Running specialized health assessment for Banks, Securities, and Insurance...")
-        from src.modules.credit_risk.models.financial_health_crawler import main as run_financial_gate
+        from backend.modules.credit_risk.models.financial_health_crawler import main as run_financial_gate
         run_financial_gate()
     else:
         print("⚡ [Pipeline] Running full 5-tier credit risk data ingestion & classification...")
-        from src.modules.credit_risk.models.credit_pipeline import run_full_pipeline
+        from backend.modules.credit_risk.models.credit_pipeline import run_full_pipeline
         run_full_pipeline()
 
 def handle_history(args):
-    from src.modules.cw_pricing.backtest.history_analyzer import analyze_historical_warrant
+    from backend.modules.cw_pricing.backtest.history_analyzer import analyze_historical_warrant
     symbol = args.symbol.upper().strip()
     days = args.days
     print(f"📈 Analyzing historical volatility & leverage for warrant {symbol} over last {days} sessions...")
     analyze_historical_warrant(symbol, lookback_days=days)
 
 def handle_trade(args):
-    from src.modules.trading_engine.paper_trader import scan_and_trade, print_portfolio_dashboard, reset_portfolio
+    from backend.modules.trading_engine.paper_trader import scan_and_trade, print_portfolio_dashboard, reset_portfolio
     
     if args.reset:
         reset_portfolio()
@@ -176,7 +161,7 @@ def handle_trade(args):
         if args.loop:
             import time
             from datetime import datetime
-            from src.modules.cw_pricing.backtest.run_analysis import main as refresh_analysis
+            from backend.modules.cw_pricing.backtest.run_analysis import main as refresh_analysis
             
             print(f"🔄 Starting continuous trade scanning loop every {args.loop} seconds...")
             print("💡 Automated routine:")
@@ -222,7 +207,7 @@ def handle_trade(args):
             print_portfolio_dashboard()
 
 def handle_orchestrator(args):
-    from src.modules.trading_engine.orchestrator import FinvistaOrchestrator
+    from backend.modules.trading_engine.orchestrator import FinvistaOrchestrator
     orchestrator = FinvistaOrchestrator()
     orchestrator.start()
 
@@ -250,7 +235,7 @@ def handle_news_impact(args):
     )
 
 def handle_drl(args):
-    from src.modules.regime_analysis.portfolio.drl_portfolio_agent import DRLPortfolioAgent, VNWarrantEnv, generate_mock_data, evaluate_drl_vs_benchmarks
+    from backend.modules.regime_analysis.portfolio.drl_portfolio_agent import DRLPortfolioAgent, VNWarrantEnv, generate_mock_data, evaluate_drl_vs_benchmarks
     
     model_dir = os.path.join(BASE_DIR, "data", "processed")
     os.makedirs(model_dir, exist_ok=True)
@@ -286,14 +271,14 @@ def handle_regime_portfolio(args):
     import pandas as pd
     from pathlib import Path
     
-    from src.modules.regime_analysis.portfolio.data_loader import fetch_prices, fetch_macro_data, fetch_vnindex_data
-    from src.modules.regime_analysis.portfolio.utils import (
+    from backend.modules.regime_analysis.portfolio.data_loader import fetch_prices, fetch_macro_data, fetch_vnindex_data
+    from backend.modules.regime_analysis.portfolio.utils import (
         to_log_returns, sharpe_ratio, sortino_ratio, max_drawdown, calmar_ratio, annualise_return, annualise_vol
     )
-    from src.modules.regime_analysis.portfolio.regime_model import fit_hmm, posterior_probs, viterbi_path, regime_stats_by_label
-    from src.modules.regime_analysis.portfolio.optimiser import per_regime_weights, mean_variance_long_only
-    from src.modules.regime_analysis.portfolio.backtest import run_backtest, static_backtest, run_backtest_rolling
-    from src.modules.regime_analysis.portfolio.plotting import plot_regimes, plot_equity_curves, plot_weights
+    from backend.modules.regime_analysis.portfolio.regime_model import fit_hmm, posterior_probs, viterbi_path, regime_stats_by_label
+    from backend.modules.regime_analysis.portfolio.optimiser import per_regime_weights, mean_variance_long_only
+    from backend.modules.regime_analysis.portfolio.backtest import run_backtest, static_backtest, run_backtest_rolling
+    from backend.modules.regime_analysis.portfolio.plotting import plot_regimes, plot_equity_curves, plot_weights
  
     out_dir = Path('results')
     plot_dir = out_dir / 'plots'
@@ -370,7 +355,7 @@ def handle_audit(args):
 
 def handle_stats(args):
     print("\n📊 Generating Portfolio Optimization & Advanced Trading Statistics...")
-    from src.modules.cw_pricing.backtest.portfolio_optimizer import print_advanced_stats
+    from backend.modules.cw_pricing.backtest.portfolio_optimizer import print_advanced_stats
     print_advanced_stats(use_backtest=getattr(args, 'backtest', False))
 
 def handle_regime(args):
@@ -495,6 +480,7 @@ def main():
     _add_news_args(parser_news)
 
     subparsers.add_parser('orchestrator', help="Launch the Master Orchestrator")
+    subparsers.add_parser('tune', help="Run CW strategy backtest tuning and parameter optimization")
 
     args = parser.parse_args()
     
@@ -512,6 +498,9 @@ def main():
     elif args.command == 'regime': handle_regime(args)
     elif args.command == 'regime-portfolio': handle_regime_portfolio(args)
     elif args.command == 'regime-audit': handle_regime_audit(args)
+    elif args.command == 'tune':
+        from backend.modules.cw_pricing.backtest.strategy_tuner import run_backtest_tuning
+        run_backtest_tuning()
 
     elif args.command in ('news-impact', 'news'): handle_news_impact(args)
     elif args.command == 'orchestrator': handle_orchestrator(args)

@@ -16,3 +16,7 @@ export function getMacroData() {
 export function refreshAllData() {
   return request("/api/market/refresh-all", { method: "POST" });
 }
+
+export function getCashflowData() {
+  return request("/api/market/cashflow");
+}

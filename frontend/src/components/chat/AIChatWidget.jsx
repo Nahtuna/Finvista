@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Bot, MessageSquare, Send, Trash2, User, X } from "lucide-react";
+import { Bot, MessageSquare, Send, Trash2, User, X, Image, Paperclip } from "lucide-react";
 import { chatCompletion, getChatContextSummary } from "../../api.js";
 import { Button } from "../ui/button.jsx";
 import { Input } from "../ui/input.jsx";
@@ -666,6 +666,48 @@ export function AIChatWidget({ language = "vi", currentPage = "" }) {
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Vision image upload states
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  const processImageFile = (file) => {
+    if (!file.type.startsWith("image/")) {
+      alert(isEnglish ? "Please select an image file." : "Vui lòng chọn file hình ảnh.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result.split(",")[1];
+      setSelectedImage({
+        base64: base64String,
+        mimeType: file.type,
+        name: file.name || "Image"
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImageFile(file);
+    }
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          processImageFile(file);
+        }
+        break;
+      }
+    }
+  };
 
   const [chatSize, setChatSize] = useState({ width: 380, height: 480 });
   const isResizingRef = useRef(false);
@@ -748,9 +790,22 @@ export function AIChatWidget({ language = "vi", currentPage = "" }) {
 
   async function handleSendMessage(text) {
     const cleanText = text.trim();
-    if (!cleanText || loading) return;
+    if (!cleanText && !selectedImage) return;
+    if (loading) return;
 
-    const newMessages = [...messages, { role: "user", content: cleanText }];
+    const imgPayload = selectedImage;
+    setSelectedImage(null);
+
+    const userMessageObj = { 
+      role: "user", 
+      content: cleanText || (isEnglish ? "[Sent an image]" : "[Đã gửi một hình ảnh]")
+    };
+    if (imgPayload) {
+      userMessageObj.image_base64 = imgPayload.base64;
+      userMessageObj.image_media_type = imgPayload.mimeType;
+    }
+
+    const newMessages = [...messages, userMessageObj];
     setMessages(newMessages);
     setInputValue("");
     setLoading(true);
@@ -770,18 +825,30 @@ export function AIChatWidget({ language = "vi", currentPage = "" }) {
     const pageLabel = PAGE_LABELS[currentPage] || currentPage;
 
     try {
-      const apiMessages = newMessages.map(m => ({
-        role: m.role,
-        content: m.content
-      }));
+      const apiMessages = newMessages.map(m => {
+        const item = {
+          role: m.role,
+          content: m.content
+        };
+        if (m.image_base64) {
+          item.image_base64 = m.image_base64;
+          item.image_media_type = m.image_media_type;
+        }
+        return item;
+      });
+      let seasonalContextMsg = "";
+      if (typeof window !== "undefined" && window.__FINVISTA_SEASONALS_CONTEXT__) {
+        const sc = window.__FINVISTA_SEASONALS_CONTEXT__;
+        seasonalContextMsg = `\n[DỮ LIỆU ĐỊNH LƯỢNG MÙA VỤ THỰC TẾ TRÊN MÀN HÌNH: Mã cổ phiếu: ${sc.symbol}, Mẫu backtest ${sc.yearsCount} năm. Tháng tốt nhất: ${sc.bestMonth} (Avg +${sc.bestAvg}%, tỷ lệ thắng ${sc.bestWin}%, Peak Max +${sc.bestPeak}%). Tháng rủi ro nhất: ${sc.worstMonth} (Avg ${sc.worstAvg}%, tỷ lệ giảm ${100 - sc.worstWin}%, Max Drawdown ${sc.worstDrawdown}%). Hiệu suất lãi kép các Quý: Q1 (${sc.q1}%), Q2 (${sc.q2}%), Q3 (${sc.q3}%), Q4 (${sc.q4}%).]`;
+      }
+
       // Prepend a hidden page-context hint as the first user message (won't show in UI)
-      const messagesWithPageCtx = pageLabel
-        ? [
-            { role: "user", content: `[CONTEXT HỆ THỐNG: User đang xem trang "${pageLabel}". Hãy ưu tiên trả lời phù hợp với ngữ cảnh trang này.]` },
-            { role: "assistant", content: isEnglish ? "Understood, I'll tailor my response to this page context." : "Đã hiểu, tôi sẽ trả lời phù hợp với ngữ cảnh trang này." },
-            ...apiMessages
-          ]
-        : apiMessages;
+      const contextPrompt = `[CONTEXT HỆ THỐNG: User đang xem trang "${pageLabel}". Hãy ưu tiên trả lời dựa trên thông tin thực tế này: ${seasonalContextMsg}]`;
+      const messagesWithPageCtx = [
+        { role: "user", content: contextPrompt },
+        { role: "assistant", content: isEnglish ? "Understood, I have full access to your live seasonal market data." : "Đã hiểu, tôi đã kết nối trực tiếp và đọc được toàn bộ số liệu định lượng mùa vụ trên màn hình của bạn." },
+        ...apiMessages
+      ];
 
       const res = await chatCompletion(messagesWithPageCtx);
       setMessages([...newMessages, { role: "assistant", content: res.response }]);
@@ -897,7 +964,20 @@ export function AIChatWidget({ language = "vi", currentPage = "" }) {
                     {isAssistant ? (
                       renderMessageContent(msg.content, handleSendMessage)
                     ) : (
-                      <p style={{ whiteSpace: "pre-line" }}>{msg.content}</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        {msg.image_base64 && (
+                          <img 
+                            src={`data:${msg.image_media_type || "image/png"};base64,${msg.image_base64}`} 
+                            alt="Uploaded snippet" 
+                            style={{ maxWidth: "100%", maxHeight: "200px", borderRadius: "0.375rem", border: "1px solid rgba(255,255,255,0.1)", display: "block", cursor: "zoom-in" }} 
+                            onClick={(e) => {
+                              const win = window.open();
+                              win.document.write(`<img src="data:${msg.image_media_type || "image/png"};base64,${msg.image_base64}" style="max-width:100%; max-height:100vh;" />`);
+                            }}
+                          />
+                        )}
+                        {msg.content && <p style={{ whiteSpace: "pre-line", margin: 0 }}>{msg.content}</p>}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -933,6 +1013,35 @@ export function AIChatWidget({ language = "vi", currentPage = "" }) {
             </div>
           )}
 
+          {/* Image Upload Preview Panel */}
+          {selectedImage && (
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "0.5rem", 
+              padding: "0.4rem 0.75rem", 
+              background: "rgba(37, 99, 235, 0.08)", 
+              borderTop: `1px solid ${borderColor}`,
+              position: "relative"
+            }}>
+              <img 
+                src={`data:${selectedImage.mimeType};base64,${selectedImage.base64}`} 
+                alt="Upload preview" 
+                style={{ height: "32px", width: "32px", borderRadius: "0.25rem", objectFit: "cover" }} 
+              />
+              <span style={{ fontSize: "0.75rem", color: mutedText, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {selectedImage.name}
+              </span>
+              <button 
+                type="button" 
+                onClick={() => setSelectedImage(null)} 
+                style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: "0.2rem" }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           {/* Input Area Form */}
           <form
             onSubmit={(e) => {
@@ -940,16 +1049,48 @@ export function AIChatWidget({ language = "vi", currentPage = "" }) {
               handleSendMessage(inputValue);
             }}
             className="ai-chat-input-row"
+            style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem" }}
           >
+            <input 
+              type="file" 
+              accept="image/*" 
+              ref={fileInputRef} 
+              onChange={handleImageSelect} 
+              style={{ display: "none" }} 
+            />
+            
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              title={isEnglish ? "Attach image" : "Đính kèm ảnh"}
+              style={{ 
+                background: "none", 
+                border: "none", 
+                color: mutedText, 
+                cursor: "pointer", 
+                padding: "0.35rem",
+                display: "flex",
+                alignItems: "center",
+                borderRadius: "0.25rem"
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = "#2563eb"}
+              onMouseLeave={e => e.currentTarget.style.color = mutedText}
+            >
+              <Image size={16} />
+            </button>
+
             <Input
               type="text"
               placeholder={isEnglish ? "Type a message..." : "Nhập câu hỏi tài chính..."}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onPaste={handlePaste}
               disabled={loading}
               autoFocus
             />
-            <Button type="submit" disabled={!inputValue.trim() || loading}>
+            
+            <Button type="submit" disabled={(!inputValue.trim() && !selectedImage) || loading}>
               <Send size={14} />
             </Button>
           </form>

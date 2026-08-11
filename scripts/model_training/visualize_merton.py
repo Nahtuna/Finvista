@@ -2,8 +2,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-from src.core.database import engine
-from src.modules.credit_risk.models.merton_engine import calculate_merton_dd_realtime
+from backend.core.database import engine
+from backend.modules.credit_risk.models.merton_engine import calculate_merton_dd_realtime
 
 def visualize_merton_risk():
     # 1. Thu thập dữ liệu

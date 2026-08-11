@@ -17,7 +17,7 @@ import sys
 sys.path.append(os.getcwd())
 
 from scripts.trading.evaluate_drl_real_data import prepare_real_data
-from src.modules.regime_analysis.portfolio.drl_portfolio_agent import DRLPortfolioAgent, VNWarrantEnv
+from backend.modules.regime_analysis.portfolio.drl_portfolio_agent import DRLPortfolioAgent, VNWarrantEnv
 
 def generate_ascii_area_chart(data: pd.DataFrame, title: str, width: int = 80, height: int = 15):
     """

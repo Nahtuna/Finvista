@@ -15,8 +15,8 @@ import sys
 # Ensure project root is in path
 sys.path.append(os.getcwd())
 
-from src.modules.regime_analysis.indicators.regime_detector import RegimeDetector
-from src.core.database import engine
+from backend.modules.regime_analysis.indicators.regime_detection import RegimeDetector
+from backend.core.database import engine
 
 def visualize_kairos_regimes(symbol: str = "FPT", days: int = 500):
     print(f"🔍 Đang phân tích KAIROS Regimes cho mã {symbol}...")

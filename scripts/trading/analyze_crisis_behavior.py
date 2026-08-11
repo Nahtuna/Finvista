@@ -17,7 +17,7 @@ import sys
 sys.path.append(os.getcwd())
 
 from scripts.trading.evaluate_drl_real_data import prepare_real_data
-from src.modules.regime_analysis.portfolio.drl_portfolio_agent import DRLPortfolioAgent, VNWarrantEnv
+from backend.modules.regime_analysis.portfolio.drl_portfolio_agent import DRLPortfolioAgent, VNWarrantEnv
 
 def analyze_crisis_management():
     returns = prepare_real_data()

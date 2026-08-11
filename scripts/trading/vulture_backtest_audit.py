@@ -10,8 +10,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.core.database import SessionLocal
-from src.modules.regime_analysis.indicators.hmm_regime import GaussianHMM
+from backend.core.database import SessionLocal
+from backend.modules.regime_analysis.indicators.hmm_regime import GaussianHMM
 
 async def run_vulture_backtest():
     print("🚀 STARTING VULTURE MODE BACKTEST AUDIT (2022 CRISIS SIMULATION)")

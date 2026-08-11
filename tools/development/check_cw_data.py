@@ -27,7 +27,7 @@ except Exception as e:
 # 2. Check DB - CWHistoricalPrice
 print("\n=== DB - CWHistoricalPrice ===")
 try:
-    from src.core.database import SessionLocal, CWHistoricalPrice
+    from backend.core.database import SessionLocal, CWHistoricalPrice
     db = SessionLocal()
     rows = db.query(CWHistoricalPrice).filter(CWHistoricalPrice.symbol == sym).order_by(CWHistoricalPrice.date).all()
     print(f"CWHistoricalPrice {sym}: {len(rows)} rows")
@@ -41,7 +41,7 @@ except Exception as e:
 # 3. Check StockHistoricalPrice for underlying ACB
 print("\n=== DB - StockHistoricalPrice (ACB) ===")
 try:
-    from src.core.database import SessionLocal, StockHistoricalPrice
+    from backend.core.database import SessionLocal, StockHistoricalPrice
     db = SessionLocal()
     rows = db.query(StockHistoricalPrice).filter(StockHistoricalPrice.symbol == "ACB").order_by(StockHistoricalPrice.date).all()
     print(f"StockHistoricalPrice ACB: {len(rows)} rows")

@@ -4,6 +4,29 @@ import { getStoredLanguage } from "../i18n/index.js";
 
 const AuthContext = createContext(null);
 const TOKEN_STORAGE_KEY = "finvista-access-token";
+const TOKEN_DATE_KEY = "finvista-token-date";
+
+function getTodayString() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function getValidStoredToken() {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return "";
+  const savedDate = localStorage.getItem(TOKEN_DATE_KEY);
+  const today = getTodayString();
+  if (savedDate && savedDate !== today) {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_DATE_KEY);
+    localStorage.removeItem("finvista-market-indices");
+    localStorage.removeItem("finvista-active-page");
+    return "";
+  }
+  if (!savedDate) {
+    localStorage.setItem(TOKEN_DATE_KEY, today);
+  }
+  return token;
+}
 
 // Đọc từ .env – fallback về window.__FINVISTA_AUTH__ nếu SES block import.meta
 const AUTH_ENABLED =
@@ -46,7 +69,7 @@ async function parseJsonResponse(response) {
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_STORAGE_KEY) || "");
+  const [token, setToken] = useState(() => getValidStoredToken());
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -90,6 +113,7 @@ export function AuthProvider({ children }) {
       return nextProfile;
     } catch (err) {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(TOKEN_DATE_KEY);
       setToken("");
       setProfile(null);
       setAuthTokenProvider(null);
@@ -125,11 +149,13 @@ export function AuthProvider({ children }) {
         );
       }
       localStorage.setItem(TOKEN_STORAGE_KEY, nextToken);
+      localStorage.setItem(TOKEN_DATE_KEY, getTodayString());
       setAuthTokenProvider(() => nextToken);
       setToken(nextToken);
       setProfile(normalizeProfile(payload));
     } catch (err) {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(TOKEN_DATE_KEY);
       setToken("");
       setProfile(null);
       setAuthTokenProvider(null);
@@ -144,6 +170,7 @@ export function AuthProvider({ children }) {
     // No-auth mode: không thực sự signout
     if (!AUTH_ENABLED) return;
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_DATE_KEY);
     setToken("");
     setProfile(null);
     setError("");

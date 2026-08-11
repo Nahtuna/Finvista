@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Báo cáo Thị trường Chứng quyền - {{ date }}</title>
+    <style>
+        /* xhtml2pdf (ReportLab) CSS subset – no flexbox/grid */
+        @page {
+            size: A4 portrait;
+            margin: 12mm 12mm 14mm 12mm;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9pt;
+            color: #1e293b;
+            background: #ffffff;
+            line-height: 1.4;
+        }
+
+        /* ── Header ─────────────────────────────────── */
+        .header-table { width: 100%; border-bottom: 2.5pt solid #1E3A8A; padding-bottom: 5pt; margin-bottom: 8pt; }
+        .header-title { font-size: 18pt; font-weight: bold; color: #1E3A8A; }
+        .header-accent { color: #2563eb; }
+        .header-sub { font-size: 7.5pt; color: #6b7280; }
+        .header-right { text-align: right; color: #6b7280; font-size: 8pt; }
+
+        /* ── Shared box ─────────────────────────────── */
+        .box { border: 1pt solid #e5e7eb; margin-bottom: 8pt; }
+        .box-header {
+            background-color: #1E3A8A;
+            color: #ffffff;
+            font-size: 8pt;
+            font-weight: bold;
+            padding: 3pt 6pt;
+        }
+        .box-body { padding: 6pt; }
+
+        /* ── Two-column layout via table ────────────── */
+        .layout-table { width: 100%; margin-bottom: 8pt; }
+        .col-main { width: 62%; vertical-align: top; padding-right: 8pt; }
+        .col-side { width: 38%; vertical-align: top; }
+
+        /* ── Lead text ──────────────────────────────── */
+        .lead { font-size: 8.5pt; color: #374151; margin-bottom: 7pt; line-height: 1.5; }
+
+        /* ── Data tables ────────────────────────────── */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+        .data-table th {
+            background-color: #e5e7eb;
+            font-size: 7.5pt;
+            font-weight: bold;
+            padding: 3pt 4pt;
+            border-bottom: 1.5pt solid #d1d5db;
+            text-align: left;
+        }
+        .data-table td { padding: 3pt 4pt; border-bottom: 0.5pt solid #f3f4f6; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .right { text-align: right; }
+        .bold { font-weight: bold; }
+        .green { color: #166534; }
+        .red   { color: #991b1b; }
+        .blue  { color: #1E3A8A; }
+
+        /* ── KV table (sidebar stats) ───────────────── */
+        .kv-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+        .kv-table td { padding: 2.5pt 0; border-bottom: 0.5pt solid #f3f4f6; }
+        .kv-table td.kv-val { text-align: right; font-weight: bold; }
+        .kv-table tr:last-child td { border-bottom: none; }
+
+        /* ── Issuer table ───────────────────────────── */
+        .issuer-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+        .issuer-table td { padding: 2pt 0; }
+        .issuer-table td.iss-val { text-align: right; font-weight: bold; color: #1E3A8A; }
+
+        /* ── Charts ─────────────────────────────────── */
+        .charts-table { width: 100%; margin-bottom: 8pt; }
+        .chart-cell { width: 50%; vertical-align: top; padding-right: 6pt; }
+        .chart-cell:last-child { padding-right: 0; }
+        .chart-cell img { width: 100%; border: 0.5pt solid #e5e7eb; display: block; }
+        .chart-caption { font-size: 7pt; color: #9ca3af; margin-top: 2pt; }
+
+        /* ── Signal badges (plain text fallback) ────── */
+        .badge-buy  { color: #166534; font-weight: bold; }
+        .badge-sell { color: #991b1b; font-weight: bold; }
+        .badge-hold { color: #854d0e; font-weight: bold; }
+        .badge-watch { color: #3730a3; font-weight: bold; }
+
+        /* ── Footer ─────────────────────────────────── */
+        .footer-table { width: 100%; border-top: 0.5pt solid #e5e7eb; margin-top: 6pt; padding-top: 4pt; font-size: 7pt; color: #9ca3af; }
+
+        /* ── Page Break ─────────────────────────────── */
+        .page-break { page-break-before: always; }
+
+        /* ── Markdown HTML Styling ──────────────────── */
+        .debate-content {
+            font-style: normal !important;
+        }
+        .debate-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 6pt 0;
+            font-size: 7.5pt;
+        }
+        .debate-content th, .debate-content td {
+            border: 0.5pt solid #cbd5e1;
+            padding: 4pt 6pt;
+            text-align: left;
+        }
+        .debate-content th {
+            background-color: #f1f5f9;
+            font-weight: bold;
+            color: #1e293b;
+        }
+        .debate-content p {
+            margin: 4pt 0;
+        }
+        .debate-content h3 {
+            font-size: 8pt;
+            font-weight: bold;
+            margin-top: 8pt;
+            margin-bottom: 4pt;
+            color: #1e3a8a;
+        }
+        .debate-content hr {
+            border: 0;
+            border-top: 1px solid #e2e8f0;
+            margin: 8pt 0;
+        }
+    </style>
+
+</head>
+<body>
+
+<!-- Header -->
+<table class="header-table">
+    <tr>
+        <td>
+            <div class="header-title">Thanh khoản <span class="header-accent">{{ trend_status }}</span></div>
+            <div class="header-sub">Finvista Quant Pro · Báo cáo Tiêu điểm Chứng quyền</div>
+        </td>
+        <td class="header-right">
+            <div>{{ date }}</div>
+            <div>research@finvista.vn</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Main 2-column layout -->
+<table class="layout-table">
+<tr>
+    <!-- LEFT COLUMN: Main Analysis and Tables -->
+    <td class="col-main">
+        <div class="lead">
+            Trong phiên giao dịch ngày hôm nay, thanh khoản trên thị trường chứng quyền ghi nhận xu hướng giao dịch {{ trend_status }} với tổng khối lượng giao dịch đạt <strong>{{ total_volume }} triệu CQ</strong> và giá trị giao dịch đạt <strong>{{ total_value }} tỷ đồng</strong>. Thị trường có <span class="green bold">{{ gaining_cws }} mã tăng giá</span>, <span class="red bold">{{ losing_cws }} mã giảm giá</span> và <span class="bold">{{ flat_cws }} mã giữ giá tham chiếu</span>.
+        </div>
+
+        <div class="lead" style="margin-bottom: 10pt;">
+            Đối với giá trị giao dịch theo tài sản cơ sở, nhóm cổ phiếu <strong>{{ top_underlyings }}</strong> là những tài sản cơ sở có chứng quyền thu hút phần lớn hoạt động giao dịch sôi động với tổng cộng hơn <strong>{{ top_underlyings_share }}%</strong> tổng giá trị giao dịch toàn thị trường. Xếp ngay sau đó là các chứng quyền của các cổ phiếu {{ other_underlyings }}.
+        </div>
+
+        <!-- Prop flows -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 8pt;">
+        <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 4pt;">
+                <div class="box">
+                    <div class="box-header">Bảng 3 · Top tự doanh mua ròng ròng (tr.đ)</div>
+                    <div class="box-body" style="padding:0;">
+                        <table class="data-table">
+                            <thead><tr><th>Mã CW</th><th>TSCS</th><th class="right">Giá trị</th></tr></thead>
+                            <tbody>
+                            {% for row in prop_buy_rows %}
+                            <tr>
+                                <td class="bold">{{ row.symbol }}</td>
+                                <td>{{ row.underlying }}</td>
+                                <td class="right green bold">+{{ row.value | format_number }}</td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </td>
+            <td style="width: 50%; vertical-align: top; padding-left: 4pt;">
+                <div class="box">
+                    <div class="box-header">Bảng 4 · Top tự doanh bán ròng ròng (tr.đ)</div>
+                    <div class="box-body" style="padding:0;">
+                        <table class="data-table">
+                            <thead><tr><th>Mã CW</th><th>TSCS</th><th class="right">Giá trị</th></tr></thead>
+                            <tbody>
+                            {% for row in prop_sell_rows %}
+                            <tr>
+                                <td class="bold">{{ row.symbol }}</td>
+                                <td>{{ row.underlying }}</td>
+                                <td class="right red bold">{{ row.value | format_number }}</td>
+                            </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        </table>
+    </td>
+
+    <!-- RIGHT COLUMN: Sidebar Stats -->
+    <td class="col-side">
+        <!-- Market stats -->
+        <div class="box">
+            <div class="box-header">Bảng 1 · Thống kê thị trường</div>
+            <div class="box-body">
+                <table class="kv-table">
+                    <tr><td>Chứng quyền</td><td class="kv-val">{{ total_cws }}</td></tr>
+                    <tr><td>Khối lượng GD (tr.CQ)</td><td class="kv-val">{{ total_volume }}</td></tr>
+                    <tr><td>Giá trị GD (tỷ đồng)</td><td class="kv-val">{{ total_value }}</td></tr>
+                    <tr><td>CW tăng giá</td><td class="kv-val green">{{ gaining_cws }}</td></tr>
+                    <tr><td>CW giảm giá</td><td class="kv-val red">{{ losing_cws }}</td></tr>
+                    <tr><td>CW đi ngang</td><td class="kv-val">{{ flat_cws }}</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Issuer share -->
+        <div class="box">
+            <div class="box-header">Bảng 2 · Thị phần phát hành CTCK</div>
+            <div class="box-body">
+                <table class="issuer-table">
+                    <thead><tr>
+                        <td class="bold" style="font-size:7.5pt;">Công ty</td>
+                        <td class="bold iss-val" style="font-size:7.5pt;">CW</td>
+                    </tr></thead>
+                    <tbody>
+                    {% for row in issuer_rows %}
+                    <tr>
+                        <td>{{ row.name }}</td>
+                        <td class="iss-val">{{ row.count }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </td>
+</tr>
+</table>
+
+<!-- Charts row -->
+<table class="charts-table">
+<tr>
+    <td class="chart-cell">
+        <div class="box-header">Hình 2 · Khối lượng &amp; Giá trị giao dịch CW</div>
+        <img src="{{ chart_volume }}" alt="Volume chart">
+        <div class="chart-caption">Nguồn: Finvista, KIS Research</div>
+    </td>
+    <td class="chart-cell">
+        <div class="box-header">Hình 3 · Giá trị mua/bán ròng khối ngoại</div>
+        <img src="{{ chart_flows }}" alt="Foreign flows chart">
+        <div class="chart-caption">Nguồn: Finvista, KIS Research</div>
+    </td>
+</tr>
+</table>
+
+<!-- G-Score table -->
+<div class="box">
+    <div class="box-header">Bảng 5 · Top 5 Cơ hội Chứng quyền (Hệ thống Định lượng G-Score)</div>
+    <div class="box-body" style="padding:0;">
+        <table class="data-table">
+            <thead><tr>
+                <th>Mã CW</th><th>TSCS</th><th>CTCK</th>
+                <th class="right">Giá (đ)</th>
+                <th class="right">Biến động</th>
+                <th class="right">Đòn bẩy</th>
+                <th class="right">DTM (N)</th>
+                <th class="right">Premium</th>
+                <th class="right">G-Score</th>
+                <th>Tín hiệu</th>
+            </tr></thead>
+            <tbody>
+            {% for row in top_cws %}
+            <tr>
+                <td class="bold">{{ row.symbol }}</td>
+                <td>{{ row.underlying }}</td>
+                <td>{{ row.issuer }}</td>
+                <td class="right">{{ row.price | format_price }}</td>
+                <td class="right {% if row.change_pct is not none and row.change_pct >= 0 %}green{% else %}red{% endif %}">
+                    {{ row.change_pct | format_change }}
+                </td>
+                <td class="right">{{ row.gearing | format_1f }}x</td>
+                <td class="right">{{ row.dtm }}</td>
+                <td class="right">{{ row.premium | format_1f }}%</td>
+                <td class="right blue bold">{{ row.gscore | format_1f }}</td>
+                <td>
+                    {% if row.signal in ['MUA', 'BUY'] %}<span class="badge-buy">{{ row.signal }}</span>
+                    {% elif row.signal in ['BÁN', 'SELL'] %}<span class="badge-sell">{{ row.signal }}</span>
+                    {% elif row.signal in ['THEO DÕI', 'WATCH'] %}<span class="badge-watch">{{ row.signal }}</span>
+                    {% else %}<span class="badge-hold">{{ row.signal }}</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Footer for Page 1 -->
+<table class="footer-table">
+<tr>
+    <td>Finvista Quant Pro · Phòng Phân tích Định lượng</td>
+    <td style="text-align:center;">Tài liệu nội bộ · Không phân phối ra bên ngoài</td>
+    <td style="text-align:right;">{{ date }}</td>
+</tr>
+</table>
+
+<!-- APPENDIX: AI Committee Reports for top opportunities -->
+{% for r in top_cws_detail %}
+<div class="page-break"></div>
+
+<!-- Header -->
+<table class="header-table">
+    <tr>
+        <td>
+            <div class="header-title">BÁO CÁO PHÂN TÍCH CHUYÊN SÂU <span class="header-accent">{{ r.symbol }}</span></div>
+            <div class="header-sub">PHỤ LỤC: HỘI ĐỒNG PHÂN TÍCH ĐỊNH LƯỢNG AI (GEMINI)</div>
+        </td>
+        <td class="header-right">
+            <div>Mã CW: <strong>{{ r.symbol }}</strong></div>
+            <div>Tài sản cơ sở: <strong>{{ r.underlying }}</strong></div>
+        </td>
+    </tr>
+</table>
+
+<!-- Executive Summary Bar -->
+<table style="width: 100%; border: 1pt solid #1E3A8A; background-color: #0f172a; color: white; padding: 8pt; margin-bottom: 10pt; border-collapse: collapse;">
+    <tr>
+        <td style="width: 33%; border-right: 1px solid #334155; padding: 5pt 10pt;">
+            <div style="font-size: 7.5pt; color: #94a3b8; font-weight: bold; text-transform: uppercase;">KHUYẾN NGHỊ CHUNG</div>
+            <div style="font-size: 14pt; font-weight: 900; color: #facc15; margin-top: 2pt;">{{ r.decision }}</div>
+        </td>
+        <td style="width: 33%; border-right: 1px solid #334155; padding: 5pt 10pt;">
+            <div style="font-size: 7.5pt; color: #94a3b8; font-weight: bold; text-transform: uppercase;">ĐIỂM ĐỒNG THUẬN</div>
+            <div style="font-size: 14pt; font-weight: 900; margin-top: 2pt;">{{ r.confidence_score }}/100</div>
+        </td>
+        <td style="width: 34%; padding: 5pt 10pt;">
+            <div style="font-size: 7.5pt; color: #94a3b8; font-weight: bold; text-transform: uppercase;">MỤC TIÊU TĂNG GIÁ</div>
+            <div style="font-size: 14pt; font-weight: 900; color: #4ade80; margin-top: 2pt;">{{ r.target_upside }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Core metrics grid -->
+<table style="width: 100%; margin-bottom: 10pt; border-collapse: collapse;">
+    <tr>
+        <!-- Left: Credit and Quant -->
+        <td style="width: 48%; vertical-align: top; padding-right: 8pt;">
+            <div class="box">
+                <div class="box-header">Kiểm Toán Rủi Ro Tín Dụng (Credit Distress Audit)</div>
+                <div class="box-body">
+                    <table class="kv-table">
+                        <tr><td>Điểm Altman Z-Score</td><td class="kv-val">{{ r.z_score }}</td></tr>
+                        <tr><td>Xác suất Kiệt quệ Tài chính</td><td class="kv-val" style="color: {% if r.distress_prob > 30 %}#991b1b{% else %}#166534{% endif %}; font-weight: bold;">{{ r.distress_prob }}%</td></tr>
+                        <tr><td>Trạng thái Sức khỏe</td><td class="kv-val"><span style="background-color: {% if r.distress_prob > 30 %}#fee2e2; color: #991b1b;{% else %}#dcfce7; color: #166534;{% endif %} padding: 1pt 4pt; border-radius: 3px; font-size: 7.5pt; font-weight: bold;">{% if r.distress_prob > 30 %}CẢNH BÁO{% else %}AN TOÀN{% endif %}</span></td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="box" style="margin-top: 6pt;">
+                <div class="box-header">Thông Số Định Lượng (Quantitative Greeks)</div>
+                <div class="box-body">
+                    <table class="kv-table">
+                        <tr><td>Đòn bẩy thực tế (Gearing)</td><td class="kv-val">{{ r.gearing }}x</td></tr>
+                        <tr><td>Hệ số Delta</td><td class="kv-val">{{ r.delta }}</td></tr>
+                        <tr><td>Implied Volatility (IV)</td><td class="kv-val">{{ r.iv }}%</td></tr>
+                        <tr><td>Historical Volatility (HV)</td><td class="kv-val">{{ r.hv }}%</td></tr>
+                    </table>
+                </div>
+            </div>
+        </td>
+
+        <!-- Right: Scenarios -->
+        <td style="width: 52%; vertical-align: top;">
+            <div class="box" style="height: 100%;">
+                <div class="box-header">Phân Tích Kịch Bản Xác Suất (Price Target Scenarios)</div>
+                <div class="box-body">
+                    {% for sc in r.scenarios %}
+                    <div style="margin-bottom: 8pt;">
+                        <table style="width:100%; font-size: 7.5pt; margin-bottom: 2pt; border-collapse: collapse;">
+                            <tr>
+                                <td><strong>Kịch bản {{ sc.name }}</strong></td>
+                                <td style="text-align: right;">Xác suất: <strong>{{ sc.prob }}%</strong></td>
+                            </tr>
+                        </table>
+                        <div style="background-color: #f3f4f6; height: 8pt; border-radius: 4px; overflow: hidden; width: 100%;">
+                            <div style="background-color: {% if sc.name == 'Bull' %}#10b981{% elif sc.name == 'Base' %}#f59e0b{% else %}#ef4444{% endif %}; height: 100%; width: {{ sc.prob }}%;"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<!-- Investment Rationale -->
+<div class="box">
+    <div class="box-header">Luận Điểm Đầu Tư</div>
+    <div class="box-body" style="font-size: 7.5pt; line-height: 1.5; text-align: justify; padding: 6pt; color: #374151;">
+        {{ r.rationale_summary }}
+    </div>
+</div>
+
+<!-- Appendix Page Footer -->
+<table class="footer-table">
+<tr>
+    <td>Finvista Quant Pro · Phụ lục Phân tích Chi tiết Báo cáo</td>
+    <td style="text-align:center;">Tài liệu nội bộ · Không phân phối ra bên ngoài</td>
+    <td style="text-align:right;">{{ date }}</td>
+</tr>
+</table>
+{% endfor %}
+
+</body>
+</html>

@@ -18,7 +18,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.core.database import SessionLocal, StockHistoricalPrice
+from backend.core.database import SessionLocal, StockHistoricalPrice
 from sqlalchemy import text
 
 # Suppress vnstock banners
@@ -100,29 +100,28 @@ def backfill_index(symbol: str, start_year: int = 2016):
         # Delete existing data to avoid primary key/unique constraint conflicts
         deleted = db.query(StockHistoricalPrice).filter(StockHistoricalPrice.symbol == symbol).delete()
         print(f"  Deleted {deleted} pre-existing rows for {symbol} in stock_history")
-        
-        # Insert rows
-        rows_to_insert = []
-        for _, row in master_df.iterrows():
-            rows_to_insert.append(
-                StockHistoricalPrice(
-                    symbol=symbol,
-                    date=row['date'],
-                    open=float(row['open']),
-                    high=float(row['high']),
-                    low=float(row['low']),
-                    close=float(row['close']),
-                    volume=float(row['volume']) if pd.notna(row['volume']) else 0.0,
-                    ref_price=float(row['open'])
-                )
-            )
-            
-        db.bulk_save_objects(rows_to_insert)
         db.commit()
-        print(f"Successfully inserted {len(rows_to_insert)} rows for {symbol} into stock_history!")
+        
+        db.bulk_save_objects([
+            StockHistoricalPrice(
+                symbol=symbol,
+                date=row['date'],
+                open=float(row['open']),
+                high=float(row['high']),
+                low=float(row['low']),
+                close=float(row['close']),
+                volume=float(row['volume']) if pd.notna(row['volume']) else 0.0,
+                ref_price=float(row['open'])
+            )
+            for _, row in master_df.iterrows()
+        ])
+        db.commit()
+        print(f"Successfully inserted {len(master_df)} rows for {symbol} into stock_history!")
     except Exception as e:
         db.rollback()
         print(f"Database error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         db.close()
 
@@ -186,9 +185,92 @@ def backfill_index_vps(symbol: str, start_year: int = 2020):
         db.close()
 
 
+def backfill_spx_index(start_year: int = 2020):
+    """Fetch S&P 500 index data from Yahoo Finance using yfinance."""
+    try:
+        import yfinance as yf
+    except ImportError:
+        print("⚠️ yfinance not installed. Install with: pip install yfinance")
+        return
+
+    print(f"Starting SPX backfill from {start_year}...")
+    try:
+        ticker = yf.Ticker("^GSPC")  # S&P 500 ticker on Yahoo Finance
+        start_date = f"{start_year}-01-01"
+        end_date = datetime.now().strftime("%Y-%m-%d")
+        
+        df = ticker.history(start=start_date, end=end_date)
+        
+        if df.empty:
+            print(f"⚠️ No data returned for SPX")
+            return
+            
+        # Standardize columns
+        df = df.reset_index()
+        df = df.rename(columns={
+            'Date': 'date',
+            'Open': 'open', 
+            'High': 'high',
+            'Low': 'low',
+            'Close': 'close',
+            'Volume': 'volume'
+        })
+        
+        # Format date
+        df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+        df = df[['date', 'open', 'high', 'low', 'close', 'volume']]
+        df = df.drop_duplicates(subset=['date']).sort_values('date')
+        
+        print(f"Downloaded {len(df)} rows for SPX ({df['date'].min()} to {df['date'].max()})")
+        
+        # Insert to DB
+        db = SessionLocal()
+        try:
+            deleted = db.query(StockHistoricalPrice).filter(StockHistoricalPrice.symbol == "SPX").delete()
+            print(f"  Deleted {deleted} existing rows for SPX")
+            
+            for _, row in df.iterrows():
+                db.execute(
+                    text("""
+                        INSERT INTO stock_history (symbol, date, open, high, low, close, volume, ref_price)
+                        VALUES (:symbol, :date, :open, :high, :low, :close, :volume, :ref_price)
+                    """),
+                    {
+                        "symbol": "SPX",
+                        "date": row['date'],
+                        "open": float(row['open']),
+                        "high": float(row['high']),
+                        "low": float(row['low']),
+                        "close": float(row['close']),
+                        "volume": float(row['volume']) if pd.notna(row['volume']) else 0.0,
+                        "ref_price": float(row['open'])
+                    }
+                )
+            
+            db.commit()
+            print(f"✅ Successfully inserted {len(df)} rows for SPX")
+        except Exception as e:
+            db.rollback()
+            print(f"❌ Database error: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            db.close()
+            
+    except Exception as e:
+        print(f"❌ SPX fetch error: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 if __name__ == "__main__":
-    backfill_index("VNINDEX")
-    backfill_index("VN30")
-    # UPCOM and HNXINDEX: use VPS datafeed
-    backfill_index_vps("UPCOM")
+    print("=== BACKFILL ALL VIETNAM INDICES ===")
+    backfill_index_vps("VNINDEX")
+    backfill_index_vps("VN30")
     backfill_index_vps("HNXINDEX")
+    backfill_index_vps("UPCOM")
+    
+    print("\n=== BACKFILL INTERNATIONAL INDICES ===")
+    backfill_spx_index(start_year=2020)
+    
+    print("\n✅ All indices backfill completed!")

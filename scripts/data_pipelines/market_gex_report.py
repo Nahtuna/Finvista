@@ -18,9 +18,9 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.modules.cw_pricing.models.gex_engine import calculate_aggregate_gex
-from src.modules.cw_pricing.backtest.fetcher import fetch_market_cw_data
-from src.core.utils import logger
+from backend.modules.cw_pricing.models.gex_engine import calculate_aggregate_gex
+from backend.modules.cw_pricing.backtest.fetcher import fetch_market_cw_data
+from backend.core.utils import logger
 
 def generate_full_market_gex_report():
     logger.info("🚀 Starting Full Market GEX Scan...")

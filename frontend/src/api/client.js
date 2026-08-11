@@ -11,15 +11,19 @@ export function setAuthTokenProvider(provider) {
 // In-memory deduplication + sessionStorage-backed TTL cache
 const pendingRequests = new Map();
 const responseCache = new Map();
-const DEFAULT_TTL_MS = 30_000; // 30s default
+const DEFAULT_TTL_MS = parseInt(import.meta.env.VITE_DEFAULT_TTL_MS || "30000"); // 30s default, configurable
 
 // Per-endpoint TTL overrides (longer = less critical freshness)
+// Optimized based on data freshness requirements and update frequency
+// Can be overridden via environment variables
 const ENDPOINT_TTL = {
-  "/api/regime/market": 10_000,       // regime: 10s
-  "/api/warrants/opportunities": 60_000, // scanner: 60s
-  "/api/market/underlyings": 30_000,  // market: 30s
-  "/api/market/macro": 60_000,        // macro (USD/Gold/Oil): 60s
-  "/api/portfolio": 5_000,            // portfolio: 5s (realtime P&L)
+  "/api/regime/market": parseInt(import.meta.env.VITE_REGIME_TTL_MS || "120000"),      // regime: 120s (regime changes infrequently)
+  "/api/warrants/opportunities": parseInt(import.meta.env.VITE_WARRANTS_TTL_MS || "60000"), // scanner: 60s (reasonable for market scan)
+  "/api/market/underlyings": parseInt(import.meta.env.VITE_MARKET_TTL_MS || "45000"),  // market: 45s (slightly longer for underlying data)
+  "/api/market/macro": parseInt(import.meta.env.VITE_MACRO_TTL_MS || "60000"),        // macro (USD/Gold/Oil): 60s (reasonable for macro data)
+  "/api/portfolio": parseInt(import.meta.env.VITE_PORTFOLIO_TTL_MS || "5000"),            // portfolio: 5s (realtime P&L - needs to be fresh)
+  "/api/credit-health": parseInt(import.meta.env.VITE_CREDIT_TTL_MS || "120000"),      // credit health: 120s (credit metrics change slowly)
+  "/api/news-impact": parseInt(import.meta.env.VITE_NEWS_TTL_MS || "180000"),        // news impact: 180s (news analysis less frequent)
 };
 
 function getTTL(path) {

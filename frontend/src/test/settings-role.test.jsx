@@ -59,7 +59,7 @@ describe("Settings role visibility", () => {
     fireEvent.click(screen.getByText("Check status"));
     expect(await screen.findByText("jwt_secret_key")).toBeInTheDocument();
 
-    fireEvent.pointerDown(document.body);
+    fireEvent.pointerDown(document.documentElement);
     expect(screen.queryByText("jwt_secret_key")).not.toBeInTheDocument();
   });
 });

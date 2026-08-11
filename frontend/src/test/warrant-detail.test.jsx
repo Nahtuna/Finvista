@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { WarrantDetailPage } from "../features/warrant-detail/WarrantDetailPage.jsx";
+import { AuthProvider } from "../auth/AuthProvider.jsx";
+import { DataProvider } from "../app/DataContext.jsx";
 
 
 vi.mock("../api.js", () => ({
@@ -44,18 +46,29 @@ vi.mock("../api.js", () => ({
       }
     ]
   })),
-  refreshMarketScan: vi.fn(async () => ({}))
+  refreshMarketScan: vi.fn(async () => ({})),
+  getPortfolio: vi.fn(async () => null),
+  getMarketRegime: vi.fn(async () => null),
+  getFireantArticles: vi.fn(async () => []),
+  getOpportunities: vi.fn(async () => ({ recommendations: [] })),
+  getUnderlyingMarket: vi.fn(async () => ({ indices: [] })),
+  setAuthTokenProvider: vi.fn(),
+  API_BASE_URL: "http://127.0.0.1:8008"
 }));
 
 
 describe("Warrant detail page", () => {
   it("shows HV in the summary and makes detail tables draggable", async () => {
     const { container } = render(
-      <WarrantDetailPage
-        selectedSymbol="CSHB2607"
-        setSelectedSymbol={vi.fn()}
-        language="en"
-      />
+      <AuthProvider>
+        <DataProvider>
+          <WarrantDetailPage
+            selectedSymbol="CSHB2607"
+            setSelectedSymbol={vi.fn()}
+            language="en"
+          />
+        </DataProvider>
+      </AuthProvider>
     );
 
     expect((await screen.findAllByText("CSHB2607")).length).toBeGreaterThan(0);

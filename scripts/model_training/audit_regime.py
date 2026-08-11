@@ -150,8 +150,9 @@ def run_regime_audit(symbol: str = 'VNINDEX', days: int = 1250, three_state: boo
     print(f"📊 {len(df)} sessions  {df['date'].min():%Y-%m-%d} → {df['date'].max():%Y-%m-%d}")
 
     # ── Features ──────────────────────────────────────────────
-    from src.modules.regime_analysis.portfolio.regime_model import prepare_vnindex_features
+    from backend.modules.regime_analysis.portfolio.regime_model import prepare_vnindex_features, calculate_kama
     df = prepare_vnindex_features(df)
+    df['kama'] = calculate_kama(df['close'], er_period=21, fast=5, slow=100)
     
     df['log_ret'] = df['log_return']
     df['vol20'] = df['rolling_vol']
@@ -164,7 +165,7 @@ def run_regime_audit(symbol: str = 'VNINDEX', days: int = 1250, three_state: boo
     n_states = 3 if three_state else 4
 
     # ── HMM Walk-Forward ──────────────────────────────────────
-    from src.modules.regime_analysis.portfolio.regime_model import fit_vnindex_hmm_walkforward
+    from backend.modules.regime_analysis.portfolio.regime_model import fit_vnindex_hmm_walkforward
     
     WF_TRAIN = 252
     WF_TEST  = 21

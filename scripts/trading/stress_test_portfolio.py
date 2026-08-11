@@ -25,8 +25,8 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.modules.trading_engine.paper_trader import load_portfolio, get_portfolio_value
-from src.modules.cw_pricing.models.pricing_core import calculate_all_greeks, calculate_d1_d2, RISK_FREE_RATE, parse_ratio
+from backend.modules.trading_engine.paper_trader import load_portfolio, get_portfolio_value
+from backend.modules.cw_pricing.models.pricing_core import calculate_all_greeks, calculate_d1_d2, RISK_FREE_RATE, parse_ratio
 from scipy.stats import norm
 
 def run_stress_test(username: str = "demo"):
@@ -40,7 +40,7 @@ def run_stress_test(username: str = "demo"):
         return
         
     # Load live market data to get baseline
-    from src.modules.cw_pricing.backtest.reporter import load_opportunities_from_db
+    from backend.modules.cw_pricing.backtest.reporter import load_opportunities_from_db
     df_market = load_opportunities_from_db(fallback_to_csv=True)
     if df_market.empty:
         print("❌ Could not load market data for baseline.")

@@ -30,3 +30,14 @@ export function getFireantArticles(symbol = null, limit = 50) {
   params.set("limit", String(limit));
   return request(`/api/fireant/articles?${params.toString()}`);
 }
+
+export function getDailyBrief(date = null) {
+  const params = new URLSearchParams();
+  if (date) params.set("date", date);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return request(`/api/news-impact/daily-brief${suffix}`);
+}
+
+export function getSectorBrief() {
+  return request("/api/news-impact/sector-brief");
+}

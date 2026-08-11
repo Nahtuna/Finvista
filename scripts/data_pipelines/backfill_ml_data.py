@@ -24,15 +24,15 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from src.core.database import engine
-from src.modules.cw_pricing.models.pricing_core import (
+from backend.core.database import engine
+from backend.modules.cw_pricing.models.pricing_core import (
     estimate_implied_volatility, 
     calculate_greeks_for_cw, 
     calculate_d1_d2, 
     RISK_FREE_RATE,
     parse_ratio
 )
-from src.modules.regime_analysis.indicators.volatility_models import VolatilityModeler
+from backend.modules.regime_analysis.indicators.volatility_forecasting import VolatilityModeler
 from scipy.stats import norm
 
 warnings.filterwarnings('ignore')

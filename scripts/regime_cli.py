@@ -30,9 +30,9 @@ if sys.platform == 'win32':
             pass
 
 
-from src.core.database import engine
-from src.modules.regime_analysis.indicators.creed_regime import calculate_creed_regime_from_df
-from src.modules.regime_analysis.indicators.hmm_regime import calculate_vnindex_regime
+from backend.core.database import engine
+from backend.modules.regime_analysis.indicators.creed_regime import calculate_creed_regime_from_df
+from backend.modules.regime_analysis.indicators.hmm_regime import calculate_vnindex_regime
 
 
 def fetch_stock_data(symbol: str = "VNINDEX", days: int = 500) -> pd.DataFrame:

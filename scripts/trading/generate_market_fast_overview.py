@@ -10,8 +10,8 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.core.database import SessionLocal, MarketOpportunity, CorporateNews
-from src.infra.ai_client import get_ai_client
+from backend.core.database import SessionLocal, MarketOpportunity, CorporateNews
+from backend.infra.ai_client import get_ai_client
 
 # ============================================================
 # CẤU HÌNH
@@ -44,7 +44,7 @@ def get_market_data() -> List[Dict]:
         db.close()
 
 async def get_ai_master_summary(market_data: List[Dict]) -> str:
-    ai_client = get_ai_client()
+    ai_client = get_ai_client(module_name="market_overview", auto_start_proxy=False)
     
     prompt = f"""BẠN LÀ: GIÁM ĐỐC CHIẾN LƯỢC ĐẦU TƯ (Chief Investment Strategist).
 Nhiệm vụ: Đánh giá tổng quan thị trường chứng quyền dựa trên danh sách Top 15 cơ hội dưới đây.

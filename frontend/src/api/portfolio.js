@@ -89,3 +89,28 @@ export function runLongtermBacktestApi({
   });
   return request(`/api/portfolio/backtest/longterm?${params.toString()}`, { method: "POST" });
 }
+
+// Custom Strategy API functions
+export function saveCustomStrategy(strategy) {
+  return request("/api/portfolio/strategies", {
+    method: "POST",
+    body: JSON.stringify(strategy)
+  });
+}
+
+export function getCustomStrategies() {
+  return request("/api/portfolio/strategies");
+}
+
+export function deleteCustomStrategy(strategyId) {
+  return request(`/api/portfolio/strategies/${strategyId}`, {
+    method: "DELETE"
+  });
+}
+
+export function runCustomBacktest(strategy) {
+  return request("/api/portfolio/backtest/custom", {
+    method: "POST",
+    body: JSON.stringify(strategy)
+  });
+}
