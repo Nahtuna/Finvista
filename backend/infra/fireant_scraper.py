@@ -33,7 +33,7 @@ import json
 import time
 import logging
 import hashlib
-import requests
+import httpx
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -115,7 +115,7 @@ class FireAntScraper:
             raw_token = f"Bearer {raw_token}"
         self.token = raw_token
 
-        self.session = requests.Session()
+        self.session = httpx.Client()
         self.session.headers.update({
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -140,7 +140,7 @@ class FireAntScraper:
         url = f"{FIREANT_BASE_URL}{path}"
         for attempt in range(3):
             try:
-                resp = self.session.get(url, params=params, timeout=15)
+                resp = self.session.get(url, params=params, timeout=15.0)
                 if resp.status_code == 401:
                     logger.error(
                         "❌ [FireAnt] 401 Unauthorized — Token thiếu hoặc hết hạn. "
@@ -154,7 +154,7 @@ class FireAntScraper:
                     continue
                 resp.raise_for_status()
                 return resp.json()
-            except requests.RequestException as e:
+            except httpx.HTTPError as e:
                 logger.warning(f"⚠️ [FireAnt] Attempt {attempt+1}/3 lỗi: {e}")
                 time.sleep(2 ** attempt)
         return None

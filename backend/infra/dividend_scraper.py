@@ -8,7 +8,7 @@ Supports multiple free sources: Vietstock, CaféF, and vnstock.
 Author: samvo
 """
 
-import requests
+import httpx
 from bs4 import BeautifulSoup
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
@@ -17,6 +17,7 @@ import os
 import pandas as pd
 from backend.core.utils import logger
 from backend.core import config
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 def fetch_dividend_schedule_vnstock(symbol: str) -> List[Dict[str, Any]]:
     """
@@ -47,6 +48,11 @@ def fetch_dividend_schedule_vnstock(symbol: str) -> List[Dict[str, Any]]:
         logger.warning(f"⚠️ Could not fetch dividends via vnstock for {symbol}: {e}")
         return []
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=False
+)
 def fetch_dividend_schedule_vietstock(symbol: str) -> List[Dict[str, Any]]:
     """
     Scrapes dividend schedule from Vietstock website.
@@ -69,7 +75,7 @@ def fetch_dividend_schedule_vietstock(symbol: str) -> List[Dict[str, Any]]:
             "Accept-Language": "vi-VN,vi;q=0.8,en-US;q=0.5,en;q=0.3",
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
+        response = httpx.get(url, headers=headers, timeout=10.0)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -110,6 +116,11 @@ def fetch_dividend_schedule_vietstock(symbol: str) -> List[Dict[str, Any]]:
     
     return []
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=False
+)
 def fetch_dividend_schedule_cafef(symbol: str) -> List[Dict[str, Any]]:
     """
     Scrapes dividend schedule from CaféF website.
@@ -131,7 +142,7 @@ def fetch_dividend_schedule_cafef(symbol: str) -> List[Dict[str, Any]]:
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
+        response = httpx.get(url, headers=headers, timeout=10.0)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
@@ -181,7 +192,7 @@ def get_dividend_schedule(symbol: str, prefer_source: str = "vnstock") -> List[D
     
     return []
 
-def parse_dividend_for_pricing(symbol: str, current_date: datetime = None) -> List[tuple]:
+def parse_dividend_for_pricing(symbol: str, current_date: Optional[datetime] = None) -> List[tuple]:
     """
     Parses dividend schedule into format required by pricing models.
     

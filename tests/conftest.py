@@ -28,6 +28,10 @@ def setup_test_database():
             except Exception:
                 pass
                 
+    # Re-initialize the test database schema
+    from backend.core.database import init_db
+    init_db()
+                
     yield
     
     # Cleanup test database files
@@ -38,3 +42,4 @@ def setup_test_database():
                 os.remove(path)
             except Exception:
                 pass
+

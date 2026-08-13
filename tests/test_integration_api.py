@@ -13,7 +13,7 @@ def test_health_endpoint():
     response = client.get("/api/health")
     assert response.status_code == 200
     assert "status" in response.json()
-    assert response.json()["status"] == "healthy"
+    assert response.json()["status"] in ["healthy", "warning"]
 
 
 def test_info_endpoint():

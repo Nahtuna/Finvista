@@ -119,8 +119,33 @@ def get_logger(name: str = "financial_distress") -> logging.Logger:
     
     return logger
 
+def unify_all_loggers():
+    """Redirects external loggers (uvicorn, vnstock) to root and applies the CustomFormatter."""
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # Check if root logger already has our console handler
+    has_handler = any(isinstance(h, SafeStreamHandler) for h in root_logger.handlers)
+    if not has_handler:
+        try:
+            ch = SafeStreamHandler()
+            if hasattr(ch.stream, 'reconfigure'):
+                ch.stream.reconfigure(encoding='utf-8', errors='replace')
+            ch.setFormatter(CustomFormatter())
+            root_logger.addHandler(ch)
+        except Exception:
+            ch = SafeStreamHandler()
+            ch.setFormatter(CustomFormatter())
+            root_logger.addHandler(ch)
+            
+    # Redirect target loggers to root and clear their handlers
+    for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error", "vnstock", "fastapi"]:
+        l = logging.getLogger(logger_name)
+        l.propagate = True
+        l.handlers = []
 
 logger = get_logger()
+unify_all_loggers()
 
 
 def _ensure_dir(file_path: str):

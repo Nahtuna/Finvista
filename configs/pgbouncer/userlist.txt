@@ -1,0 +1,4 @@
+; Format: "username" "md5password"
+; Generate MD5 hash: md5("password" + "username")
+"postgres" "md53175ee4ba68e215eb1f81cf003c2cfd7"
+"demo" "md58e46bc16d7a46288863f6a27e7ff744c"

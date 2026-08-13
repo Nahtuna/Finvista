@@ -8,7 +8,7 @@ Provides ON (Overnight), 1W, 1M, 3M, 6M, 12M rates for dynamic risk-free rate ca
 Author: samvo
 """
 
-import requests
+import httpx
 from bs4 import BeautifulSoup
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -16,7 +16,13 @@ import json
 import os
 from backend.core.utils import logger
 from backend.core import config
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True
+)
 def fetch_svb_interbank_rates() -> Dict[str, Any]:
     """
     Fetches daily interbank interest rates from SBV website.
@@ -37,7 +43,7 @@ def fetch_svb_interbank_rates() -> Dict[str, Any]:
             "Accept-Language": "vi-VN,vi;q=0.8,en-US;q=0.5,en;q=0.3",
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
+        response = httpx.get(url, headers=headers, timeout=10.0)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')

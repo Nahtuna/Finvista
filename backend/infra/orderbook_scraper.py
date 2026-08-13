@@ -8,10 +8,16 @@ Provides fallback mechanisms to ensure high availability.
 Author: samvo
 """
 
-import requests
+import httpx
 import json
 from typing import Dict, Any, List, Optional
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=5),
+    reraise=False
+)
 def get_order_book_ssi(symbol: str) -> Optional[Dict[str, Any]]:
     """Try fetching from SSI GraphQL gateway."""
     url = "https://iboard.ssi.com.vn/gateway/graphql"
@@ -48,7 +54,7 @@ def get_order_book_ssi(symbol: str) -> Optional[Dict[str, Any]]:
         "Referer": "https://iboard.ssi.com.vn/"
     }
     try:
-        r = requests.post(url, json={"query": query, "variables": {"symbols": [symbol]}}, headers=headers, timeout=5)
+        r = httpx.post(url, json={"query": query, "variables": {"symbols": [symbol]}}, headers=headers, timeout=5.0)
         if r.status_code == 200:
             data = r.json().get("data", {}).get("stockDetails", [])
             if data:
@@ -63,11 +69,16 @@ def get_order_book_ssi(symbol: str) -> Optional[Dict[str, Any]]:
     except: pass
     return None
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=5),
+    reraise=False
+)
 def get_order_book_vps(symbol: str) -> Optional[Dict[str, Any]]:
     """Try fetching from VPS API with Top 10 depth."""
     url = f"https://bgapidatafeed.vps.com.vn/getstocksnapshot/{symbol}"
     try:
-        r = requests.get(url, timeout=5)
+        r = httpx.get(url, timeout=5.0)
         if r.status_code == 200:
             d = r.json()
             res = {"symbol": symbol, "bids": [], "asks": []}

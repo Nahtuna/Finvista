@@ -234,7 +234,14 @@ async def on_startup():
     import asyncio as _asyncio
     import os as _os
     
-    # === 0. Validate required environment variables ===
+    # === 0. Unify all logger outputs ===
+    try:
+        from backend.core.utils import unify_all_loggers
+        unify_all_loggers()
+    except Exception as e:
+        print(f"⚠️ [Startup] Failed to unify loggers: {e}")
+        
+    # === 0.1. Validate required environment variables ===
     try:
         validate_environment_variables()
     except ValueError as e:

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime, ForeignKey, 
-    Boolean, and_, desc, Text
+    Boolean, Text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -34,15 +34,25 @@ else:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Fetch replica database URL from environment
+DATABASE_REPLICA_URL = os.getenv("DATABASE_REPLICA_URL")
+if DATABASE_REPLICA_URL and DATABASE_REPLICA_URL.startswith("postgres://"):
+    DATABASE_REPLICA_URL = DATABASE_REPLICA_URL.replace("postgres://", "postgresql://", 1)
+
 from sqlalchemy.pool import NullPool
 
-# Setup Engine and Session
+# Setup Master and Replica Engines
+master_engine = None
+replica_engine = None
+
 if "sqlite" in DATABASE_URL:
-    engine = create_engine(
+    master_engine = create_engine(
         DATABASE_URL, 
         connect_args={"check_same_thread": False, "timeout": 30},  # Safe for multi-threaded FastAPI
         poolclass=NullPool
     )
+    # Default engine reference
+    engine = master_engine
 else:
     # PostgreSQL connection pooling configuration for production
     pool_size = int(os.getenv("DB_POOL_SIZE", "10"))
@@ -50,7 +60,7 @@ else:
     pool_pre_ping = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
     pool_recycle = int(os.getenv("DB_POOL_RECYCLE", "3600"))  # Recycle connections after 1 hour
     
-    engine = create_engine(
+    master_engine = create_engine(
         DATABASE_URL,
         pool_size=pool_size,
         max_overflow=max_overflow,
@@ -58,6 +68,19 @@ else:
         pool_recycle=pool_recycle,
         echo=False  # Set to True for SQL query logging in development
     )
+    
+    if DATABASE_REPLICA_URL:
+        replica_engine = create_engine(
+            DATABASE_REPLICA_URL,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_pre_ping=pool_pre_ping,
+            pool_recycle=pool_recycle,
+            echo=False
+        )
+    
+    # Default engine reference
+    engine = master_engine
 
 # Enable SQLite WAL (Write-Ahead Logging) mode to allow concurrent reads and writes
 from sqlalchemy import event
@@ -69,7 +92,30 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.execute("PRAGMA synchronous=NORMAL;")
         cursor.close()
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from sqlalchemy.orm import Session
+class RoutingSession(Session):
+    """Custom Routing Session to support master-replica database architectures (Read/Write splitting)."""
+    def get_bind(self, mapper=None, *, clause=None, bind=None, _sa_skip_events=None, _sa_skip_for_implicit_returning=False, **kw):
+        # Ensure master_engine is not None to satisfy type checks
+        assert master_engine is not None
+        
+        if replica_engine is None:
+            return master_engine
+            
+        # Write operations go to master
+        if self._flushing:
+            return master_engine
+            
+        # Detect write statements (INSERT, UPDATE, DELETE)
+        if clause is not None:
+            from sqlalchemy.sql.expression import Select
+            if not isinstance(clause, Select):
+                return master_engine
+                
+        # Read queries go to replica
+        return replica_engine
+
+SessionLocal = sessionmaker(class_=RoutingSession, autocommit=False, autoflush=False)
 Base = declarative_base()
 
 # ==========================================

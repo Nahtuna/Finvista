@@ -224,8 +224,8 @@ class ScraperEngine:
             path = "index" if is_index else "stock"
             url = f"https://services.entrade.com.vn/chart-api/v2/ohlcs/{path}?resolution=1D&symbol={ticker}&from={from_time}&to={to_time}"
             
-            import requests
-            res = requests.get(url, timeout=10)
+            import httpx
+            res = httpx.get(url, timeout=10.0)
             if res.status_code == 200:
                 data = res.json()
                 if data.get("s") == "ok" and data.get("t"):
